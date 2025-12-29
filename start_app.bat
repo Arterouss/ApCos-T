@@ -1,0 +1,6 @@
+@echo off
+echo Starting Proxy Server...
+start "Proxy Server" cmd /k "node proxy-server.js"
+echo Starting Frontend...
+start "Frontend App" cmd /k "npm run dev"
+echo Done! Please check the opened windows.

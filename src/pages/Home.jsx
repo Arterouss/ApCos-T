@@ -11,6 +11,7 @@ const FILTERS = [
   "Gumroad",
   "Fantia",
   "Subscribestar",
+  "Onlyfans",
 ];
 
 const Home = () => {

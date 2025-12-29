@@ -70,41 +70,67 @@ const CreatorPosts = () => {
                 key={post.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-glass backdrop-blur-md border border-glassBorder rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 group"
+                className="bg-glass backdrop-blur-md border border-glassBorder rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 group flex flex-col"
               >
-                <div className="aspect-video bg-gray-800 relative overflow-hidden">
+                <div className="bg-gray-900 relative">
                   {post.file && post.file.path ? (
                     <img
                       src={`https://kemono.cr${post.file.path}`}
                       alt={post.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-auto object-contain max-h-[600px] mx-auto"
+                      loading="lazy"
                       onError={(e) => (e.target.style.display = "none")}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-600">
+                    <div className="w-full h-48 flex items-center justify-center text-gray-600 bg-gray-800">
                       No Image
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                </div>
+
+                <div className="p-4 flex-grow flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-lg text-white mb-2 line-clamp-2">
+                      {post.title || "Untitled Post"}
+                    </h3>
+
+                    {/* Tags Section */}
+                    {post.tags && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {(Array.isArray(post.tags)
+                          ? post.tags
+                          : post.tags.split(/[ ,]+/).filter((t) => t)
+                        ).map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-purple-500/20 text-purple-300 text-xs px-2 py-1 rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-glassBorder">
+                    <div className="flex justify-between items-center text-sm text-gray-400 mb-2">
+                      <span>
+                        {new Date(post.published).toLocaleDateString()}
+                      </span>
+                      <span className="bg-white/10 px-2 py-0.5 rounded text-xs">
+                        {post.file ? "File" : "Text"}
+                      </span>
+                    </div>
+
                     <a
-                      href={`https://kemono.cr/${service}/user/${id}/post/${post.id}`}
+                      href={`https://kemono.su/${service}/user/${id}/post/${post.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-white flex items-center gap-2 hover:underline"
+                      className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium"
                     >
-                      View Original <ExternalLink size={14} />
+                      <ExternalLink size={16} />
+                      View Original Post
                     </a>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-lg text-white mb-2 line-clamp-2">
-                    {post.title || "Untitled Post"}
-                  </h3>
-                  <div className="text-xs text-gray-400 flex justify-between">
-                    <span>{new Date(post.published).toLocaleDateString()}</span>
-                    <span className="bg-white/10 px-2 py-0.5 rounded">
-                      {post.file ? "File" : "Text"}
-                    </span>
                   </div>
                 </div>
               </motion.div>
