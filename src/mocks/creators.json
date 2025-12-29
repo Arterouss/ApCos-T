@@ -1,0 +1,74 @@
+[
+  {
+    "id": "123456",
+    "name": "Kemoner 01",
+    "service": "patreon",
+    "updated": 1709251200
+  },
+  {
+    "id": "789012",
+    "name": "Artist Extraordinaire",
+    "service": "fanbox",
+    "updated": 1709164800
+  },
+  {
+    "id": "345678",
+    "name": "Digital Dreams",
+    "service": "gumroad",
+    "updated": 1709078400
+  },
+  {
+    "id": "901234",
+    "name": "Cosplay Queen",
+    "service": "fantia",
+    "updated": 1708992000
+  },
+  {
+    "id": "567890",
+    "name": "Indie Game Dev",
+    "service": "subscribestar",
+    "updated": 1708905600
+  },
+  {
+    "id": "112233",
+    "name": "Voice Actor Pro",
+    "service": "dlsite",
+    "updated": 1708819200
+  },
+  {
+    "id": "445566",
+    "name": "ASMR Artist",
+    "service": "discord",
+    "updated": 1708732800
+  },
+  {
+    "id": "778899",
+    "name": "3D Modeler",
+    "service": "patreon",
+    "updated": 1708646400
+  },
+  {
+    "id": "223344",
+    "name": "Concept Art Master",
+    "service": "fanbox",
+    "updated": 1708560000
+  },
+  {
+    "id": "556677",
+    "name": "Manga Creator",
+    "service": "fantia",
+    "updated": 1708473600
+  },
+  {
+    "id": "889900",
+    "name": "Animation Studio",
+    "service": "gumroad",
+    "updated": 1708387200
+  },
+  {
+    "id": "990011",
+    "name": "Music Producer",
+    "service": "patreon",
+    "updated": 1708300800
+  }
+]
