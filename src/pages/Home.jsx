@@ -24,7 +24,7 @@ const Home = () => {
     const fetchCreators = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:3001/api/creators");
+        const response = await fetch("/api/creators");
         if (!response.ok) throw new Error("Failed to fetch from proxy");
 
         const data = await response.json();

@@ -13,9 +13,7 @@ const CreatorPosts = () => {
     const fetchPosts = async () => {
       try {
         // Fetch posts from our proxy
-        const response = await fetch(
-          `http://localhost:3001/api/posts/${service}/${id}`
-        );
+        const response = await fetch(`/api/posts/${service}/${id}`);
         if (!response.ok) throw new Error("Failed to fetch posts");
         const data = await response.json();
         setPosts(data);
