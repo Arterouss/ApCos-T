@@ -81,6 +81,16 @@ const HANIME_HEADERS = {
   Referer: "https://hanime.tv/",
   Origin: "https://hanime.tv",
   "X-Directive": "api",
+  "Sec-Ch-Ua":
+    '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": '"Windows"',
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin",
+  "X-Forwarded-For": Array.from({ length: 4 }, () =>
+    Math.floor(Math.random() * 255)
+  ).join("."), // Random IP Spoofing
 };
 
 // Trending / Landing
