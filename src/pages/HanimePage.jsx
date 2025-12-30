@@ -84,6 +84,7 @@ export default function HanimePage({ onOpenSidebar }) {
                   <img
                     src={item.cover_url}
                     alt={item.name}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">

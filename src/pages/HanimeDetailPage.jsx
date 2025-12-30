@@ -64,6 +64,11 @@ export default function HanimeDetailPage() {
           poster={video.poster_url}
           className="w-full h-full"
         />
+        {(!video.sources || video.sources.length === 0) && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-red-500 font-bold">
+            Stream Unavailable (Likely Blocked by Source)
+          </div>
+        )}
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
