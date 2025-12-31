@@ -5,7 +5,7 @@ import { X, Users, Tv, Image } from "lucide-react";
 
 const menuItems = [
   { name: "Creators", path: "/", icon: <Users size={20} /> },
-  { name: "HAnime", path: "/hanime", icon: <Tv size={20} /> },
+  { name: "NimexH", path: "/hanime", icon: <Tv size={20} /> },
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
 ];
 

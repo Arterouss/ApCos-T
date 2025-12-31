@@ -1,36 +1,40 @@
-const API_BASE = "http://localhost:3001/api/hnime";
-
-export const getHimeTrending = async () => {
-  try {
-    const response = await fetch(`${API_BASE}/trending`);
-    if (!response.ok) throw new Error("Failed to fetch HAnime trending");
-    return await response.json();
-  } catch (error) {
-    console.error("HAnime Trending Error:", error);
-    return [];
-  }
+const API_BASE = "/api/hnime";
+// NimexH (Powered by Nekopoi Scraper)
+export const getHimeTrending = async (page = 1) => {
+  // Browse latest uploads via empty search query
+  return getHimeSearch("", page);
 };
 
 export const getHimeVideo = async (slug) => {
-  try {
-    const response = await fetch(`${API_BASE}/video/${slug}`);
-    if (!response.ok) throw new Error("Failed to fetch HAnime video");
-    return await response.json();
-  } catch (error) {
-    console.error("HAnime Video Error:", error);
-    throw error;
-  }
+  // Slug might be a path like "hentai/foo" or "2024/01/foo"
+  // We append it to the path. If it contains slashes, the wildcard route will verify it.
+  // However, safely encoding component is better if we treat it as a single param.
+  // But our backend uses wildcard `*` which usually matches raw URL segments.
+  // Let's pass it raw if it's a path, or encoded if we want safety.
+  // Given express `*` behavior: /api/hnime/video/foo/bar -> slug="foo/bar"
+
+  // Ensure no leading slash in slug to avoid double slash
+  const cleanSlug = slug.startsWith("/") ? slug.substring(1) : slug;
+
+  const response = await fetch(`${API_BASE}/video/${cleanSlug}`);
+  if (!response.ok) throw new Error("Failed to fetch video");
+  return await response.json();
 };
 
-export const getHimeSearch = async (query, page = 0) => {
-  try {
-    const response = await fetch(
-      `${API_BASE}/search/${encodeURIComponent(query)}?page=${page}`
-    );
-    if (!response.ok) throw new Error("Failed to search HAnime");
-    return await response.json();
-  } catch (error) {
-    console.error("HAnime Search Error:", error);
-    return [];
+export const getHimeSearch = async (query, page = 1) => {
+  // query is mapped to 'q' in backend, which maps to 'tags' or 'text'
+  const response = await fetch(
+    `${API_BASE}/search?q=${encodeURIComponent(query || "")}&page=${page}`
+  );
+  if (!response.ok) throw new Error("Failed to fetch search results");
+  const result = await response.json();
+  // Backend returns hits as stringified JSON (Algolia style)
+  if (result.hits && typeof result.hits === "string") {
+    try {
+      result.hits = JSON.parse(result.hits);
+    } catch (e) {
+      result.hits = [];
+    }
   }
+  return result;
 };

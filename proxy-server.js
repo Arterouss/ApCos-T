@@ -72,133 +72,197 @@ app.get("/api/posts/:service/:id", async (req, res) => {
   }
 });
 
-// --- HAnime Integration (Manual Fetch) ---
-const HANIME_BASE = "https://hanime.tv/api/v8";
-const HANIME_UA =
+// --- NEKOPOI SCRAPER Integration ---
+const NEKOPOI_BASE_URL = "https://nekopoi.care";
+const NEKOPOI_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const HANIME_HEADERS = {
-  "User-Agent": HANIME_UA,
-  Referer: "https://hanime.tv/",
-  Origin: "https://hanime.tv",
-  "X-Directive": "api",
-  "Sec-Ch-Ua":
-    '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-  "Sec-Ch-Ua-Mobile": "?0",
-  "Sec-Ch-Ua-Platform": '"Windows"',
-  "Sec-Fetch-Dest": "empty",
-  "Sec-Fetch-Mode": "cors",
-  "Sec-Fetch-Site": "same-origin",
-  "X-Forwarded-For": Array.from({ length: 4 }, () =>
-    Math.floor(Math.random() * 255)
-  ).join("."), // Random IP Spoofing
-};
 
-// Trending / Landing
-app.get("/api/hnime/trending", async (req, res) => {
-  try {
-    console.log("Fetching HAnime Trending...");
-    const response = await fetch(`${HANIME_BASE}/landing`, {
-      headers: HANIME_HEADERS,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Hanime Landing failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    let videos = [];
-    if (data.hentai_videos) {
-      videos = data.hentai_videos;
-    } else if (data.sections) {
-      // Find trending section
-      const trendingSection = data.sections.find(
-        (s) => s.title === "Trending" || s.title === "Popular"
-      );
-      if (trendingSection && trendingSection.hentai_videos) {
-        videos = trendingSection.hentai_videos;
-      } else {
-        videos = data.sections[0]?.hentai_videos || [];
-      }
-    }
-
-    const results = videos.map((v) => ({
-      id: v.slug,
-      slug: v.slug,
-      name: v.name,
-      cover_url: v.cover_url,
-      poster_url: v.poster_url,
-      views: v.views,
-      rating: v.rating,
-      released: v.released_at_unix
-        ? new Date(v.released_at_unix * 1000).toISOString().split("T")[0]
-        : "Unknown",
-    }));
-
-    res.json(results);
-  } catch (err) {
-    console.error("HAnime Trending Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
+// Helper headers
+const getNekoHeaders = () => ({
+  "User-Agent": NEKOPOI_UA,
+  Referer: NEKOPOI_BASE_URL,
 });
 
-// Video Details
-app.get("/api/hnime/video/:slug", async (req, res) => {
-  const { slug } = req.params;
+// Search & Latest Endpoint (Scraper)
+app.get("/api/hnime/search", async (req, res) => {
   try {
-    console.log(`Fetching HAnime Video: ${slug}`);
-    const response = await fetch(`${HANIME_BASE}/video?id=${slug}`, {
-      headers: HANIME_HEADERS,
-    });
+    let { q, page } = req.query;
+    page = parseInt(page) || 1;
 
-    if (!response.ok) {
-      throw new Error(`Hanime Video failed: ${response.status}`);
+    let url;
+    if (q) {
+      // Format from dump: https://nekopoi.care/search/hentai/page/2/
+      // Note: Nekopoi search structure is /search/{query}/page/{num}/
+      url = `${NEKOPOI_BASE_URL}/search/${encodeURIComponent(q)}/page/${page}/`;
+    } else {
+      // Format: https://nekopoi.care/page/2/
+      url =
+        page > 1 ? `${NEKOPOI_BASE_URL}/page/${page}/` : `${NEKOPOI_BASE_URL}/`;
     }
 
-    const data = await response.json();
-    const video = data.hentai_video;
-    const manifest = data.videos_manifest;
+    console.log(`[Proxy] Request: q='${q || ""}', page=${page}`);
+    console.log(`[Proxy] Fetching: ${url}`);
 
-    if (!video) throw new Error("Video not found in response");
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": NEKOPOI_UA,
+        Referer: NEKOPOI_BASE_URL,
+      },
+    });
 
-    let sources = [];
-    if (manifest && manifest.servers) {
-      manifest.servers.forEach((server) => {
-        server.streams.forEach((stream) => {
-          if (stream.url) {
-            sources.push({
-              label: `${server.name} - ${stream.height}p`,
-              url: stream.url,
-              type: "hls",
-            });
-          }
-        });
+    console.log(`[Proxy] Response Status: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`Nekopoi responded with ${response.status}`);
+    }
+
+    const html = await response.text();
+    // const activeHtml = html; // Removed redundant variable, use html directly if preferred, or keep activeHtml
+
+    // Pattern:
+    // 1. <div class=eropost> OR <div class=top> (Search results use 'top')
+    // 2. img src (capture URL)
+    // 3. a href (capture URL) ... >Title<
+
+    const postRegex =
+      /<div class=(?:eropost|top)>[\s\S]*?<img[^>]+src=['"]?([^ >"']+)['"]?[\s\S]*?<h2><a[^>]+href=['"]?([^ >"']+)['"]?[^>]*>(.*?)<\/a>/gi;
+
+    const hits = [];
+    let match;
+    while ((match = postRegex.exec(html)) !== null) {
+      const [_, img, url, rawTitle] = match;
+
+      let title = rawTitle.replace(/<[^>]+>/g, "").trim();
+      title = title.replace("&#8211;", "-");
+
+      let slug = url.replace(NEKOPOI_BASE_URL, "");
+      if (slug.startsWith("/")) slug = slug.substring(1);
+      if (slug.endsWith("/")) slug = slug.slice(0, -1);
+
+      // Fix image URL if relative
+      let thumb = img;
+      if (thumb.startsWith("//")) thumb = "https:" + thumb;
+
+      hits.push({
+        id: slug,
+        slug: slug,
+        name: title,
+        cover_url: thumb,
+        poster_url: thumb,
+        views: 0,
+        tags: ["Nekopoi"],
       });
     }
 
+    console.log(`[Proxy] Parsed ${hits.length} hits.`);
+
+    // Return Algolia-style response
+    res.json({
+      hits: JSON.stringify(hits),
+      page: parseInt(page) || 0,
+      nbPages: 50,
+      hitsPerPage: hits.length,
+    });
+  } catch (err) {
+    console.error(`[Proxy] Search Error:`, err);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch data", details: err.message });
+  }
+});
+
+// Video Details Endpoint (Scraper)
+// Using RegExp to bypass Express 5 string routing strictness
+app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
+  // Capture the full slug (wildcard)
+  const slug = req.params[0];
+
+  try {
+    let targetUrl = `${NEKOPOI_BASE_URL}/${slug}`;
+    console.log(`[Nekopoi] Scraping Video: ${targetUrl}`);
+
+    let response = await fetch(targetUrl, { headers: getNekoHeaders() });
+
+    // Fallback: Try trailing slash if 404 (Nekopoi often requires it)
+    if (response.status === 404 && !slug.endsWith("/")) {
+      console.warn(`[Nekopoi] 404 detected. Retrying with trailing slash...`);
+      targetUrl = `${NEKOPOI_BASE_URL}/${slug}/`;
+      response = await fetch(targetUrl, { headers: getNekoHeaders() });
+    }
+
+    if (!response.ok) throw new Error(`Video Fetch Failed: ${response.status}`);
+
+    const html = await response.text();
+
+    // 1. Extract Title
+    const titleMatch = /<title>([^<]+)<\/title>/i.exec(html);
+    const title = titleMatch
+      ? titleMatch[1].replace("– NekoPoi", "").replace("Nekopoi", "").trim()
+      : slug;
+
+    // 2. Extract Iframe / Stream
+    let iframeUrl = "";
+    const sources = [];
+
+    // Robust Iframe Regex (handles quotes or no quotes)
+    const iframeRegex = /<iframe[^>]+src=['"]?([^ >"']+)['"]?/gi;
+    let match;
+    let streamCount = 0;
+
+    while ((match = iframeRegex.exec(html)) !== null) {
+      const src = match[1];
+      // Filter out unrelated iframes
+      if (
+        src.includes("youtube") ||
+        src.includes("chat") ||
+        src.includes("google")
+      )
+        continue;
+
+      streamCount++;
+      // Check if source name/label can be inferred (skipped for now, using numbered list)
+      sources.push({
+        url: src,
+        name:
+          `Server ${streamCount}` + (src.includes("ouo") ? " (Download)" : ""),
+      });
+
+      if (!iframeUrl) iframeUrl = src; // Take first valid candidate as default
+    }
+
+    // 3. Extract Description
+    // ... (Keep existing or rely on previous code)
+
     const result = {
-      id: video.slug,
-      slug: video.slug,
-      name: video.name,
-      description: video.description,
-      views: video.views,
-      interests: video.interests,
-      poster_url: video.poster_url,
-      cover_url: video.cover_url,
-      tags: video.tags ? video.tags.map((t) => t.text) : [],
-      created_at: video.created_at,
-      released_at: video.released_at,
+      id: slug,
+      slug: slug,
+      name: title,
+      description: "Scraped from Nekopoi",
+      views: 0,
+      poster_url: "",
+      cover_url: "",
+      tags: ["Nekopoi", "Anime", "Hentai"],
+      iframe_url: iframeUrl || "",
       sources: sources,
     };
 
+    if (!iframeUrl) {
+      console.warn(
+        "[Nekopoi] No iframe found. Content might be protected or layout changed."
+      );
+    }
+
     res.json(result);
   } catch (err) {
-    console.error("HAnime Video Error:", err.message);
+    console.error("Nekopoi Video Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Generic Proxy for Streams (m3u8/ts) & Images/Videos
+const HANIME_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 app.get("/api/proxy", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send("URL required");
