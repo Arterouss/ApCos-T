@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch"; // Ensure node-fetch is used (even if global in newer node)
+import { Buffer } from "node:buffer";
 
 const app = express();
 const PORT = 3001;
@@ -72,139 +73,208 @@ app.get("/api/posts/:service/:id", async (req, res) => {
   }
 });
 
-// --- HAnime Integration (Manual Fetch) ---
-const HANIME_BASE = "https://hanime.tv/api/v8";
-const HANIME_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const HANIME_HEADERS = {
-  "User-Agent": HANIME_UA,
-  Referer: "https://hanime.tv/",
-  Origin: "https://hanime.tv",
-  "X-Directive": "api",
-  "Sec-Ch-Ua":
-    '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-  "Sec-Ch-Ua-Mobile": "?0",
-  "Sec-Ch-Ua-Platform": '"Windows"',
-  "Sec-Fetch-Dest": "empty",
-  "Sec-Fetch-Mode": "cors",
-  "Sec-Fetch-Site": "same-origin",
-  "X-Forwarded-For": Array.from({ length: 4 }, () =>
-    Math.floor(Math.random() * 255)
-  ).join("."), // Random IP Spoofing
-};
+// --- HAnime Integration (Puppeteer for Hanime1.me) ---
+import puppeteer from "puppeteer";
 
-// Trending / Landing
+const HANIME1_BASE = "https://hanime1.me";
+
+// Simple in-memory cache to respect rate limits & speed up
+const cache = new Map();
+const CACHE_TTL = 3600 * 1000; // 1 hour
+
 app.get("/api/hnime/trending", async (req, res) => {
+  const cacheKey = "trending";
+  const cached = cache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log("Serving trending from cache");
+    return res.json(cached.data);
+  }
+
+  let browser;
   try {
-    console.log("Fetching HAnime Trending...");
-    const response = await fetch(`${HANIME_BASE}/landing`, {
-      headers: HANIME_HEADERS,
+    console.log("Launching Puppeteer for Trending...");
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+
+    // Set a realistic user agent
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
+
+    console.log("Navigating to hanime1.me...");
+    await page.goto(HANIME1_BASE, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
 
-    if (!response.ok) {
-      throw new Error(`Hanime Landing failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    let videos = [];
-    if (data.hentai_videos) {
-      videos = data.hentai_videos;
-    } else if (data.sections) {
-      // Find trending section
-      const trendingSection = data.sections.find(
-        (s) => s.title === "Trending" || s.title === "Popular"
+    // Scrape trending/latest videos
+    const videos = await page.evaluate(() => {
+      // Logic specific to hanime1.me DOM structure
+      // Adjust selectors based on actual site structure.
+      // Assuming a grid of videos.
+      const items = Array.from(
+        document.querySelectorAll(".content-padding-new .hvr-grow")
       );
-      if (trendingSection && trendingSection.hentai_videos) {
-        videos = trendingSection.hentai_videos;
-      } else {
-        videos = data.sections[0]?.hentai_videos || [];
-      }
-    }
+      return items
+        .map((item) => {
+          const link = item.parentElement.getAttribute("href") || "";
+          const img = item.querySelector("img");
+          const titleDiv = item.querySelector(".card-mobile-title");
 
-    const results = videos.map((v) => ({
-      id: v.slug,
-      slug: v.slug,
-      name: v.name,
-      cover_url: v.cover_url,
-      poster_url: v.poster_url,
-      views: v.views,
-      rating: v.rating,
-      released: v.released_at_unix
-        ? new Date(v.released_at_unix * 1000).toISOString().split("T")[0]
-        : "Unknown",
-    }));
+          // Extract basic info
+          // href is usually /watch?v=12345
+          const slug = link.split("v=")[1];
 
-    res.json(results);
+          return {
+            id: slug,
+            slug: slug, // passing ID as slug for compatibility
+            name: titleDiv ? titleDiv.textContent.trim() : "Unknown",
+            cover_url: img ? img.src : "",
+            poster_url: img ? img.src : "",
+            views: 0, // Not easily Scrapeable on grid without hover
+            rating: 0,
+          };
+        })
+        .filter((v) => v.id); // Filter empty
+    });
+
+    console.log(`Scraped ${videos.length} videos.`);
+
+    cache.set(cacheKey, { timestamp: Date.now(), data: videos });
+    res.json(videos);
   } catch (err) {
-    console.error("HAnime Trending Error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("Puppeteer Trending Error:", err.message);
+    res.status(500).json({ error: "Failed to fetch trending: " + err.message });
+  } finally {
+    if (browser) await browser.close();
   }
 });
 
-// Video Details
 app.get("/api/hnime/video/:slug", async (req, res) => {
-  const { slug } = req.params;
+  const { slug } = req.params; // This is actually the 'v' parameter ID
+  const cacheKey = `video_${slug}`;
+  const cached = cache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`Serving video ${slug} from cache`);
+    return res.json(cached.data);
+  }
+
+  let browser;
   try {
-    console.log(`Fetching HAnime Video: ${slug}`);
-    const response = await fetch(`${HANIME_BASE}/video?id=${slug}`, {
-      headers: HANIME_HEADERS,
+    console.log(`Launching Puppeteer for Video ${slug}...`);
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
+
+    const targetUrl = `${HANIME1_BASE}/watch?v=${slug}`;
+    console.log(`Navigating to ${targetUrl}...`);
+    await page.goto(targetUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
 
-    if (!response.ok) {
-      throw new Error(`Hanime Video failed: ${response.status}`);
-    }
+    // Extract video details
+    const videoData = await page.evaluate(() => {
+      const titleEl = document.querySelector("h3.mr-auto"); // Title usually here
+      // Video source extraction
+      const videoEl = document.querySelector("video#player");
+      let src = "";
 
-    const data = await response.json();
-    const video = data.hentai_video;
-    const manifest = data.videos_manifest;
+      if (videoEl) {
+        src = videoEl.src;
+        // Sometimes src is in a <source> child
+        if (!src && videoEl.querySelector("source")) {
+          src = videoEl.querySelector("source").src;
+        }
+      }
 
-    if (!video) throw new Error("Video not found in response");
+      // Description
+      // Metadata usually in a text block below
+      const tags = Array.from(
+        document.querySelectorAll(".btn.btn-danger.btn-xs.mb-1")
+      ).map((t) => t.textContent.trim());
 
-    let sources = [];
-    if (manifest && manifest.servers) {
-      manifest.servers.forEach((server) => {
-        server.streams.forEach((stream) => {
-          if (stream.url) {
-            sources.push({
-              label: `${server.name} - ${stream.height}p`,
-              url: stream.url,
-              type: "hls",
-            });
-          }
-        });
-      });
+      return {
+        name: titleEl ? titleEl.textContent.trim() : "Unknown",
+        description: "Scraped from Hanime1.me",
+        poster_url: videoEl ? videoEl.getAttribute("poster") : "",
+        cover_url: videoEl ? videoEl.getAttribute("poster") : "",
+        tags: tags,
+        views: 0,
+        released_at: new Date().toISOString(),
+        // Important: Sources
+        sources: src
+          ? [
+              {
+                label: "720p/1080p",
+                url: src,
+                type: src.includes(".m3u8") ? "hls" : "mp4", // Auto detect
+              },
+            ]
+          : [],
+      };
+    });
+
+    if (!videoData.sources.length) {
+      throw new Error(
+        "No video source found. Page might be restricted or layout changed."
+      );
     }
 
     const result = {
-      id: video.slug,
-      slug: video.slug,
-      name: video.name,
-      description: video.description,
-      views: video.views,
-      interests: video.interests,
-      poster_url: video.poster_url,
-      cover_url: video.cover_url,
-      tags: video.tags ? video.tags.map((t) => t.text) : [],
-      created_at: video.created_at,
-      released_at: video.released_at,
-      sources: sources,
+      id: slug,
+      slug: slug,
+      ...videoData,
     };
 
+    console.log(`Scraped video: ${result.name}`);
+    cache.set(cacheKey, { timestamp: Date.now(), data: result });
     res.json(result);
   } catch (err) {
-    console.error("HAnime Video Error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("Puppeteer Video Error:", err.message);
+    res.status(500).json({ error: "Failed to fetch video: " + err.message });
+  } finally {
+    if (browser) await browser.close();
   }
 });
 
 // Generic Proxy for Streams (m3u8/ts)
+const HANIME_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 app.get("/api/proxy", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send("URL required");
 
   try {
     const decodedUrl = decodeURIComponent(url);
+    const parsedUrl = new URL(decodedUrl);
+
+    // SSRF Protection: Block local/private IPs
+    const hostname = parsedUrl.hostname;
+    const isPrivate =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      (hostname.startsWith("172.") &&
+        parseInt(hostname.split(".")[1]) >= 16 &&
+        parseInt(hostname.split(".")[1]) <= 31);
+
+    if (isPrivate) {
+      return res.status(403).send("Forbidden: Private network access denied");
+    }
+
     // console.log(`Proxying stream: ${decodedUrl}`);
 
     const response = await fetch(decodedUrl, {
@@ -225,19 +295,34 @@ app.get("/api/proxy", async (req, res) => {
     );
     res.setHeader("Access-Control-Allow-Origin", "*");
 
-    // If it's a playlist (m3u8), we need to rewrite internal URLs to also use the proxy
+    // Use req.protocol + host to construct the base proxy URL
+    // Fallback to 'http' locally if req.protocol is not trustworthy (e.g. behind weird proxy)
+    const protocol = req.headers["x-forwarded-proto"] || "http";
+    const host = req.headers.host;
+    const proxyBase = `${protocol}://${host}/api/proxy`;
+
+    // If it's a playlist (m3u8), we need to rewrite URLs to also use the proxy
     if (
-      contentType &&
-      (contentType.includes("mpegurl") ||
-        contentType.includes("m3u8") ||
-        decodedUrl.endsWith(".m3u8"))
+      (contentType &&
+        (contentType.includes("mpegurl") || contentType.includes("m3u8"))) ||
+      decodedUrl.endsWith(".m3u8")
     ) {
       const text = await response.text();
-      const host = `http://${req.headers.host}`;
 
-      // Rewrite absolute URLs to go through proxy
-      const rewritten = text.replace(/(https?:\/\/[^\s"']+)/g, (match) => {
-        return `${host}/api/proxy?url=${encodeURIComponent(match)}`;
+      // Rewrite both absolute and relative URLs
+      const rewritten = text.replace(/^(?!#)(?!\s)(.+)$/gm, (match) => {
+        // Resolve the match (which could be relative) against the original decodedUrl
+        // trim whitespace just in case
+        const line = match.trim();
+        if (!line) return match;
+
+        try {
+          const absoluteUrl = new URL(line, decodedUrl).href;
+          return `${proxyBase}?url=${encodeURIComponent(absoluteUrl)}`;
+        } catch (err) {
+          console.warn(`Failed to resolve URL in m3u8: ${line}`);
+          return line;
+        }
       });
 
       res.send(rewritten);

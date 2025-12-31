@@ -17,11 +17,7 @@ export default function HanimeDetailPage() {
       try {
         const data = await getHimeVideo(slug);
         setVideo(data);
-        if (data.sources && data.sources.length > 0) {
-          const originalUrl = data.sources[0].url;
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-          setupPlayer(proxyUrl);
-        }
+        // Player setup is now handled in a separate effect
       } catch (error) {
         console.error("Failed to load video", error);
       } finally {
@@ -35,17 +31,34 @@ export default function HanimeDetailPage() {
     };
   }, [slug]);
 
-  const setupPlayer = (url) => {
-    if (Hls.isSupported() && videoRef.current) {
-      if (hlsRef.current) hlsRef.current.destroy();
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(videoRef.current);
-      hlsRef.current = hls;
-    } else if (videoRef.current.canPlayType("application/vnd.apple.mpegurl")) {
-      videoRef.current.src = url;
+  // Initialize player when video data is loaded and DOM is ready
+  useEffect(() => {
+    if (
+      !loading &&
+      video &&
+      video.sources &&
+      video.sources.length > 0 &&
+      videoRef.current
+    ) {
+      const originalUrl = video.sources[0].url;
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
+
+      if (Hls.isSupported()) {
+        if (hlsRef.current) hlsRef.current.destroy();
+        const hls = new Hls();
+        hls.loadSource(proxyUrl);
+        hls.attachMedia(videoRef.current);
+        hlsRef.current = hls;
+      } else if (
+        videoRef.current.canPlayType("application/vnd.apple.mpegurl")
+      ) {
+        videoRef.current.src = proxyUrl;
+      }
     }
-  };
+  }, [loading, video]);
+
+  // Clean up setupPlayer helper if it's no longer used, or keep it if you want to use it inside the effect.
+  // I will just remove the definition since I inlined logic into the useEffect.
 
   if (loading)
     return (
