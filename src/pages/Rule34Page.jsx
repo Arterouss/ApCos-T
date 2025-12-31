@@ -99,19 +99,17 @@ export default function Rule34Page({ onOpenSidebar }) {
             selectedPost.file_url.endsWith(".webm") ||
             selectedPost.tags.includes("video") ? (
               <video
-                src={`/api/proxy?url=${encodeURIComponent(
-                  selectedPost.file_url
-                )}`}
+                src={selectedPost.file_url}
                 controls
                 autoPlay
                 loop
+                referrerPolicy="no-referrer"
                 className="max-h-[80vh] w-full rounded-lg shadow-2xl bg-black"
               />
             ) : (
               <img
-                src={`/api/proxy?url=${encodeURIComponent(
-                  selectedPost.file_url
-                )}`}
+                src={selectedPost.file_url}
+                referrerPolicy="no-referrer"
                 alt="Content"
                 className="max-h-[80vh] object-contain rounded-lg shadow-2xl"
               />
@@ -141,11 +139,10 @@ export default function Rule34Page({ onOpenSidebar }) {
                   <ImageIcon size={16} /> Source
                 </a>
                 <a
-                  href={`/api/proxy?url=${encodeURIComponent(
-                    selectedPost.file_url
-                  )}`}
+                  href={selectedPost.file_url}
                   download
                   target="_blank"
+                  referrerPolicy="no-referrer"
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-white font-medium text-sm"
                 >
                   <Download size={16} /> Download
