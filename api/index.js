@@ -79,6 +79,14 @@ const NEKOPOI_UA =
 const getNekoHeaders = () => ({
   "User-Agent": NEKOPOI_UA,
   Referer: NEKOPOI_BASE_URL,
+  Accept:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
+  Connection: "keep-alive",
+  "Upgrade-Insecure-Requests": "1",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "same-origin",
 });
 
 // Search & Latest Endpoint (Scraper)
@@ -101,10 +109,7 @@ app.get("/api/hnime/search", async (req, res) => {
     console.log(`[Proxy] Fetching: ${url}`);
 
     const response = await fetch(url, {
-      headers: {
-        "User-Agent": NEKOPOI_UA,
-        Referer: NEKOPOI_BASE_URL,
-      },
+      headers: getNekoHeaders(),
     });
 
     console.log(`[Proxy] Response Status: ${response.status}`);
@@ -170,7 +175,7 @@ app.get("/api/hnime/search", async (req, res) => {
 });
 
 // Video Details Endpoint (Scraper)
-app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
+app.get("/api/hnime/video/*", async (req, res) => {
   const slug = req.params[0];
 
   try {
