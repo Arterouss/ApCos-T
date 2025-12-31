@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3001/api/r34";
+const API_BASE = "/api/r34";
 
 export async function getRule34Posts(page = 0, tags = "", limit = 20) {
   try {
