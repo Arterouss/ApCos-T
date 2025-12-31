@@ -42,7 +42,7 @@ export default function HanimePage({ onOpenSidebar }) {
     <div className="min-h-screen bg-black text-white pb-20 pt-20 px-4 md:px-8">
       <button
         onClick={onOpenSidebar}
-        className="fixed top-4 left-4 z-50 p-2 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition-colors"
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg hover:bg-white/10 transition-colors"
       >
         <Menu size={24} />
       </button>

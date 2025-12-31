@@ -71,48 +71,49 @@ const Home = ({ onOpenSidebar }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex flex-col items-center">
+    <div className="w-full flex flex-col items-center pb-20 pt-8 font-sans text-white">
       {/* Search Bar & Header Area */}
-      <div className="w-full max-w-7xl px-4 pt-8">
+      <div className="w-full max-w-7xl px-4">
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={onOpenSidebar}
-            className="p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+            className="md:hidden p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
             aria-label="Open Menu"
           >
             <Menu size={24} />
           </button>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-400 to-fuchsia-400">
             Kemono Discovery
           </h1>
-          <div className="w-10"></div> {/* Spacer for center alignment */}
+          <div className="w-10 md:hidden"></div>{" "}
+          {/* Spacer for center alignment on mobile */}
         </div>
 
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-10"
         >
-          <h2 className="text-4xl md:text-6xl font-bold mb-4">
+          <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 drop-shadow-lg">
             Explore Creators
           </h2>
-          <p className="text-xl text-gray-400">
-            Search thousands of creators across platforms
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            Search thousands of creators across platforms in one place.
           </p>
         </motion.div>
 
         <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
         {/* Filter Tags */}
-        <div className="flex flex-wrap justify-center gap-2 mt-6 mb-12">
+        <div className="flex flex-wrap justify-center gap-2 mt-8 mb-12">
           {FILTERS.map((filter) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all border ${
                 activeFilter === filter
-                  ? "bg-purple-600 text-white shadow-lg shadow-purple-900/40"
-                  : "bg-gray-900 text-gray-400 hover:bg-gray-800"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-900/40 border-violet-500"
+                  : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border-white/5 hover:border-violet-500/30"
               }`}
             >
               {filter}
