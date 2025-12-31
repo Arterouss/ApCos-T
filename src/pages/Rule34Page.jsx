@@ -100,6 +100,7 @@ export default function Rule34Page({ onOpenSidebar }) {
             selectedPost.tags.includes("video") ? (
               <video
                 src={selectedPost.file_url}
+                poster={selectedPost.sample_url || selectedPost.preview_url}
                 controls
                 autoPlay
                 loop
