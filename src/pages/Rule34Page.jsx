@@ -94,7 +94,7 @@ export default function Rule34Page({ onOpenSidebar }) {
             <X size={24} />
           </button>
 
-          <div className="max-w-6xl w-full max-h-[90vh] flex flex-col items-center p-1">
+          <div className="max-w-6xl w-full max-h-[90vh] flex flex-col items-center p-1 overflow-y-auto">
             {selectedPost.file_url.endsWith(".mp4") ||
             selectedPost.file_url.endsWith(".webm") ||
             selectedPost.tags.includes("video") ? (
