@@ -1,7 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, Users, Tv } from "lucide-react";
+import { X, Users, Tv, Image } from "lucide-react";
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
@@ -17,6 +17,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const menuItems = [
     { name: "Creators", path: "/", icon: <Users size={20} /> },
     { name: "HAnime", path: "/hanime", icon: <Tv size={20} /> },
+    { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
   ];
 
   return (

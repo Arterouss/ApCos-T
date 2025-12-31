@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
 import HanimeDetailPage from "./pages/HanimeDetailPage";
+import Rule34Page from "./pages/Rule34Page";
 import Sidebar from "./components/Sidebar";
 
 function App() {
@@ -30,7 +31,12 @@ function App() {
               <HanimePage onOpenSidebar={() => setIsSidebarOpen(true)} />
             }
           />
-          <Route path="/hanime/:slug" element={<HanimeDetailPage />} />
+          <Route
+            path="/rule34"
+            element={
+              <Rule34Page onOpenSidebar={() => setIsSidebarOpen(true)} />
+            }
+          />
         </Routes>
       </div>
     </Router>
