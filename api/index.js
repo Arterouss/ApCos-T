@@ -79,14 +79,7 @@ const NEKOPOI_UA =
 const getNekoHeaders = () => ({
   "User-Agent": NEKOPOI_UA,
   Referer: NEKOPOI_BASE_URL,
-  Accept:
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
-  Connection: "keep-alive",
-  "Upgrade-Insecure-Requests": "1",
-  "Sec-Fetch-Dest": "document",
-  "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Site": "same-origin",
+  "Accept-Language": "en-US,en;q=0.9",
 });
 
 // Search & Latest Endpoint (Scraper)
@@ -175,8 +168,8 @@ app.get("/api/hnime/search", async (req, res) => {
 });
 
 // Video Details Endpoint (Scraper)
-app.get("/api/hnime/video/*", async (req, res) => {
-  const slug = req.params[0];
+app.get("/api/hnime/video/:slug(*)", async (req, res) => {
+  const { slug } = req.params;
 
   try {
     let targetUrl = `${NEKOPOI_BASE_URL}/${slug}`;
