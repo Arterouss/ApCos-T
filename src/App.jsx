@@ -10,6 +10,8 @@ import Sidebar from "./components/Sidebar";
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const onOpenSidebar = () => setIsSidebarOpen(true);
+
   return (
     <Router>
       <div className="min-h-screen text-white bg-[#0f0f0f]">
@@ -19,23 +21,17 @@ function App() {
         />
 
         <Routes>
-          <Route
-            path="/"
-            element={<Home onOpenSidebar={() => setIsSidebarOpen(true)} />}
-          />
+          <Route path="/" element={<Home onOpenSidebar={onOpenSidebar} />} />
           <Route path="/creator/:service/:id" element={<CreatorPosts />} />
 
           <Route
             path="/hanime"
-            element={
-              <HanimePage onOpenSidebar={() => setIsSidebarOpen(true)} />
-            }
+            element={<HanimePage onOpenSidebar={onOpenSidebar} />}
           />
+          <Route path="/hanime/:slug" element={<HanimeDetailPage />} />
           <Route
             path="/rule34"
-            element={
-              <Rule34Page onOpenSidebar={() => setIsSidebarOpen(true)} />
-            }
+            element={<Rule34Page onOpenSidebar={onOpenSidebar} />}
           />
         </Routes>
       </div>

@@ -185,6 +185,25 @@ export default function Rule34Page({ onOpenSidebar }) {
           </button>
         </form>
 
+        {/* Quick Categories */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {[
+            { label: "Video", tag: "video" },
+            { label: "3D", tag: "3d" },
+            { label: "2D", tag: "2d" },
+            { label: "GIF", tag: "animated_gif" },
+            { label: "Images", tag: "-video" },
+          ].map((cat) => (
+            <button
+              key={cat.label}
+              onClick={() => onTagClick(cat.tag)}
+              className="px-4 py-2 bg-gray-800 hover:bg-green-600 hover:text-white rounded-lg text-sm font-medium transition-colors border border-gray-700 hover:border-green-500"
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
         {/* Popular Tags */}
         {tagsList.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -214,6 +233,7 @@ export default function Rule34Page({ onOpenSidebar }) {
           >
             <img
               src={post.preview_url}
+              referrerPolicy="no-referrer"
               alt={post.tags}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               loading="lazy"

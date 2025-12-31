@@ -424,8 +424,8 @@ app.get("/api/r34/posts", async (req, res) => {
   try {
     const { tags, limit, pid } = req.query; // pid = page id
 
-    // Enforce Blacklist (No LGBT/Gay content as requested)
-    const blacklist = " -gay -yaoi -male_on_male -bara";
+    // Enforce Blacklist (No LGBT/Gay/Futa/Furry content as requested)
+    const blacklist = " -gay -yaoi -male_on_male -bara -futanari -furry";
     const statusTags = "";
 
     // Combine user tags with blacklist
