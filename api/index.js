@@ -102,37 +102,66 @@ app.get("/api/hnime/search", async (req, res) => {
     console.log(`[Proxy] Request: q='${q || ""}', page=${page}`);
     console.log(`[Proxy] Fetching: ${url}`);
 
-    const response = await fetch(url, {
+    let html = "";
+    let response = await fetch(url, {
       headers: getNekoHeaders(),
     });
 
     console.log(`[Proxy] Response Status: ${response.status}`);
 
-    if (!response.ok) {
-      // If 404 on page > 1, just return empty hits?
-      if (response.status === 404 && page > 1) {
-        return res.json({
-          hits: JSON.stringify([]),
-          page,
-          nbPages: page,
-          hitsPerPage: 0,
-        });
+    if (response.ok) {
+      html = await response.text();
+    }
+
+    // Fallback Proxy Strategy if blocked/403/404
+    if (
+      !response.ok ||
+      html.includes("Just a moment") ||
+      html.includes("Cloudflare")
+    ) {
+      console.warn(
+        `[Nekopoi Search] Blocked/Error (${response.status}). Switching to AllOrigins Proxy...`
+      );
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+          url
+        )}`;
+        const pRes = await fetch(proxyUrl);
+        const pData = await pRes.json();
+        if (pData && pData.contents) {
+          html = pData.contents;
+          console.log("[Nekopoi Search] Proxy fetch success.");
+        }
+      } catch (err) {
+        console.error("Proxy Fallback Failed:", err);
       }
-      const errText = await response.text();
+    }
+
+    // Return empty if 404 on page > 1 (Pagination end)
+    if (!html && response.status === 404 && page > 1) {
+      return res.json({
+        hits: JSON.stringify([]),
+        page,
+        nbPages: page,
+        hitsPerPage: 0,
+      });
+    }
+
+    // If still no HTML, return error
+    if (!html) {
+      const errText = !response.ok ? await response.text() : "Empty Response";
       console.error(
         `[Proxy Error] Status: ${response.status}, Body: ${errText.substring(
           0,
           200
         )}`
       );
-      return res.status(response.status).json({
+      return res.status(response.status || 500).json({
         error: "Upstream Error",
         details: `Nekopoi ${response.status}`,
         body: errText.substring(0, 500),
       });
     }
-
-    const html = await response.text();
 
     const postRegex =
       /<div class=(?:eropost|top)>[\s\S]*?<img[^>]+src=['"]?([^ >"']+)['"]?[\s\S]*?<h2><a[^>]+href=['"]?([^ >"']+)['"]?[^>]*>(.*?)<\/a>/gi;
