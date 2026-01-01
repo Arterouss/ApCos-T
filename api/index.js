@@ -187,18 +187,51 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     let targetUrl = `${NEKOPOI_BASE_URL}/${slug}`;
     console.log(`[Nekopoi] Scraping Video: ${targetUrl}`);
 
+    let html = "";
     let response = await fetch(targetUrl, { headers: getNekoHeaders() });
 
-    // Fallback: Try trailing slash if 404
-    if (response.status === 404 && !slug.endsWith("/")) {
-      console.warn(`[Nekopoi] 404 detected. Retrying with trailing slash...`);
+    // Fallback: Try trailing slash if 404 or Error
+    if (!response.ok && !slug.endsWith("/")) {
+      console.warn(
+        `[Nekopoi] Direct fetch issue (${response.status}). Retrying with trailing slash...`
+      );
       targetUrl = `${NEKOPOI_BASE_URL}/${slug}/`;
       response = await fetch(targetUrl, { headers: getNekoHeaders() });
     }
 
-    if (!response.ok) throw new Error(`Video Fetch Failed: ${response.status}`);
+    if (response.ok) {
+      html = await response.text();
+    }
 
-    const html = await response.text();
+    // Proxy Fallback: If status bad OR html looks blocked
+    if (
+      !response.ok ||
+      html.includes("Just a moment") ||
+      html.includes("Enable JavaScript")
+    ) {
+      console.warn(
+        `[Nekopoi] blocked/failed. Switching to AllOrigins Proxy...`
+      );
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+          targetUrl
+        )}`;
+        const pRes = await fetch(proxyUrl);
+        const pData = await pRes.json();
+        if (pData && pData.contents) {
+          html = pData.contents;
+          console.log("[Nekopoi] Proxy fetch success.");
+        }
+      } catch (err) {
+        console.error("Proxy Fallback Failed:", err);
+      }
+    }
+
+    // Final check
+    if (!html)
+      throw new Error(
+        `Video Fetch Failed: ${response.status} (Proxy also failed)`
+      );
 
     // 1. Extract Title
     const titleMatch = /<title>([^<]+)<\/title>/i.exec(html);
