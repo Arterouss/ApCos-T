@@ -78,12 +78,9 @@ const NEKOPOI_UA =
 // Helper headers
 const getNekoHeaders = () => ({
   "User-Agent": NEKOPOI_UA,
-  Referer: NEKOPOI_BASE_URL,
   Accept:
     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
-  "Upgrade-Insecure-Requests": "1",
-  "Cache-Control": "max-age=0",
 });
 
 // Search & Latest Endpoint (Scraper)
@@ -113,7 +110,7 @@ app.get("/api/hnime/search", async (req, res) => {
 
     if (!response.ok) {
       // If 404 on page > 1, just return empty hits?
-      if (response.status === 404) {
+      if (response.status === 404 && page > 1) {
         return res.json({
           hits: JSON.stringify([]),
           page,
@@ -121,7 +118,18 @@ app.get("/api/hnime/search", async (req, res) => {
           hitsPerPage: 0,
         });
       }
-      throw new Error(`Nekopoi responded with ${response.status}`);
+      const errText = await response.text();
+      console.error(
+        `[Proxy Error] Status: ${response.status}, Body: ${errText.substring(
+          0,
+          200
+        )}`
+      );
+      return res.status(response.status).json({
+        error: "Upstream Error",
+        details: `Nekopoi ${response.status}`,
+        body: errText.substring(0, 500),
+      });
     }
 
     const html = await response.text();
