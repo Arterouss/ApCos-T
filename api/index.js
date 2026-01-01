@@ -168,8 +168,8 @@ app.get("/api/hnime/search", async (req, res) => {
 });
 
 // Video Details Endpoint (Scraper)
-app.get("/api/hnime/video/:slug(*)", async (req, res) => {
-  const { slug } = req.params;
+app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
+  const slug = req.params[0];
 
   try {
     let targetUrl = `${NEKOPOI_BASE_URL}/${slug}`;
