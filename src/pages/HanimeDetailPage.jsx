@@ -8,6 +8,7 @@ export default function HanimeDetailPage() {
   const { slug } = useParams();
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeUrl, setActiveUrl] = useState(null);
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
@@ -17,7 +18,17 @@ export default function HanimeDetailPage() {
       try {
         const data = await getHimeVideo(slug);
         setVideo(data);
-        // Player setup is now handled in a separate effect
+        // Set default source
+        if (data.iframe_url) setActiveUrl(data.iframe_url);
+        else if (data.sources && data.sources.length > 0)
+          setActiveUrl(data.sources[0].url);
+
+        if (data.sources && data.sources.length > 0) {
+          // Keep old HLS logic just in case, but usually we use iframe for Nekopoi
+          const originalUrl = data.sources[0].url;
+          // const proxyUrl = `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
+          // setupPlayer(proxyUrl);
+        }
       } catch (error) {
         console.error("Failed to load video", error);
       } finally {
@@ -25,40 +36,24 @@ export default function HanimeDetailPage() {
       }
     };
     fetchVideo();
+    // ...
 
     return () => {
       if (hlsRef.current) hlsRef.current.destroy();
     };
   }, [slug]);
 
-  // Initialize player when video data is loaded and DOM is ready
-  useEffect(() => {
-    if (
-      !loading &&
-      video &&
-      video.sources &&
-      video.sources.length > 0 &&
-      videoRef.current
-    ) {
-      const originalUrl = video.sources[0].url;
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-
-      if (Hls.isSupported()) {
-        if (hlsRef.current) hlsRef.current.destroy();
-        const hls = new Hls();
-        hls.loadSource(proxyUrl);
-        hls.attachMedia(videoRef.current);
-        hlsRef.current = hls;
-      } else if (
-        videoRef.current.canPlayType("application/vnd.apple.mpegurl")
-      ) {
-        videoRef.current.src = proxyUrl;
-      }
+  const setupPlayer = (url) => {
+    if (Hls.isSupported() && videoRef.current) {
+      if (hlsRef.current) hlsRef.current.destroy();
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(videoRef.current);
+      hlsRef.current = hls;
+    } else if (videoRef.current.canPlayType("application/vnd.apple.mpegurl")) {
+      videoRef.current.src = url;
     }
-  }, [loading, video]);
-
-  // Clean up setupPlayer helper if it's no longer used, or keep it if you want to use it inside the effect.
-  // I will just remove the definition since I inlined logic into the useEffect.
+  };
 
   if (loading)
     return (
@@ -69,59 +64,91 @@ export default function HanimeDetailPage() {
   if (!video) return <div className="text-white">Video not found</div>;
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      <div className="w-full bg-black aspect-video relative group">
-        <video
-          ref={videoRef}
-          controls
-          poster={video.poster_url}
-          className="w-full h-full"
-        />
-        {(!video.sources || video.sources.length === 0) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-red-500 font-bold">
-            Stream Unavailable (Likely Blocked by Source)
+    <div className="min-h-screen text-white pb-20">
+      <div className="w-full bg-black aspect-video relative group shadow-2xl shadow-purple-900/20">
+        {activeUrl ? (
+          <iframe
+            src={activeUrl}
+            title={video.name}
+            className="w-full h-full"
+            frameBorder="0"
+            allowFullScreen
+            scrolling="no"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-red-500 font-bold backdrop-blur-sm">
+            Stream Unavailable (Source Protected or Removed)
           </div>
         )}
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      {/* Source Selector */}
+      {video.sources && video.sources.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 mt-4 flex gap-2 overflow-x-auto pb-2">
+          {video.sources.map((src, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActiveUrl(src.url)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                activeUrl === src.url
+                  ? "bg-pink-600 text-white shadow-lg shadow-pink-500/20"
+                  : "bg-white/10 text-gray-300 hover:bg-white/20"
+              }`}
+            >
+              {src.name || `Server ${idx + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
         <Link
           to="/hanime"
-          className="inline-flex items-center text-gray-400 hover:text-white mb-4 transition-colors"
+          className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors group"
         >
-          <ArrowLeft size={16} className="mr-2" /> Back to HAnime
+          <ArrowLeft
+            size={16}
+            className="mr-2 group-hover:-translate-x-1 transition-transform"
+          />{" "}
+          Back to Discovery
         </Link>
 
-        <h1 className="text-2xl md:text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500">
+        <h1 className="text-2xl md:text-4xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400 leading-tight">
           {video.name}
         </h1>
 
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
-          <div className="flex items-center gap-1">
-            <Eye size={14} />
-            <span>{video.views.toLocaleString()}</span>
+        <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400 mb-8 border-b border-white/10 pb-6">
+          <div className="flex items-center gap-2">
+            <Eye size={16} className="text-violet-400" />
+            <span>{video.views ? video.views.toLocaleString() : 0} views</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Calendar size={14} />
-            <span>{new Date(video.released_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-6">
-          {video.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-3 py-1 bg-gray-900 border border-gray-800 rounded-full text-xs text-gray-300"
-            >
-              {tag}
+          <div className="flex items-center gap-2">
+            <Calendar size={16} className="text-violet-400" />
+            <span>
+              {video.released_at
+                ? new Date(video.released_at).toLocaleDateString()
+                : "Unknown Date"}
             </span>
-          ))}
+          </div>
         </div>
 
-        <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-          <h3 className="text-lg font-semibold mb-2">Description</h3>
+        <div className="flex flex-wrap gap-2 mb-8">
+          {video.tags &&
+            video.tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-xs text-gray-300 transition-colors cursor-default"
+              >
+                {tag}
+              </span>
+            ))}
+        </div>
+
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10 shadow-lg">
+          <h3 className="text-lg font-bold mb-4 text-white">Synopsis</h3>
           <div
-            className="text-gray-400 text-sm leading-relaxed prose prose-invert max-w-none"
+            className="text-gray-300 text-sm leading-relaxed prose prose-invert max-w-none prose-p:my-2"
             dangerouslySetInnerHTML={{ __html: video.description }}
           />
         </div>

@@ -70,264 +70,298 @@ app.get("/api/posts/:service/:id", async (req, res) => {
   }
 });
 
-// --- HAnime Integration ---
-const HANIME_BASE = "https://hanime.tv/api/v8";
-const HANIME_UA =
+// --- NEKOPOI SCRAPER Integration ---
+const NEKOPOI_BASE_URL = "https://nekopoi.care";
+const NEKOPOI_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const HANIME_HEADERS = {
-  "User-Agent": HANIME_UA,
-  Referer: "https://hanime.tv/",
-  Origin: "https://hanime.tv",
-  "X-Directive": "api",
-  "Sec-Ch-Ua":
-    '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-  "Sec-Ch-Ua-Mobile": "?0",
-  "Sec-Ch-Ua-Platform": '"Windows"',
-  "Sec-Fetch-Dest": "empty",
-  "Sec-Fetch-Mode": "cors",
-  "Sec-Fetch-Site": "same-origin",
-  "X-Forwarded-For": Array.from({ length: 4 }, () =>
-    Math.floor(Math.random() * 255)
-  ).join("."), // Random IP Spoofing
-};
 
-// Trending / Landing
-app.get("/api/hnime/trending", async (req, res) => {
+// Helper headers
+const getNekoHeaders = () => ({
+  "User-Agent": NEKOPOI_UA,
+  Accept:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+});
+
+// Search & Latest Endpoint (Scraper)
+app.get("/api/hnime/search", async (req, res) => {
   try {
-    console.log("Fetching HAnime Trending...");
-    const response = await fetch(`${HANIME_BASE}/landing`, {
-      headers: HANIME_HEADERS,
-    });
+    let { q, page } = req.query;
+    page = parseInt(page) || 1;
 
-    if (!response.ok) {
-      throw new Error(`Hanime Landing failed: ${response.status}`);
+    let url;
+    if (q) {
+      // Format from dump: https://nekopoi.care/search/hentai/page/2/
+      url = `${NEKOPOI_BASE_URL}/search/${encodeURIComponent(q)}/page/${page}/`;
+    } else {
+      // Format: https://nekopoi.care/page/2/
+      url =
+        page > 1 ? `${NEKOPOI_BASE_URL}/page/${page}/` : `${NEKOPOI_BASE_URL}/`;
     }
 
-    const data = await response.json();
+    console.log(`[Proxy] Request: q='${q || ""}', page=${page}`);
+    console.log(`[Proxy] Fetching: ${url}`);
 
-    let videos = [];
-    if (data.hentai_videos) {
-      videos = data.hentai_videos;
-    } else if (data.sections) {
-      const trendingSection = data.sections.find(
-        (s) => s.title === "Trending" || s.title === "Popular"
+    let html = "";
+    let response = await fetch(url, {
+      headers: getNekoHeaders(),
+    });
+
+    console.log(`[Proxy] Response Status: ${response.status}`);
+
+    if (response.ok) {
+      html = await response.text();
+    }
+
+    // Fallback Proxy Strategy if blocked/403/404
+    if (
+      !response.ok ||
+      html.includes("Just a moment") ||
+      html.includes("Cloudflare")
+    ) {
+      console.warn(
+        `[Nekopoi Search] Blocked/Error (${response.status}). Switching to AllOrigins Proxy...`
       );
-      if (trendingSection && trendingSection.hentai_videos) {
-        videos = trendingSection.hentai_videos;
-      } else {
-        videos = data.sections[0]?.hentai_videos || [];
+      try {
+        // Use CorsProxy.io
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const pRes = await fetch(proxyUrl);
+        if (pRes.ok) {
+          const pText = await pRes.text();
+          if (pText && pText.includes("class")) {
+            html = pText;
+            console.log("[Nekopoi Search] Proxy (CorsProxy) fetch success.");
+          }
+        }
+      } catch (err) {
+        console.error("Proxy Fallback Failed:", err);
       }
     }
 
-    const results = videos.map((v) => ({
-      id: v.slug,
-      slug: v.slug,
-      name: v.name,
-      cover_url: v.cover_url,
-      poster_url: v.poster_url,
-      views: v.views,
-      rating: v.rating,
-      released: v.released_at_unix
-        ? new Date(v.released_at_unix * 1000).toISOString().split("T")[0]
-        : "Unknown",
-    }));
-
-    res.json(results);
-  } catch (err) {
-    console.error("HAnime Trending Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Video Details
-app.get("/api/hnime/video/:slug", async (req, res) => {
-  const { slug } = req.params;
-  try {
-    console.log(`Fetching HAnime Video: ${slug}`);
-    const response = await fetch(`${HANIME_BASE}/video?id=${slug}`, {
-      headers: HANIME_HEADERS,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Hanime Video failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const video = data.hentai_video;
-    const manifest = data.videos_manifest;
-
-    if (!video) throw new Error("Video not found in response");
-
-    let sources = [];
-    if (manifest && manifest.servers) {
-      manifest.servers.forEach((server) => {
-        server.streams.forEach((stream) => {
-          if (stream.url) {
-            sources.push({
-              label: `${server.name} - ${stream.height}p`,
-              url: stream.url,
-              type: "hls",
-            });
-          }
-        });
+    // Return empty if 404 on page > 1 (Pagination end)
+    if (!html && response.status === 404 && page > 1) {
+      return res.json({
+        hits: JSON.stringify([]),
+        page,
+        nbPages: page,
+        hitsPerPage: 0,
       });
     }
 
+    // If still no HTML, return error
+    if (!html) {
+      const errText = !response.ok ? await response.text() : "Empty Response";
+      console.error(
+        `[Proxy Error] Status: ${response.status}, Body: ${errText.substring(
+          0,
+          200
+        )}`
+      );
+      return res.status(response.status || 500).json({
+        error: "Upstream Error",
+        details: `Nekopoi ${response.status}`,
+        body: errText.substring(0, 500),
+      });
+    }
+
+    const postRegex =
+      /<div class=(?:eropost|top)>[\s\S]*?<img[^>]+src=['"]?([^ >"']+)['"]?[\s\S]*?<h2><a[^>]+href=['"]?([^ >"']+)['"]?[^>]*>(.*?)<\/a>/gi;
+
+    const hits = [];
+    let match;
+    while ((match = postRegex.exec(html)) !== null) {
+      const [_, img, url, rawTitle] = match;
+
+      let title = rawTitle.replace(/<[^>]+>/g, "").trim();
+      title = title.replace("&#8211;", "-");
+
+      let slug = url.replace(NEKOPOI_BASE_URL, "");
+      if (slug.startsWith("/")) slug = slug.substring(1);
+      if (slug.endsWith("/")) slug = slug.slice(0, -1);
+
+      let thumb = img;
+      if (thumb.startsWith("//")) thumb = "https:" + thumb;
+
+      hits.push({
+        id: slug,
+        slug: slug,
+        name: title,
+        cover_url: thumb,
+        poster_url: thumb,
+        views: 0,
+        tags: ["Nekopoi"],
+      });
+    }
+
+    console.log(`[Proxy] Parsed ${hits.length} hits. (Page ${page})`);
+
+    res.json({
+      hits: JSON.stringify(hits),
+      page: parseInt(page) || 0,
+      nbPages: 50,
+      hitsPerPage: hits.length,
+    });
+  } catch (err) {
+    console.error(`[Proxy] Search Error:`, err);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch data", details: err.message });
+  }
+});
+
+// Video Details Endpoint (Scraper)
+app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
+  const slug = req.params[0];
+
+  try {
+    let targetUrl = `${NEKOPOI_BASE_URL}/${slug}`;
+    console.log(`[Nekopoi] Scraping Video: ${targetUrl}`);
+
+    let html = "";
+    let response = await fetch(targetUrl, { headers: getNekoHeaders() });
+
+    // Fallback: Try trailing slash if 404 or Error
+    if (!response.ok && !slug.endsWith("/")) {
+      console.warn(
+        `[Nekopoi] Direct fetch issue (${response.status}). Retrying with trailing slash...`
+      );
+      targetUrl = `${NEKOPOI_BASE_URL}/${slug}/`;
+      response = await fetch(targetUrl, { headers: getNekoHeaders() });
+    }
+
+    if (response.ok) {
+      html = await response.text();
+    }
+
+    // Proxy Fallback: If status bad OR html looks blocked
+    if (
+      !response.ok ||
+      html.includes("Just a moment") ||
+      html.includes("Enable JavaScript")
+    ) {
+      console.warn(
+        `[Nekopoi] blocked/failed. Switching to AllOrigins Proxy...`
+      );
+      try {
+        // Use CorsProxy.io (returns raw text)
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(
+          targetUrl
+        )}`;
+        const pRes = await fetch(proxyUrl);
+        if (pRes.ok) {
+          const pText = await pRes.text();
+          // Verify it HTML
+          if (pText && pText.includes("<title>")) {
+            html = pText;
+            console.log("[Nekopoi] Proxy (CorsProxy) fetch success.");
+          }
+        }
+      } catch (err) {
+        console.error("Proxy Fallback Failed:", err);
+      }
+    }
+
+    // Final check
+    if (!html)
+      throw new Error(
+        `Video Fetch Failed: ${response.status} (Proxy also failed)`
+      );
+
+    // 1. Extract Title
+    const titleMatch = /<title>([^<]+)<\/title>/i.exec(html);
+    const title = titleMatch
+      ? titleMatch[1].replace("– NekoPoi", "").replace("Nekopoi", "").trim()
+      : slug;
+
+    // 2. Extract Iframe / Stream
+    let iframeUrl = "";
+    const sources = [];
+    const iframeRegex = /<iframe[^>]+src=['"]?([^ >"']+)['"]?/gi;
+    let match;
+    let streamCount = 0;
+
+    while ((match = iframeRegex.exec(html)) !== null) {
+      const src = match[1];
+      if (
+        src.includes("youtube") ||
+        src.includes("chat") ||
+        src.includes("google")
+      )
+        continue;
+
+      streamCount++;
+      sources.push({
+        url: src,
+        name:
+          `Server ${streamCount}` + (src.includes("ouo") ? " (Download)" : ""),
+      });
+
+      // Default to the last source found (usually more stable/less blocked)
+      iframeUrl = src;
+    }
+
     const result = {
-      id: video.slug,
-      slug: video.slug,
-      name: video.name,
-      description: video.description,
-      views: video.views,
-      interests: video.interests,
-      poster_url: video.poster_url,
-      cover_url: video.cover_url,
-      tags: video.tags ? video.tags.map((t) => t.text) : [],
-      created_at: video.created_at,
-      released_at: video.released_at,
+      id: slug,
+      slug: slug,
+      name: title,
+      description: "Scraped from Nekopoi",
+      views: 0,
+      poster_url: "",
+      cover_url: "",
+      tags: ["Nekopoi", "Anime", "Hentai"],
+      iframe_url: iframeUrl || "",
       sources: sources,
     };
 
+    if (!iframeUrl) {
+      console.warn("[Nekopoi] No iframe found.");
+    }
+
     res.json(result);
   } catch (err) {
-    console.error("HAnime Video Error:", err.message);
+    console.error("Nekopoi Video Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Search
-app.get("/api/hnime/search/:query", async (req, res) => {
-  const { query } = req.params;
-  const { page = 0 } = req.query;
-
-  try {
-    console.log(`Searching HAnime: ${query} (Page ${page})`);
-    const response = await fetch("https://search.htv-services.com/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": HANIME_UA,
-        Origin: "https://hanime.tv",
-        Referer: "https://hanime.tv/",
-      },
-      body: JSON.stringify({
-        search_text: query,
-        tags: [],
-        tags_mode: "AND",
-        brands: [],
-        blacklist: [],
-        order_by: "created_at_unix",
-        ordering: "desc",
-        page: parseInt(page),
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Hanime Search failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const hits = data.hits || [];
-
-    const results = JSON.parse(JSON.stringify(hits)).map((v) => ({
-      id: v.slug || v.id,
-      slug: v.slug || v.id,
-      name: v.name,
-      cover_url: v.cover_url,
-      poster_url: v.poster_url,
-      views: v.views,
-      rating: v.rating,
-      released: v.released_at_unix
-        ? new Date(v.released_at_unix * 1000).toISOString().split("T")[0]
-        : "Unknown",
-    }));
-
-    res.json(results);
-  } catch (err) {
-    console.error("HAnime Search Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Browse (Latest / Empty Search)
-app.get("/api/hnime/browse", async (req, res) => {
-  const { page = 0 } = req.query;
-
-  try {
-    // console.log(`Browsing HAnime (Page ${page})`);
-    const response = await fetch("https://search.htv-services.com/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": HANIME_UA,
-        Origin: "https://hanime.tv",
-        Referer: "https://hanime.tv/",
-      },
-      body: JSON.stringify({
-        search_text: "",
-        tags: [],
-        tags_mode: "AND",
-        brands: [],
-        blacklist: [],
-        order_by: "created_at_unix",
-        ordering: "desc",
-        page: parseInt(page),
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Hanime Browse failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const hits = data.hits || [];
-
-    const results = JSON.parse(JSON.stringify(hits)).map((v) => ({
-      id: v.slug || v.id,
-      slug: v.slug || v.id,
-      name: v.name,
-      cover_url: v.cover_url,
-      poster_url: v.poster_url,
-      views: v.views,
-      rating: v.rating,
-      released: v.released_at_unix
-        ? new Date(v.released_at_unix * 1000).toISOString().split("T")[0]
-        : "Unknown",
-    }));
-
-    res.json(results);
-  } catch (err) {
-    console.error("HAnime Browse Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Generic Proxy for Streams (m3u8/ts)
+// Generic Proxy for Streams (m3u8/ts) & Images/Videos
 app.get("/api/proxy", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send("URL required");
 
   try {
     const decodedUrl = decodeURIComponent(url);
-    const response = await fetch(decodedUrl, {
-      headers: {
-        "User-Agent": HANIME_UA,
-        Referer: "https://hanime.tv/",
-        Origin: "https://hanime.tv",
-      },
-    });
+    // Default headers
+    const headers = {
+      "User-Agent": NEKOPOI_UA,
+    };
+
+    // Forward Range header if present (Critical for video seeking/buffering)
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    const response = await fetch(decodedUrl, { headers });
 
     if (!response.ok)
-      throw new Error(`Stream fetch failed: ${response.status}`);
+      console.warn(`Proxy fetch warning: ${response.status} for ${decodedUrl}`);
 
+    // Forward important headers
     const contentType = response.headers.get("content-type");
-    res.setHeader(
-      "Content-Type",
-      contentType || "application/vnd.apple.mpegurl"
-    );
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    const contentRange = response.headers.get("content-range");
+    const contentLength = response.headers.get("content-length");
+    const acceptRanges = response.headers.get("accept-ranges");
 
-    // If it's a playlist (m3u8), we need to rewrite internal URLs to also use the proxy
+    res.setHeader("Content-Type", contentType || "application/octet-stream");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    if (contentRange) res.setHeader("Content-Range", contentRange);
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+    if (acceptRanges) res.setHeader("Accept-Ranges", acceptRanges);
+
+    // Set status code (200 or 206)
+    res.status(response.status);
+
+    // If it's a playlist (m3u8), rewrites needed
     if (
       contentType &&
       (contentType.includes("mpegurl") ||
@@ -335,7 +369,7 @@ app.get("/api/proxy", async (req, res) => {
         decodedUrl.endsWith(".m3u8"))
     ) {
       const text = await response.text();
-      const host = `https://${req.headers.host}`; // Use https for Vercel
+      const host = `https://${req.headers.host}`; // Vercel uses HTTPS
 
       // Rewrite absolute URLs to go through proxy
       const rewritten = text.replace(/(https?:\/\/[^\s"']+)/g, (match) => {
@@ -344,13 +378,100 @@ app.get("/api/proxy", async (req, res) => {
 
       res.send(rewritten);
     } else {
-      // Binary data (ts segments, etc.)
-      const arrayBuffer = await response.arrayBuffer();
-      res.send(Buffer.from(arrayBuffer));
+      // Pipe the stream directly instead of buffering!
+      response.body.pipe(res);
+
+      // Handle errors during streaming
+      response.body.on("error", (err) => {
+        console.error("Stream Body Error:", err);
+        res.end();
+      });
     }
   } catch (err) {
-    console.error("Stream Proxy Error:", err.message);
-    res.status(500).send(err.message);
+    console.error("Proxy Error:", err.message);
+    if (!res.headersSent) res.status(500).send(err.message);
+  }
+});
+
+// --- Rule34 Integration ---
+const R34_USER_ID = "5762968";
+const R34_API_KEY =
+  "3e73144a2a715c380366a52084f878446dcf717cbac9e14e1f5421e64eb7f4e8237a5fef5fd33474d0fcd046623d4e471fbf9da3485f6b1d2ae1c29ce8fb8233";
+const R34_BASE =
+  "https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1";
+
+// Tags Endpoint
+app.get("/api/r34/tags", async (req, res) => {
+  try {
+    const { limit } = req.query;
+    // q=index for tags
+    const targetUrl = `https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&limit=${
+      limit || 30
+    }&json=1&order=count`;
+    console.log(`Fetching Rule34 Tags: ${targetUrl}`);
+
+    const response = await fetch(targetUrl);
+
+    if (!response.ok) {
+      throw new Error(`R34 Tags Error: ${response.status}`);
+    }
+
+    const text = await response.text();
+    if (!text) return res.json([]);
+
+    try {
+      const data = JSON.parse(text);
+      res.json(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Tags JSON Parse Error:", text);
+      res.json([]);
+    }
+  } catch (err) {
+    console.error("Rule34 Tags Error:", err.message);
+    res.status(500).json([]);
+  }
+});
+
+// Posts Endpoint
+app.get("/api/r34/posts", async (req, res) => {
+  try {
+    const { tags, limit, pid } = req.query; // pid = page id
+
+    // Enforce Blacklist (No LGBT/Gay/Futa/Furry content as requested)
+    const blacklist = " -gay -yaoi -male_on_male -bara -futanari -furry";
+    const statusTags = "";
+
+    // Combine user tags with blacklist
+    const searchTags = (tags || "") + blacklist + statusTags;
+
+    // Construct query
+    const params = new URLSearchParams({
+      limit: limit || 20,
+      pid: pid || 0,
+      tags: searchTags.trim(),
+      user_id: R34_USER_ID,
+      api_key: R34_API_KEY,
+    });
+
+    const targetUrl = `${R34_BASE}&${params.toString()}`;
+    console.log(`Fetching Rule34: ${tags || "All"} (Page ${pid})`);
+
+    const response = await fetch(targetUrl);
+
+    if (!response.ok) {
+      throw new Error(`R34 API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+      return res.json([]);
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error("Rule34 Proxy Error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
