@@ -296,7 +296,8 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
           `Server ${streamCount}` + (src.includes("ouo") ? " (Download)" : ""),
       });
 
-      if (!iframeUrl) iframeUrl = src;
+      // Default to the last source found (usually more stable/less blocked)
+      iframeUrl = src;
     }
 
     const result = {
