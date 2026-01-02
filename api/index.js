@@ -123,14 +123,15 @@ app.get("/api/hnime/search", async (req, res) => {
         `[Nekopoi Search] Blocked/Error (${response.status}). Switching to AllOrigins Proxy...`
       );
       try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-          url
-        )}`;
+        // Use CorsProxy.io
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         const pRes = await fetch(proxyUrl);
-        const pData = await pRes.json();
-        if (pData && pData.contents) {
-          html = pData.contents;
-          console.log("[Nekopoi Search] Proxy fetch success.");
+        if (pRes.ok) {
+          const pText = await pRes.text();
+          if (pText && pText.includes("class")) {
+            html = pText;
+            console.log("[Nekopoi Search] Proxy (CorsProxy) fetch success.");
+          }
         }
       } catch (err) {
         console.error("Proxy Fallback Failed:", err);
@@ -242,14 +243,18 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
         `[Nekopoi] blocked/failed. Switching to AllOrigins Proxy...`
       );
       try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+        // Use CorsProxy.io (returns raw text)
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(
           targetUrl
         )}`;
         const pRes = await fetch(proxyUrl);
-        const pData = await pRes.json();
-        if (pData && pData.contents) {
-          html = pData.contents;
-          console.log("[Nekopoi] Proxy fetch success.");
+        if (pRes.ok) {
+          const pText = await pRes.text();
+          // Verify it HTML
+          if (pText && pText.includes("<title>")) {
+            html = pText;
+            console.log("[Nekopoi] Proxy (CorsProxy) fetch success.");
+          }
         }
       } catch (err) {
         console.error("Proxy Fallback Failed:", err);

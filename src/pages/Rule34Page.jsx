@@ -105,14 +105,14 @@ export default function Rule34Page({ onOpenSidebar }) {
                 autoPlay
                 loop
                 referrerPolicy="no-referrer"
-                className="max-h-[80vh] w-full rounded-2xl shadow-2xl bg-black border border-white/10"
+                className="max-h-[80vh] min-h-[50vh] w-full rounded-2xl shadow-2xl bg-black border border-white/10 shrink-0"
               />
             ) : (
               <img
                 src={selectedPost.file_url}
                 referrerPolicy="no-referrer"
                 alt="Content"
-                className="max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+                className="max-h-[80vh] min-h-[50vh] w-full object-contain rounded-2xl shadow-2xl border border-white/10 shrink-0"
               />
             )}
 
