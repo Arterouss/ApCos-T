@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
+import EHentaiPage from "./pages/EHentaiPage";
+import EHentaiDetailPage from "./pages/EHentaiDetailPage";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
 import HanimeDetailPage from "./pages/HanimeDetailPage";
@@ -33,7 +34,7 @@ function App() {
             <Routes>
               <Route
                 path="/"
-                element={<Home onOpenSidebar={onOpenSidebar} />}
+                element={<EHentaiPage onOpenSidebar={onOpenSidebar} />}
               />
               <Route path="/creator/:service/:id" element={<CreatorPosts />} />
 
@@ -46,6 +47,7 @@ function App() {
                 path="/rule34"
                 element={<Rule34Page onOpenSidebar={onOpenSidebar} />}
               />
+              <Route path="/g/:id/:token" element={<EHentaiDetailPage />} />
             </Routes>
           </main>
         </div>
