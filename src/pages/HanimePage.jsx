@@ -79,12 +79,12 @@ export default function HanimePage({ onOpenSidebar }) {
       <div className="max-w-7xl mx-auto">
         <header className="mb-8 text-center md:text-left">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-            NimexH Discovery
+            Bunkr Discovery
           </h1>
           <p className="text-gray-400 mt-1">
             {debouncedQuery
               ? `Results for "${debouncedQuery}"`
-              : "NimexH Trending"}
+              : "Bunkr Trending"}
           </p>
         </header>
 

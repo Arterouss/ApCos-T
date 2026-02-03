@@ -5,7 +5,7 @@ import { X, Users, Tv, Image, Book } from "lucide-react";
 
 const menuItems = [
   { name: "E-Hentai", path: "/", icon: <Book size={20} /> },
-  { name: "NimexH", path: "/hanime", icon: <Tv size={20} /> },
+  { name: "Bunkr", path: "/hanime", icon: <Tv size={20} /> },
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
 ];
 

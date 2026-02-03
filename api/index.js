@@ -23,7 +23,7 @@ app.get("/api/creators", async (req, res) => {
 
     if (!response.ok) {
       throw new Error(
-        `API responded with ${response.status}: ${response.statusText}`
+        `API responded with ${response.status}: ${response.statusText}`,
       );
     }
 
@@ -52,12 +52,12 @@ app.get("/api/posts/:service/:id", async (req, res) => {
           Accept: "text/css",
           Referer: "https://kemono.cr/",
         },
-      }
+      },
     );
 
     if (!response.ok) {
       throw new Error(
-        `API responded with ${response.status}: ${response.statusText}`
+        `API responded with ${response.status}: ${response.statusText}`,
       );
     }
 
@@ -70,8 +70,8 @@ app.get("/api/posts/:service/:id", async (req, res) => {
   }
 });
 
-// --- NEKOPOI SCRAPER Integration ---
-const NEKOPOI_BASE_URL = "https://nekopoi.care";
+// --- BUNKR SCRAPER Integration ---
+const BUNKR_BASE_URL = "https://bunkr-albums.io";
 const NEKOPOI_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -91,12 +91,17 @@ app.get("/api/hnime/search", async (req, res) => {
 
     let url;
     if (q) {
-      // Format from dump: https://nekopoi.care/search/hentai/page/2/
-      url = `${NEKOPOI_BASE_URL}/search/${encodeURIComponent(q)}/page/${page}/`;
+      // Correct Format: https://bunkr-albums.io/?search=query&page=1
+      url = `${BUNKR_BASE_URL}/?search=${encodeURIComponent(q)}&page=${page}`;
     } else {
-      // Format: https://nekopoi.care/page/2/
+      // Format: https://bunkr-albums.io/page/2/ (or /?page=2 might work too, but /page/2/ is standard for recent posts)
+      // Let's check navigation links in dump. <a href='/?search=&page=2'>
+      // So even for browsing, it seems to support query params.
+      // But standard homepage is just /.
       url =
-        page > 1 ? `${NEKOPOI_BASE_URL}/page/${page}/` : `${NEKOPOI_BASE_URL}/`;
+        page > 1
+          ? `${BUNKR_BASE_URL}/?search=&page=${page}`
+          : `${BUNKR_BASE_URL}/`;
     }
 
     console.log(`[Proxy] Request: q='${q || ""}', page=${page}`);
@@ -120,7 +125,7 @@ app.get("/api/hnime/search", async (req, res) => {
       html.includes("Cloudflare")
     ) {
       console.warn(
-        `[Nekopoi Search] Blocked/Error (${response.status}). Switching to AllOrigins Proxy...`
+        `[Bunkr Search] Blocked/Error (${response.status}). Switching to AllOrigins Proxy...`,
       );
       try {
         // Use CorsProxy.io
@@ -130,7 +135,7 @@ app.get("/api/hnime/search", async (req, res) => {
           const pText = await pRes.text();
           if (pText && pText.includes("class")) {
             html = pText;
-            console.log("[Nekopoi Search] Proxy (CorsProxy) fetch success.");
+            console.log("[Bunkr Search] Proxy (CorsProxy) fetch success.");
           }
         }
       } catch (err) {
@@ -154,33 +159,53 @@ app.get("/api/hnime/search", async (req, res) => {
       console.error(
         `[Proxy Error] Status: ${response.status}, Body: ${errText.substring(
           0,
-          200
-        )}`
+          200,
+        )}`,
       );
       return res.status(response.status || 500).json({
         error: "Upstream Error",
-        details: `Nekopoi ${response.status}`,
+        details: `Bunkr ${response.status}`,
         body: errText.substring(0, 500),
       });
     }
 
-    const postRegex =
-      /<div class=(?:eropost|top)>[\s\S]*?<img[^>]+src=['"]?([^ >"']+)['"]?[\s\S]*?<h2><a[^>]+href=['"]?([^ >"']+)['"]?[^>]*>(.*?)<\/a>/gi;
+    // --- BUNKR SEARCH PARSING ---
+    // Structure:
+    // <div class='rounded-xl bg-mute ...'>
+    //   <p class='text-subs ...'><span class='truncate'>TITLE</span></p>
+    //   ... <a class='ic-chevron-right ...' href='https://bunkr.cr/a/SLUG'></a>
+    // </div>
 
     const hits = [];
-    let match;
-    while ((match = postRegex.exec(html)) !== null) {
-      const [_, img, url, rawTitle] = match;
 
-      let title = rawTitle.replace(/<[^>]+>/g, "").trim();
-      title = title.replace("&#8211;", "-");
+    // Regex to capture Title and URL
+    // <span class='truncate'>...</span> ... href='.../a/SLUG'
+    // Matches across lines potentially, but usually in one block.
+    // Using a simpler approach: extract all blocks, then parse each block.
 
-      let slug = url.replace(NEKOPOI_BASE_URL, "");
-      if (slug.startsWith("/")) slug = slug.substring(1);
-      if (slug.endsWith("/")) slug = slug.slice(0, -1);
+    // 1. Split into Album Blocks
+    const albumBlocks = html.split("class='rounded-xl bg-mute");
+    // Skip the first split as it's before the first album
 
-      let thumb = img;
-      if (thumb.startsWith("//")) thumb = "https:" + thumb;
+    for (let i = 1; i < albumBlocks.length; i++) {
+      const block = albumBlocks[i];
+
+      // Extract Title
+      const titleMatch = /class='truncate'>([^<]+)</.exec(block);
+      const title = titleMatch ? titleMatch[1].trim() : "Untitled";
+
+      // Extract Album URL / Slug
+      const hrefMatch = /href=['"]([^'"]+)['"]/.exec(block);
+      const rawUrl = hrefMatch ? hrefMatch[1] : "";
+
+      if (!rawUrl) continue;
+
+      // Parse Slug (https://bunkr.cr/a/xyz -> xyz)
+      const slugMatch = /\/a\/([a-zA-Z0-9]+)/.exec(rawUrl);
+      const slug = slugMatch ? slugMatch[1] : rawUrl;
+
+      // Bunkr Search doesn't show thumbnails! Use a placeholder.
+      const thumb = "https://static.bunkr.ru/img/logo_bunkr-9Kl5M1Y.svg";
 
       hits.push({
         id: slug,
@@ -189,7 +214,8 @@ app.get("/api/hnime/search", async (req, res) => {
         cover_url: thumb,
         poster_url: thumb,
         views: 0,
-        tags: ["Nekopoi"],
+        tags: ["Bunkr Album"],
+        original_url: rawUrl,
       });
     }
 
@@ -214,8 +240,9 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
   const slug = req.params[0];
 
   try {
-    let targetUrl = `${NEKOPOI_BASE_URL}/${slug}`;
-    console.log(`[Nekopoi] Scraping Video: ${targetUrl}`);
+    // Album URLs are on bunkr.cr, not bunkr-albums.io
+    let targetUrl = `https://bunkr.cr/a/${slug}`;
+    console.log(`[Bunkr] Scraping Video: ${targetUrl}`);
 
     let html = "";
     let response = await fetch(targetUrl, { headers: getNekoHeaders() });
@@ -223,9 +250,9 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     // Fallback: Try trailing slash if 404 or Error
     if (!response.ok && !slug.endsWith("/")) {
       console.warn(
-        `[Nekopoi] Direct fetch issue (${response.status}). Retrying with trailing slash...`
+        `[Bunkr] Direct fetch issue (${response.status}). Retrying with trailing slash...`,
       );
-      targetUrl = `${NEKOPOI_BASE_URL}/${slug}/`;
+      targetUrl = `https://bunkr.cr/a/${slug}/`;
       response = await fetch(targetUrl, { headers: getNekoHeaders() });
     }
 
@@ -239,13 +266,11 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
       html.includes("Just a moment") ||
       html.includes("Enable JavaScript")
     ) {
-      console.warn(
-        `[Nekopoi] blocked/failed. Switching to AllOrigins Proxy...`
-      );
+      console.warn(`[Bunkr] blocked/failed. Switching to AllOrigins Proxy...`);
       try {
         // Use CorsProxy.io (returns raw text)
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(
-          targetUrl
+          targetUrl,
         )}`;
         const pRes = await fetch(proxyUrl);
         if (pRes.ok) {
@@ -253,7 +278,7 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
           // Verify it HTML
           if (pText && pText.includes("<title>")) {
             html = pText;
-            console.log("[Nekopoi] Proxy (CorsProxy) fetch success.");
+            console.log("[Bunkr] Proxy (CorsProxy) fetch success.");
           }
         }
       } catch (err) {
@@ -264,62 +289,135 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     // Final check
     if (!html)
       throw new Error(
-        `Video Fetch Failed: ${response.status} (Proxy also failed)`
+        `Video Fetch Failed: ${response.status} (Proxy also failed)`,
       );
 
-    // 1. Extract Title
-    const titleMatch = /<title>([^<]+)<\/title>/i.exec(html);
-    const title = titleMatch
-      ? titleMatch[1].replace("– NekoPoi", "").replace("Nekopoi", "").trim()
-      : slug;
+    // --- BUNKR ALBUM & FILE PARSING ---
 
-    // 2. Extract Iframe / Stream
-    let iframeUrl = "";
-    const sources = [];
-    const iframeRegex = /<iframe[^>]+src=['"]?([^ >"']+)['"]?/gi;
-    let match;
-    let streamCount = 0;
+    // 1. Fetch Album to get File List
+    // TargetUrl is already fetched above (https://bunkr.cr/a/SLUG)
 
-    while ((match = iframeRegex.exec(html)) !== null) {
-      const src = match[1];
-      if (
-        src.includes("youtube") ||
-        src.includes("chat") ||
-        src.includes("google")
-      )
-        continue;
+    // Extract Album Title
+    const titleMatch = /<h1[^>]*>([^<]+)<\/h1>/i.exec(html);
+    const title = titleMatch ? titleMatch[1].trim() : `Album ${slug}`;
 
-      streamCount++;
-      sources.push({
-        url: src,
-        name:
-          `Server ${streamCount}` + (src.includes("ouo") ? " (Download)" : ""),
-      });
+    // Parse Files in Album
+    // HTML structure: <div class="relative group/item theItem" ...>
+    // Use Regex to split, handling potential quote differences
+    const files = [];
+    const fileBlocks = html.split(/class=["']relative group\/item theItem["']/);
 
-      // Default to the last source found (usually more stable/less blocked)
-      iframeUrl = src;
+    for (let i = 1; i < fileBlocks.length; i++) {
+      const block = fileBlocks[i];
+
+      // Thumb: Look for the specific image class to avoid icons
+      const thumbMatch =
+        /class=["']grid-images_box-img["'][^>]*src=["']([^"']+)["']/.exec(
+          block,
+        );
+
+      // Name: <p class="...theName...">Name</p>
+      const nameMatch = /class=["'][^"']*theName[^"']*["'][^>]*>([^<]+)</.exec(
+        block,
+      );
+
+      // Link: <a ... href="/f/SLUG">
+      const linkMatch = /href=["']\/f\/([^"']+)["']/.exec(block);
+
+      if (linkMatch) {
+        files.push({
+          slug: linkMatch[1],
+          name: nameMatch ? nameMatch[1].trim() : "Unknown File",
+          thumb: thumbMatch ? thumbMatch[1] : "",
+        });
+      }
     }
+
+    console.log(`[Bunkr] Found ${files.length} files in album.`);
+
+    if (files.length === 0) {
+      throw new Error("No files found in Bunkr Album");
+    }
+
+    // 2. Fetch the FIRST file to get a playable link
+    // We treat the "Video" endpoint as playing the first file of the album.
+    // The user can see others in 'sources'.
+
+    // Helper to determine file type
+    const getType = (name) => {
+      const ext = name.split(".").pop().toLowerCase();
+      if (["mp4", "mkv", "webm", "avi", "mov"].includes(ext)) return "video";
+      if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
+      if (["zip", "rar", "7z", "tar"].includes(ext)) return "archive";
+      return "file";
+    };
+
+    // 2. Determine Default File (Prioritize Video)
+    let defaultFileIndex = 0;
+    const firstVideoIndex = files.findIndex((f) => getType(f.name) === "video");
+    if (firstVideoIndex !== -1) {
+      defaultFileIndex = firstVideoIndex;
+      console.log(
+        `[Bunkr] Defaulting to first video (index ${defaultFileIndex}): ${files[defaultFileIndex].name}`,
+      );
+    } else {
+      console.log(
+        `[Bunkr] No video found, defaulting to first file: ${files[0].name}`,
+      );
+    }
+
+    // Fetch the download link for the DEFAULT file
+    const targetFile = files[defaultFileIndex];
+    let downloadUrl = "";
+
+    if (targetFile) {
+      const fileUrl = `https://bunkr.cr/f/${targetFile.slug}`;
+      console.log(`[Bunkr] Fetching File: ${fileUrl}`);
+      const fileResp = await fetch(fileUrl, { headers: getNekoHeaders() });
+      const fileHtml = await fileResp.text();
+      const downloadMatch = /class="btn btn-main[^"]*" href="([^"]+)"/.exec(
+        fileHtml,
+      );
+      downloadUrl = downloadMatch ? downloadMatch[1] : "";
+    }
+
+    // 3. Construct Sources List with Type info
+    const sources = files.map((f, index) => {
+      const type = getType(f.name);
+      return {
+        url:
+          type === "image" && f.thumb
+            ? f.thumb.replace("/thumbs/", "/")
+            : `https://bunkr.cr/f/${f.slug}`,
+        name: `File ${index + 1}: ${f.name}`,
+        type: type,
+        isDefault: index === defaultFileIndex,
+      };
+    });
+
+    // Attempt to make the first one a direct stream using the download link
+    let iframeUrl = downloadUrl;
 
     const result = {
       id: slug,
       slug: slug,
       name: title,
-      description: "Scraped from Nekopoi",
+      description: "Scraped from Bunkr",
       views: 0,
       poster_url: "",
       cover_url: "",
-      tags: ["Nekopoi", "Anime", "Hentai"],
+      tags: ["Bunkr", "Bunkr Albums"],
       iframe_url: iframeUrl || "",
       sources: sources,
     };
 
     if (!iframeUrl) {
-      console.warn("[Nekopoi] No iframe found.");
+      console.warn("[Bunkr] No iframe found.");
     }
 
     res.json(result);
   } catch (err) {
-    console.error("Nekopoi Video Error:", err.message);
+    console.error("Bunkr Video Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -523,7 +621,7 @@ app.get("/api/ehentai/search", async (req, res) => {
 
       // Extract URL & ID ( /g/123/token/ )
       const urlMatch = /href="https:\/\/e-hentai\.org\/g\/(\d+)\/(\w+)\/"/.exec(
-        row
+        row,
       );
       if (!urlMatch) continue;
       const [fullUrl, id, token] = urlMatch;

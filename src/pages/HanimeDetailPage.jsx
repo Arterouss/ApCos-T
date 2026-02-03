@@ -9,6 +9,7 @@ export default function HanimeDetailPage() {
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeUrl, setActiveUrl] = useState(null);
+  const [activeType, setActiveType] = useState("video");
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
@@ -18,10 +19,17 @@ export default function HanimeDetailPage() {
       try {
         const data = await getHimeVideo(slug);
         setVideo(data);
+
         // Set default source
-        if (data.iframe_url) setActiveUrl(data.iframe_url);
-        else if (data.sources && data.sources.length > 0)
+        if (data.iframe_url) {
+          setActiveUrl(data.iframe_url);
+          // Try to find the type from sources if it matches
+          const defaultSource = data.sources?.find((s) => s.isDefault);
+          if (defaultSource) setActiveType(defaultSource.type || "video");
+        } else if (data.sources && data.sources.length > 0) {
           setActiveUrl(data.sources[0].url);
+          setActiveType(data.sources[0].type || "video");
+        }
 
         if (data.sources && data.sources.length > 0) {
           // Keep old HLS logic just in case, but usually we use iframe for Nekopoi
@@ -67,15 +75,23 @@ export default function HanimeDetailPage() {
     <div className="min-h-screen text-white pb-20">
       <div className="w-full bg-black aspect-video relative group shadow-2xl shadow-purple-900/20">
         {activeUrl ? (
-          <iframe
-            src={activeUrl}
-            title={video.name}
-            className="w-full h-full"
-            frameBorder="0"
-            allowFullScreen
-            scrolling="no"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
-          />
+          activeType === "image" ? (
+            <img
+              src={activeUrl}
+              alt={video.name}
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <iframe
+              src={activeUrl}
+              title={video.name}
+              className="w-full h-full"
+              frameBorder="0"
+              allowFullScreen
+              scrolling="no"
+              sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+            />
+          )
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-red-500 font-bold backdrop-blur-sm">
             Stream Unavailable (Source Protected or Removed)
@@ -89,14 +105,22 @@ export default function HanimeDetailPage() {
           {video.sources.map((src, idx) => (
             <button
               key={idx}
-              onClick={() => setActiveUrl(src.url)}
+              onClick={() => {
+                setActiveUrl(src.url);
+                setActiveType(src.type || "video");
+              }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 activeUrl === src.url
                   ? "bg-pink-600 text-white shadow-lg shadow-pink-500/20"
                   : "bg-white/10 text-gray-300 hover:bg-white/20"
               }`}
             >
-              {src.name || `Server ${idx + 1}`}
+              {[
+                src.type && `[${src.type.toUpperCase()}]`,
+                src.name || `Server ${idx + 1}`,
+              ]
+                .filter(Boolean)
+                .join(" ")}
             </button>
           ))}
         </div>
