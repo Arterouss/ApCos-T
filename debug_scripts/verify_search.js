@@ -1,31 +1,25 @@
 import fetch from "node-fetch";
 
-async function verify() {
+async function run() {
+  const url = "http://localhost:3001/api/hnime/search?page=1";
+  console.log(`Fetching ${url}...`);
   try {
-    const url = "http://localhost:3001/api/hnime/search?q=seravin";
-    console.log("Fetching:", url);
     const res = await fetch(url);
     if (!res.ok) {
-      console.error("Status:", res.status);
-      const text = await res.text();
-      console.error("Body:", text);
+      console.error(`Error: ${res.status}`);
+      console.error(await res.text());
       return;
     }
     const data = await res.json();
-    let hits = data.hits;
-    if (typeof hits === "string") {
-      hits = JSON.parse(hits);
-    }
-
-    console.log("Hits found:", hits.length);
+    console.log("Status: OK");
+    const hits = JSON.parse(data.hits);
+    console.log(`Found ${hits.length} albums.`);
     if (hits.length > 0) {
-      console.log("First hit:", hits[0]);
-    } else {
-      console.warn("No hits found. Scraper might be failing.");
+      console.log("First Hit:", hits[0]);
     }
-  } catch (err) {
-    console.error("Error:", err);
+  } catch (e) {
+    console.error("Fetch failed:", e);
   }
 }
 
-verify();
+run();

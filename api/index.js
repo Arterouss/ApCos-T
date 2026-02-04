@@ -91,6 +91,49 @@ const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
   Referer: referer,
 });
 
+// Helper: Try to fetch from multiple sources (Shared for Search & Video)
+const fetchWithFallback = async (targetUrl) => {
+  let lastError;
+
+  // 1. Direct Fetch
+  try {
+    console.log(`[Bunkr] Attempting Direct: ${targetUrl}`);
+    const res = await fetch(targetUrl, { headers: getNekoHeaders(targetUrl) });
+    if (res.ok) return await res.text();
+    console.warn(`[Bunkr] Direct failed: ${res.status}`);
+    lastError = `Direct: ${res.status}`;
+  } catch (e) {
+    console.warn(`[Bunkr] Direct error: ${e.message}`);
+    lastError = e.message;
+  }
+
+  // 2. CorsProxy.io
+  try {
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    console.log(`[Bunkr] Attempting CorsProxy: ${proxyUrl}`);
+    const res = await fetch(proxyUrl);
+    if (res.ok) return await res.text();
+    console.warn(`[Bunkr] CorsProxy failed: ${res.status}`);
+  } catch (e) {
+    console.warn(`[Bunkr] CorsProxy error: ${e.message}`);
+  }
+
+  // 3. AllOrigins (Returns JSON { contents: "..." })
+  try {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    console.log(`[Bunkr] Attempting AllOrigins: ${proxyUrl}`);
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.contents) return data.contents;
+    }
+  } catch (e) {
+    console.warn(`[Bunkr] AllOrigins error: ${e.message}`);
+  }
+
+  throw new Error(`All Fetch Attempts Failed. Last error: ${lastError}`);
+};
+
 // Search & Latest Endpoint (Scraper)
 app.get("/api/hnime/search", async (req, res) => {
   try {
@@ -115,74 +158,23 @@ app.get("/api/hnime/search", async (req, res) => {
     console.log(`[Proxy] Request: q='${q || ""}', page=${page}`);
     console.log(`[Proxy] Fetching: ${url}`);
 
+    console.log(`[Proxy] Request: q='${q || ""}', page=${page}`);
+    console.log(`[Proxy] Fetching: ${url}`);
+
     let html = "";
-    // Pass URL as referer
-    let response = await fetch(url, {
-      headers: getNekoHeaders(url),
-    });
 
-    console.log(`[Proxy] Response Status: ${response.status}`);
-
-    // Log headers for debugging Vercel issues
-    if (!response.ok) {
-      console.warn(
-        `[Proxy] Failed Headers:`,
-        JSON.stringify(response.headers.raw()),
-      );
-    }
-
-    if (response.ok) {
-      html = await response.text();
-    }
-
-    // Fallback Proxy Strategy if blocked/403/404
-    if (
-      !response.ok ||
-      html.includes("Just a moment") ||
-      html.includes("Cloudflare")
-    ) {
-      console.warn(
-        `[Bunkr Search] Blocked/Error (${response.status}). Switching to AllOrigins Proxy...`,
-      );
-      try {
-        // Use CorsProxy.io
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const pRes = await fetch(proxyUrl);
-        if (pRes.ok) {
-          const pText = await pRes.text();
-          if (pText && pText.includes("class")) {
-            html = pText;
-            console.log("[Bunkr Search] Proxy (CorsProxy) fetch success.");
-          }
-        }
-      } catch (err) {
-        console.error("Proxy Fallback Failed:", err);
-      }
+    try {
+      html = await fetchWithFallback(url);
+    } catch (e) {
+      console.error(`[Proxy] Search Failed nicely: ${e.message}`);
     }
 
     // Return empty if 404 on page > 1 (Pagination end)
-    if (!html && response.status === 404 && page > 1) {
-      return res.json({
-        hits: JSON.stringify([]),
-        page,
-        nbPages: page,
-        hitsPerPage: 0,
-      });
-    }
-
     // If still no HTML, return error
     if (!html) {
-      const errText = !response.ok ? await response.text() : "Empty Response";
-      console.error(
-        `[Proxy Error] Status: ${response.status}, Body: ${errText.substring(
-          0,
-          200,
-        )}`,
-      );
-      return res.status(response.status || 500).json({
+      return res.status(500).json({
         error: "Upstream Error",
-        details: `Bunkr ${response.status}`,
-        body: errText.substring(0, 500),
+        details: "Failed to retrieve content from Bunkr",
       });
     }
 
@@ -262,52 +254,7 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     console.log(`[Bunkr] Scraping Video: ${targetUrl}`);
 
     let html = "";
-
-    // Helper: Try to fetch from multiple sources
-    const fetchWithFallback = async (targetUrl) => {
-      let lastError;
-
-      // 1. Direct Fetch
-      try {
-        console.log(`[Bunkr] Attempting Direct: ${targetUrl}`);
-        const res = await fetch(targetUrl, {
-          headers: getNekoHeaders(targetUrl),
-        });
-        if (res.ok) return await res.text();
-        console.warn(`[Bunkr] Direct failed: ${res.status}`);
-        lastError = `Direct: ${res.status}`;
-      } catch (e) {
-        console.warn(`[Bunkr] Direct error: ${e.message}`);
-        lastError = e.message;
-      }
-
-      // 2. CorsProxy.io
-      try {
-        // Append random param to avoid cache
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-        console.log(`[Bunkr] Attempting CorsProxy: ${proxyUrl}`);
-        const res = await fetch(proxyUrl);
-        if (res.ok) return await res.text();
-        console.warn(`[Bunkr] CorsProxy failed: ${res.status}`);
-      } catch (e) {
-        console.warn(`[Bunkr] CorsProxy error: ${e.message}`);
-      }
-
-      // 3. AllOrigins (Returns JSON { contents: "..." })
-      try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        console.log(`[Bunkr] Attempting AllOrigins: ${proxyUrl}`);
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.contents) return data.contents;
-        }
-      } catch (e) {
-        console.warn(`[Bunkr] AllOrigins error: ${e.message}`);
-      }
-
-      throw new Error(`All Fetch Attempts Failed. Last error: ${lastError}`);
-    };
+    // fetchWithFallback is now global, no nested definition needed
 
     try {
       html = await fetchWithFallback(targetUrl);
