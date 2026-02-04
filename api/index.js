@@ -72,12 +72,17 @@ app.get("/api/posts/:service/:id", async (req, res) => {
 
 // --- BUNKR SCRAPER Integration ---
 const BUNKR_BASE_URL = "https://bunkr-albums.io";
-const NEKOPOI_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const UAS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/124.0.6367.88 Mobile/15E148 Safari/604.1",
+];
+const getRandomUA = () => UAS[Math.floor(Math.random() * UAS.length)];
 
 // Helper headers
 const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
-  "User-Agent": NEKOPOI_UA,
+  "User-Agent": getRandomUA(),
   Accept:
     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
   "Accept-Language": "en-US,en;q=0.9",
@@ -90,6 +95,8 @@ const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
   "Sec-Fetch-User": "?1",
   Referer: referer,
 });
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Helper: Try to fetch from multiple sources (Shared for Search & Video)
 const fetchWithFallback = async (targetUrl) => {
@@ -107,6 +114,8 @@ const fetchWithFallback = async (targetUrl) => {
     lastError = e.message;
   }
 
+  await delay(1000); // Wait 1s before proxy to be polite
+
   // 2. CorsProxy.io
   try {
     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
@@ -118,7 +127,22 @@ const fetchWithFallback = async (targetUrl) => {
     console.warn(`[Bunkr] CorsProxy error: ${e.message}`);
   }
 
-  // 3. AllOrigins (Returns JSON { contents: "..." })
+  await delay(500);
+
+  // 3. CodeTabs Proxy (New Layer)
+  try {
+    const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
+    console.log(`[Bunkr] Attempting CodeTabs: ${proxyUrl}`);
+    const res = await fetch(proxyUrl);
+    if (res.ok) return await res.text();
+    console.warn(`[Bunkr] CodeTabs failed: ${res.status}`);
+  } catch (e) {
+    console.warn(`[Bunkr] CodeTabs error: ${e.message}`);
+  }
+
+  await delay(500);
+
+  // 4. AllOrigins (Returns JSON { contents: "..." })
   try {
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
     console.log(`[Bunkr] Attempting AllOrigins: ${proxyUrl}`);
@@ -422,7 +446,7 @@ app.get("/api/proxy", async (req, res) => {
     const decodedUrl = decodeURIComponent(url);
     // Default headers
     const headers = {
-      "User-Agent": NEKOPOI_UA,
+      "User-Agent": getRandomUA(),
     };
 
     // Forward Range header if present (Critical for video seeking/buffering)
