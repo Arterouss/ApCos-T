@@ -10,6 +10,7 @@ export default function HanimeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeUrl, setActiveUrl] = useState(null);
   const [activeType, setActiveType] = useState("video");
+  const [imgLoading, setImgLoading] = useState(false);
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
@@ -25,10 +26,15 @@ export default function HanimeDetailPage() {
           setActiveUrl(data.iframe_url);
           // Try to find the type from sources if it matches
           const defaultSource = data.sources?.find((s) => s.isDefault);
-          if (defaultSource) setActiveType(defaultSource.type || "video");
+          if (defaultSource) {
+            setActiveType(defaultSource.type || "video");
+            if (defaultSource.type === "image") setImgLoading(true);
+          }
         } else if (data.sources && data.sources.length > 0) {
           setActiveUrl(data.sources[0].url);
-          setActiveType(data.sources[0].type || "video");
+          const type = data.sources[0].type || "video";
+          setActiveType(type);
+          if (type === "image") setImgLoading(true);
         }
 
         if (data.sources && data.sources.length > 0) {
@@ -73,14 +79,28 @@ export default function HanimeDetailPage() {
 
   return (
     <div className="min-h-screen text-white pb-20">
-      <div className="w-full bg-black aspect-video relative group shadow-2xl shadow-purple-900/20">
+      <div className="w-full bg-black aspect-video relative group shadow-2xl shadow-purple-900/20 bg-grid-white/[0.02]">
         {activeUrl ? (
           activeType === "image" ? (
-            <img
-              src={activeUrl}
-              alt={video.name}
-              className="w-full h-full object-contain"
-            />
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Loading Spinner for Image */}
+              {imgLoading && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50 backdrop-blur-sm">
+                  <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+              <img
+                key={activeUrl} // Force re-mount on URL change
+                src={activeUrl}
+                alt={video.name}
+                className={`w-full h-full object-contain transition-opacity duration-300 ${imgLoading ? "opacity-0" : "opacity-100"}`}
+                onLoad={() => setImgLoading(false)}
+                onError={(e) => {
+                  setImgLoading(false);
+                  e.target.style.display = "none"; // Hide broken image
+                }}
+              />
+            </div>
           ) : (
             <iframe
               src={activeUrl}
@@ -106,8 +126,11 @@ export default function HanimeDetailPage() {
             <button
               key={idx}
               onClick={() => {
+                if (activeUrl === src.url) return;
                 setActiveUrl(src.url);
-                setActiveType(src.type || "video");
+                const type = src.type || "video";
+                setActiveType(type);
+                if (type === "image") setImgLoading(true);
               }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 activeUrl === src.url

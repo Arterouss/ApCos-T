@@ -73,14 +73,22 @@ app.get("/api/posts/:service/:id", async (req, res) => {
 // --- BUNKR SCRAPER Integration ---
 const BUNKR_BASE_URL = "https://bunkr-albums.io";
 const NEKOPOI_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 // Helper headers
-const getNekoHeaders = () => ({
+const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
   "User-Agent": NEKOPOI_UA,
   Accept:
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
   "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  Connection: "keep-alive",
+  "Upgrade-Insecure-Requests": "1",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  Referer: referer,
 });
 
 // Search & Latest Endpoint (Scraper)
@@ -108,11 +116,20 @@ app.get("/api/hnime/search", async (req, res) => {
     console.log(`[Proxy] Fetching: ${url}`);
 
     let html = "";
+    // Pass URL as referer
     let response = await fetch(url, {
-      headers: getNekoHeaders(),
+      headers: getNekoHeaders(url),
     });
 
     console.log(`[Proxy] Response Status: ${response.status}`);
+
+    // Log headers for debugging Vercel issues
+    if (!response.ok) {
+      console.warn(
+        `[Proxy] Failed Headers:`,
+        JSON.stringify(response.headers.raw()),
+      );
+    }
 
     if (response.ok) {
       html = await response.text();
@@ -253,7 +270,7 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
         `[Bunkr] Direct fetch issue (${response.status}). Retrying with trailing slash...`,
       );
       targetUrl = `https://bunkr.cr/a/${slug}/`;
-      response = await fetch(targetUrl, { headers: getNekoHeaders() });
+      response = await fetch(targetUrl, { headers: getNekoHeaders(targetUrl) });
     }
 
     if (response.ok) {
@@ -382,13 +399,23 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     }
 
     // 3. Construct Sources List with Type info
+    // 3. Construct Sources List with Type info
     const sources = files.map((f, index) => {
       const type = getType(f.name);
+
+      let url = `https://bunkr.cr/f/${f.slug}`;
+      if (type === "image" && f.thumb) {
+        // Get high-res URL by removing '/thumbs/'
+        url = f.thumb.replace("/thumbs/", "/");
+
+        // Fix for WebP: Thumbnails are .png, but original might be .webp
+        if (f.name.toLowerCase().endsWith(".webp")) {
+          url = url.replace(/\.png$/, ".webp");
+        }
+      }
+
       return {
-        url:
-          type === "image" && f.thumb
-            ? f.thumb.replace("/thumbs/", "/")
-            : `https://bunkr.cr/f/${f.slug}`,
+        url: url,
         name: `File ${index + 1}: ${f.name}`,
         type: type,
         isDefault: index === defaultFileIndex,
