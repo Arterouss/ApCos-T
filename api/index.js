@@ -262,52 +262,69 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     console.log(`[Bunkr] Scraping Video: ${targetUrl}`);
 
     let html = "";
-    let response = await fetch(targetUrl, { headers: getNekoHeaders() });
 
-    // Fallback: Try trailing slash if 404 or Error
-    if (!response.ok && !slug.endsWith("/")) {
-      console.warn(
-        `[Bunkr] Direct fetch issue (${response.status}). Retrying with trailing slash...`,
-      );
-      targetUrl = `https://bunkr.cr/a/${slug}/`;
-      response = await fetch(targetUrl, { headers: getNekoHeaders(targetUrl) });
-    }
+    // Helper: Try to fetch from multiple sources
+    const fetchWithFallback = async (targetUrl) => {
+      let lastError;
 
-    if (response.ok) {
-      html = await response.text();
-    }
-
-    // Proxy Fallback: If status bad OR html looks blocked
-    if (
-      !response.ok ||
-      html.includes("Just a moment") ||
-      html.includes("Enable JavaScript")
-    ) {
-      console.warn(`[Bunkr] blocked/failed. Switching to AllOrigins Proxy...`);
+      // 1. Direct Fetch
       try {
-        // Use CorsProxy.io (returns raw text)
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(
-          targetUrl,
-        )}`;
-        const pRes = await fetch(proxyUrl);
-        if (pRes.ok) {
-          const pText = await pRes.text();
-          // Verify it HTML
-          if (pText && pText.includes("<title>")) {
-            html = pText;
-            console.log("[Bunkr] Proxy (CorsProxy) fetch success.");
-          }
+        console.log(`[Bunkr] Attempting Direct: ${targetUrl}`);
+        const res = await fetch(targetUrl, {
+          headers: getNekoHeaders(targetUrl),
+        });
+        if (res.ok) return await res.text();
+        console.warn(`[Bunkr] Direct failed: ${res.status}`);
+        lastError = `Direct: ${res.status}`;
+      } catch (e) {
+        console.warn(`[Bunkr] Direct error: ${e.message}`);
+        lastError = e.message;
+      }
+
+      // 2. CorsProxy.io
+      try {
+        // Append random param to avoid cache
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        console.log(`[Bunkr] Attempting CorsProxy: ${proxyUrl}`);
+        const res = await fetch(proxyUrl);
+        if (res.ok) return await res.text();
+        console.warn(`[Bunkr] CorsProxy failed: ${res.status}`);
+      } catch (e) {
+        console.warn(`[Bunkr] CorsProxy error: ${e.message}`);
+      }
+
+      // 3. AllOrigins (Returns JSON { contents: "..." })
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        console.log(`[Bunkr] Attempting AllOrigins: ${proxyUrl}`);
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.contents) return data.contents;
         }
-      } catch (err) {
-        console.error("Proxy Fallback Failed:", err);
+      } catch (e) {
+        console.warn(`[Bunkr] AllOrigins error: ${e.message}`);
+      }
+
+      throw new Error(`All Fetch Attempts Failed. Last error: ${lastError}`);
+    };
+
+    try {
+      html = await fetchWithFallback(targetUrl);
+    } catch (e) {
+      // Retry with trailing slash if original URL didn't have one
+      if (!slug.endsWith("/")) {
+        console.log("[Bunkr] Retrying with trailing slash...");
+        targetUrl = `https://bunkr.cr/a/${slug}/`;
+        try {
+          html = await fetchWithFallback(targetUrl);
+        } catch (finalErr) {
+          console.error("[Bunkr] Final Retry Failed:", finalErr);
+        }
       }
     }
 
-    // Final check
-    if (!html)
-      throw new Error(
-        `Video Fetch Failed: ${response.status} (Proxy also failed)`,
-      );
+    if (!html) throw new Error("Failed to retrieve content from Bunkr.");
 
     // --- BUNKR ALBUM & FILE PARSING ---
 
