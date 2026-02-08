@@ -795,6 +795,9 @@ const parseCosplayPosts = ($) => {
     const title = titleEl.text().trim();
     const url = titleEl.attr("href");
     const thumbnail = imgEl.attr("src") || imgEl.attr("data-src");
+    const proxiedThumbnail = thumbnail
+      ? `https://wsrv.nl/?url=${encodeURIComponent(thumbnail)}`
+      : null;
 
     // Extract ID/Slug from URL (e.g., https://cosplaytele.com/fern-16/ -> fern-16)
     const slug = url ? url.split("/").filter(Boolean).pop() : null;
@@ -805,7 +808,7 @@ const parseCosplayPosts = ($) => {
         slug: slug,
         title,
         url,
-        thumbnail,
+        thumbnail: proxiedThumbnail,
         service: "cosplaytele",
       });
     }
@@ -868,7 +871,7 @@ app.get("/api/cosplay/detail", async (req, res) => {
       const src = $(el).attr("src") || $(el).attr("data-src");
       // Filter out small icons or layout images if needed
       if (src && !src.includes("logo") && !src.includes("icon")) {
-        images.push(src);
+        images.push(`https://wsrv.nl/?url=${encodeURIComponent(src)}`);
       }
     });
 
