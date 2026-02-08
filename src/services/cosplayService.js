@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3001/api/cosplay";
+const API_URL = "/api/cosplay";
 
 export const getCosplayLatest = async (page = 1) => {
   try {
