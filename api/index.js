@@ -166,6 +166,37 @@ const fetchWithFallback = async (targetUrl, customHeaders = {}) => {
   throw new Error(`All proxies failed. Last error: ${lastError}`);
 };
 
+// ==========================================
+// IMAGE PROXY (Bypass ISP Blocks)
+// ==========================================
+app.get("/api/proxy/image", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing URL");
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: "https://cosplaytele.com/",
+      },
+    });
+
+    if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+
+    const contentType = response.headers.get("content-type");
+    if (contentType) res.setHeader("Content-Type", contentType);
+
+    // Cache for performance (1 day)
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    response.body.pipe(res);
+  } catch (error) {
+    console.error("Image Proxy Error:", error.message);
+    res.status(500).send("Error fetching image");
+  }
+});
+
 // Search & Latest Endpoint (Scraper)
 app.get("/api/hnime/search", async (req, res) => {
   try {
@@ -796,7 +827,7 @@ const parseCosplayPosts = ($) => {
     const url = titleEl.attr("href");
     const thumbnail = imgEl.attr("src") || imgEl.attr("data-src");
     const proxiedThumbnail = thumbnail
-      ? `https://wsrv.nl/?url=${encodeURIComponent(thumbnail)}`
+      ? `/api/proxy/image?url=${encodeURIComponent(thumbnail)}`
       : null;
 
     // Extract ID/Slug from URL (e.g., https://cosplaytele.com/fern-16/ -> fern-16)
@@ -869,9 +900,11 @@ app.get("/api/cosplay/detail", async (req, res) => {
     // Extract Images
     $(".entry-content img").each((i, el) => {
       const src = $(el).attr("src") || $(el).attr("data-src");
-      // Filter out small icons or layout images if needed
       if (src && !src.includes("logo") && !src.includes("icon")) {
-        images.push(`https://wsrv.nl/?url=${encodeURIComponent(src)}`);
+        // Use internal proxy
+        // We return a relative path. The frontend (on same domain) will resolve it.
+        // Or we can assume /api/proxy/image is available.
+        images.push(`/api/proxy/image?url=${encodeURIComponent(src)}`);
       }
     });
 
