@@ -2,7 +2,8 @@ import * as cheerio from "cheerio";
 import fetch from "node-fetch";
 
 async function run() {
-  const url = "https://cosplaytele.com/fern-16/";
+  // Using a video specific URL found in dump
+  const url = "https://cosplaytele.com/furina-8/";
   console.log(`Fetching ${url}...`);
   try {
     const res = await fetch(url, {
@@ -16,26 +17,34 @@ async function run() {
 
     console.log("Title:", $("h1.entry-title").text().trim());
 
-    // Images
-    const images = [];
-    $(".entry-content img").each((i, el) => {
-      const src = $(el).attr("src") || $(el).attr("data-src");
-      if (src) images.push(src);
+    // Videos
+    console.log("\n--- Videos ---");
+    const videoTags = $("video");
+    console.log(`Found ${videoTags.length} video tags`);
+    videoTags.each((i, el) => {
+      console.log(
+        "Video Tag:",
+        $(el).attr("src") || $(el).find("source").attr("src"),
+      );
     });
-    console.log(`Found ${images.length} images.`);
 
-    // Download Links
-    console.log("\n--- Download Links ---");
+    const iframes = $("iframe");
+    console.log(`Found ${iframes.length} iframes`);
+    iframes.each((i, el) => {
+      console.log("Iframe:", $(el).attr("src"));
+    });
+
+    // Check for specific video hosts links if not embedded
     $("a").each((i, el) => {
-      const text = $(el).text().toLowerCase();
       const href = $(el).attr("href");
       if (
-        text.includes("download") ||
-        text.includes("mediafire") ||
-        text.includes("gofile") ||
-        text.includes("mega")
+        href &&
+        (href.includes("youtube") ||
+          href.includes("vimeo") ||
+          href.includes("stream") ||
+          href.includes("mp4"))
       ) {
-        console.log(`[${text.trim()}] ${href}`);
+        console.log("Video Link:", href);
       }
     });
   } catch (e) {

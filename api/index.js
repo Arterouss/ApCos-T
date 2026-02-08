@@ -877,6 +877,21 @@ app.get("/api/cosplay/search", async (req, res) => {
   }
 });
 
+app.get("/api/cosplay/videos", async (req, res) => {
+  const page = req.query.page || 1;
+  const url = `https://cosplaytele.com/category/video-cosplay/page/${page}/`;
+
+  try {
+    const html = await fetchWithFallback(url);
+    const $ = cheerio.load(html);
+    const posts = parseCosplayPosts($);
+    res.json(posts);
+  } catch (error) {
+    console.error("CosplayTele Videos Error:", error);
+    res.status(500).json({ error: "Failed to fetch cosplay videos" });
+  }
+});
+
 app.get("/api/cosplay/detail", async (req, res) => {
   const { url } = req.query; // Expecting full URL or build it from slug? Let's take full URL or slug.
   // Ideally frontend sends slug, we build URL.
@@ -902,11 +917,12 @@ app.get("/api/cosplay/detail", async (req, res) => {
       const src = $(el).attr("src") || $(el).attr("data-src");
       if (src && !src.includes("logo") && !src.includes("icon")) {
         // Use internal proxy
-        // We return a relative path. The frontend (on same domain) will resolve it.
-        // Or we can assume /api/proxy/image is available.
         images.push(`/api/proxy/image?url=${encodeURIComponent(src)}`);
       }
     });
+
+    // Extract Video Iframe (if any)
+    const videoIframe = $("iframe").attr("src");
 
     // Extract Download Links
     const downloadLinks = [];
@@ -930,6 +946,7 @@ app.get("/api/cosplay/detail", async (req, res) => {
     res.json({
       title,
       images,
+      videoIframe,
       downloadLinks,
       originalUrl: targetUrl,
     });

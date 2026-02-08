@@ -57,6 +57,19 @@ export default function CosplayDetailPage() {
           {data.title}
         </h1>
 
+        {/* Video Player */}
+        {data.videoIframe && (
+          <div className="mb-10 aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 bg-black">
+            <iframe
+              src={data.videoIframe}
+              className="w-full h-full"
+              allowFullScreen
+              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+              title="Cosplay Video"
+            ></iframe>
+          </div>
+        )}
+
         {/* Download Buttons Section */}
         {data.downloadLinks && data.downloadLinks.length > 0 && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-10">

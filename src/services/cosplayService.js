@@ -34,3 +34,14 @@ export const getCosplayDetail = async (slug) => {
     return null;
   }
 };
+
+export const getCosplayVideos = async (page = 1) => {
+  try {
+    const res = await fetch(`${API_URL}/videos?page=${page}`);
+    if (!res.ok) throw new Error("Failed to fetch cosplay videos");
+    return await res.json();
+  } catch (error) {
+    console.error("Error fetching cosplay videos:", error);
+    return [];
+  }
+};

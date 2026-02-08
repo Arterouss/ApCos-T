@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getCosplayLatest, getCosplaySearch } from "../services/cosplayService";
-import { Menu, Camera, Video, Download } from "lucide-react";
+import {
+  getCosplayLatest,
+  getCosplaySearch,
+  getCosplayVideos,
+} from "../services/cosplayService";
+import { Menu, Camera, Video, Download, Play } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 
 export default function CosplayTelePage({ onOpenSidebar }) {
@@ -11,6 +15,7 @@ export default function CosplayTelePage({ onOpenSidebar }) {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("latest"); // 'latest' | 'videos'
 
   // Debounce search query
   useEffect(() => {
@@ -28,6 +33,8 @@ export default function CosplayTelePage({ onOpenSidebar }) {
       let results;
       if (debouncedQuery) {
         results = await getCosplaySearch(debouncedQuery, pageNum);
+      } else if (activeTab === "videos") {
+        results = await getCosplayVideos(pageNum);
       } else {
         results = await getCosplayLatest(pageNum);
       }
@@ -53,11 +60,11 @@ export default function CosplayTelePage({ onOpenSidebar }) {
     }
   };
 
-  // Initial fetch / Search change
+  // Initial fetch / Search change / Tab change
   useEffect(() => {
     setPage(1);
     fetchData(1, false);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, activeTab]);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
@@ -82,9 +89,37 @@ export default function CosplayTelePage({ onOpenSidebar }) {
           <p className="text-gray-400 mt-1">
             {debouncedQuery
               ? `Results for "${debouncedQuery}"`
-              : "Latest Cosplay Packs & Sets"}
+              : activeTab === "videos"
+                ? "Latest Video Cosplay"
+                : "Latest Cosplay Packs & Sets"}
           </p>
         </header>
+
+        {/* Tab Switcher */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white/5 p-1 rounded-full flex gap-2 border border-white/10">
+            <button
+              onClick={() => setActiveTab("latest")}
+              className={`px-6 py-2 rounded-full font-medium transition-all ${
+                activeTab === "latest"
+                  ? "bg-pink-600 text-white shadow-lg shadow-pink-500/25"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Latest Posts
+            </button>
+            <button
+              onClick={() => setActiveTab("videos")}
+              className={`px-6 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+                activeTab === "videos"
+                  ? "bg-pink-600 text-white shadow-lg shadow-pink-500/25"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Video size={18} /> Only Videos
+            </button>
+          </div>
+        </div>
 
         <div className="mb-8 max-w-2xl">
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
@@ -119,7 +154,11 @@ export default function CosplayTelePage({ onOpenSidebar }) {
                   {/* Hover Icon */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="bg-pink-600/90 p-3 rounded-full backdrop-blur-sm">
-                      <Camera size={24} className="text-white" />
+                      {activeTab === "videos" ? (
+                        <Play className="fill-white text-white" />
+                      ) : (
+                        <Camera size={24} className="text-white" />
+                      )}
                     </div>
                   </div>
                 </div>
