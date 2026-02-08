@@ -1,12 +1,13 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, Users, Tv, Image, Book } from "lucide-react";
+import { X, Users, Tv, Image, Book, Camera } from "lucide-react";
 
 const menuItems = [
   { name: "E-Hentai", path: "/", icon: <Book size={20} /> },
   { name: "Bunkr", path: "/hanime", icon: <Tv size={20} /> },
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
+  { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
 ];
 
 const SidebarContent = ({ onClose, location }) => (

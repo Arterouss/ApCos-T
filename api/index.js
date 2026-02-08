@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
+import * as cheerio from "cheerio";
 
 const app = express();
 const PORT = 3001;
@@ -98,19 +99,25 @@ const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Helper: Try to fetch from multiple sources (Shared for Search & Video)
-const fetchWithFallback = async (targetUrl) => {
+// Helper: Try to fetch from multiple sources (Shared)
+const fetchWithFallback = async (targetUrl, customHeaders = {}) => {
   let lastError;
+
+  const defaultHeaders = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    ...customHeaders,
+  };
 
   // 1. Direct Fetch
   try {
-    console.log(`[Bunkr] Attempting Direct: ${targetUrl}`);
-    const res = await fetch(targetUrl, { headers: getNekoHeaders(targetUrl) });
+    console.log(`[Proxy] Direct: ${targetUrl}`);
+    const res = await fetch(targetUrl, { headers: defaultHeaders });
     if (res.ok) return await res.text();
-    console.warn(`[Bunkr] Direct failed: ${res.status}`);
+    console.warn(`[Proxy] Direct failed: ${res.status}`);
     lastError = `Direct: ${res.status}`;
   } catch (e) {
-    console.warn(`[Bunkr] Direct error: ${e.message}`);
+    console.warn(`[Proxy] Direct error: ${e.message}`);
     lastError = e.message;
   }
 
@@ -118,44 +125,45 @@ const fetchWithFallback = async (targetUrl) => {
 
   // 2. CorsProxy.io
   try {
+    console.log(`[Proxy] CorsProxy: ${targetUrl}`);
     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-    console.log(`[Bunkr] Attempting CorsProxy: ${proxyUrl}`);
-    const res = await fetch(proxyUrl);
+    const res = await fetch(proxyUrl, { headers: defaultHeaders });
     if (res.ok) return await res.text();
-    console.warn(`[Bunkr] CorsProxy failed: ${res.status}`);
+    lastError = `CorsProxy: ${res.status}`;
   } catch (e) {
-    console.warn(`[Bunkr] CorsProxy error: ${e.message}`);
+    lastError = e.message;
   }
 
   await delay(500);
 
-  // 3. CodeTabs Proxy (New Layer)
+  // 3. CodeTabs (New Fallback)
   try {
+    console.log(`[Proxy] CodeTabs: ${targetUrl}`);
     const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-    console.log(`[Bunkr] Attempting CodeTabs: ${proxyUrl}`);
-    const res = await fetch(proxyUrl);
+    const res = await fetch(proxyUrl, { headers: defaultHeaders });
     if (res.ok) return await res.text();
-    console.warn(`[Bunkr] CodeTabs failed: ${res.status}`);
+    lastError = `CodeTabs: ${res.status}`;
   } catch (e) {
-    console.warn(`[Bunkr] CodeTabs error: ${e.message}`);
+    lastError = e.message;
   }
 
   await delay(500);
 
   // 4. AllOrigins (Returns JSON { contents: "..." })
   try {
+    console.log(`[Proxy] AllOrigins: ${targetUrl}`);
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-    console.log(`[Bunkr] Attempting AllOrigins: ${proxyUrl}`);
-    const res = await fetch(proxyUrl);
+    const res = await fetch(proxyUrl, { headers: defaultHeaders });
     if (res.ok) {
       const data = await res.json();
       if (data.contents) return data.contents;
     }
+    lastError = `AllOrigins: ${res.status}`;
   } catch (e) {
-    console.warn(`[Bunkr] AllOrigins error: ${e.message}`);
+    lastError = e.message;
   }
 
-  throw new Error(`All Fetch Attempts Failed. Last error: ${lastError}`);
+  throw new Error(`All proxies failed. Last error: ${lastError}`);
 };
 
 // Search & Latest Endpoint (Scraper)
@@ -188,7 +196,7 @@ app.get("/api/hnime/search", async (req, res) => {
     let html = "";
 
     try {
-      html = await fetchWithFallback(url);
+      html = await fetchWithFallback(url, getNekoHeaders(url)); // Use the refactored fetchWithFallback
     } catch (e) {
       console.error(`[Proxy] Search Failed nicely: ${e.message}`);
     }
@@ -281,14 +289,14 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     // fetchWithFallback is now global, no nested definition needed
 
     try {
-      html = await fetchWithFallback(targetUrl);
+      html = await fetchWithFallback(targetUrl, getNekoHeaders(targetUrl)); // Use the refactored fetchWithFallback
     } catch (e) {
       // Retry with trailing slash if original URL didn't have one
       if (!slug.endsWith("/")) {
         console.log("[Bunkr] Retrying with trailing slash...");
         targetUrl = `https://bunkr.cr/a/${slug}/`;
         try {
-          html = await fetchWithFallback(targetUrl);
+          html = await fetchWithFallback(targetUrl, getNekoHeaders(targetUrl)); // Use the refactored fetchWithFallback
         } catch (finalErr) {
           console.error("[Bunkr] Final Retry Failed:", finalErr);
         }
@@ -771,10 +779,132 @@ app.get("/api/ehentai/reader", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`Proxy server running at http://localhost:${PORT}`);
+
+// ==========================================
+// COSPLAY TELE API
+// ==========================================
+
+// Helper to parse CosplayTele Posts
+const parseCosplayPosts = ($) => {
+  const posts = [];
+  $(".col.post-item").each((i, el) => {
+    const $el = $(el);
+    const titleEl = $el.find(".box-text .post-title a");
+    const imgEl = $el.find(".box-image img");
+
+    const title = titleEl.text().trim();
+    const url = titleEl.attr("href");
+    const thumbnail = imgEl.attr("src") || imgEl.attr("data-src");
+
+    // Extract ID/Slug from URL (e.g., https://cosplaytele.com/fern-16/ -> fern-16)
+    const slug = url ? url.split("/").filter(Boolean).pop() : null;
+
+    if (title && url) {
+      posts.push({
+        id: slug,
+        slug: slug,
+        title,
+        url,
+        thumbnail,
+        service: "cosplaytele",
+      });
+    }
   });
-}
+  return posts;
+};
+
+app.get("/api/cosplay/latest", async (req, res) => {
+  const page = req.query.page || 1;
+  const url = `https://cosplaytele.com/page/${page}/`;
+
+  try {
+    const html = await fetchWithFallback(url);
+    const $ = cheerio.load(html);
+    const posts = parseCosplayPosts($);
+    res.json(posts);
+  } catch (error) {
+    console.error("CosplayTele Latest Error:", error);
+    res.status(500).json({ error: "Failed to fetch cosplay data" });
+  }
+});
+
+app.get("/api/cosplay/search", async (req, res) => {
+  const { q, page = 1 } = req.query;
+  const url = `https://cosplaytele.com/page/${page}/?s=${encodeURIComponent(q)}`;
+
+  try {
+    const html = await fetchWithFallback(url);
+    const $ = cheerio.load(html);
+    const posts = parseCosplayPosts($);
+    res.json(posts);
+  } catch (error) {
+    console.error("CosplayTele Search Error:", error);
+    res.status(500).json({ error: "Failed to search cosplay data" });
+  }
+});
+
+app.get("/api/cosplay/detail", async (req, res) => {
+  const { url } = req.query; // Expecting full URL or build it from slug? Let's take full URL or slug.
+  // Ideally frontend sends slug, we build URL.
+  // But let's support "slug" param to be consistent.
+
+  // If param is 'slug', build url.
+  let targetUrl = url;
+  if (!url && req.query.slug) {
+    targetUrl = `https://cosplaytele.com/${req.query.slug}/`;
+  }
+
+  if (!targetUrl) return res.status(400).json({ error: "Missing url or slug" });
+
+  try {
+    const html = await fetchWithFallback(targetUrl);
+    const $ = cheerio.load(html);
+
+    const title = $("h1.entry-title").text().trim();
+    const images = [];
+
+    // Extract Images
+    $(".entry-content img").each((i, el) => {
+      const src = $(el).attr("src") || $(el).attr("data-src");
+      // Filter out small icons or layout images if needed
+      if (src && !src.includes("logo") && !src.includes("icon")) {
+        images.push(src);
+      }
+    });
+
+    // Extract Download Links
+    const downloadLinks = [];
+    $("a").each((i, el) => {
+      const text = $(el).text().trim();
+      const href = $(el).attr("href");
+      const lowerText = text.toLowerCase();
+
+      if (
+        href &&
+        (lowerText.includes("download") ||
+          lowerText.includes("mediafire") ||
+          lowerText.includes("gofile") ||
+          lowerText.includes("mega.nz") ||
+          lowerText.includes("sorafolder"))
+      ) {
+        downloadLinks.push({ label: text, url: href });
+      }
+    });
+
+    res.json({
+      title,
+      images,
+      downloadLinks,
+      originalUrl: targetUrl,
+    });
+  } catch (error) {
+    console.error("CosplayTele Detail Error:", error);
+    res.status(500).json({ error: "Failed to fetch detail" });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Proxy server running at http://localhost:${PORT}`);
+});
 
 export default app;

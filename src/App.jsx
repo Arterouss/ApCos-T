@@ -5,7 +5,10 @@ import EHentaiDetailPage from "./pages/EHentaiDetailPage";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
 import HanimeDetailPage from "./pages/HanimeDetailPage";
+
 import Rule34Page from "./pages/Rule34Page";
+import CosplayTelePage from "./pages/CosplayTelePage";
+import CosplayDetailPage from "./pages/CosplayDetailPage";
 import Sidebar from "./components/Sidebar";
 
 function App() {
@@ -46,6 +49,14 @@ function App() {
               <Route
                 path="/rule34"
                 element={<Rule34Page onOpenSidebar={onOpenSidebar} />}
+              />
+              <Route
+                path="/cosplay"
+                element={<CosplayTelePage onOpenSidebar={onOpenSidebar} />}
+              />
+              <Route
+                path="/cosplay/detail/:slug"
+                element={<CosplayDetailPage />}
               />
               <Route path="/g/:id/:token" element={<EHentaiDetailPage />} />
             </Routes>
