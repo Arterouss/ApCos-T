@@ -123,11 +123,7 @@ export default function CosplayTelePage({ onOpenSidebar }) {
                   {/* Hover Icon */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="bg-pink-600/90 p-3 rounded-full backdrop-blur-sm">
-                      {activeTab === "videos" ? (
-                        <Play className="fill-white text-white" />
-                      ) : (
-                        <Camera size={24} className="text-white" />
-                      )}
+                      <Camera size={24} className="text-white" />
                     </div>
                   </div>
                 </div>
