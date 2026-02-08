@@ -191,9 +191,52 @@ app.get("/api/proxy/image", async (req, res) => {
     res.setHeader("Cache-Control", "public, max-age=86400");
 
     response.body.pipe(res);
+    response.body.pipe(res);
   } catch (error) {
     console.error("Image Proxy Error:", error.message);
     res.status(500).send("Error fetching image");
+  }
+});
+
+// ==========================================
+// COSSORA IFRAME PROXY
+// ==========================================
+app.get("/api/proxy/cossora", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing URL");
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: "https://cosplaytele.com/",
+      },
+    });
+
+    if (!response.ok)
+      throw new Error(`Cossora proxy failed: ${response.status}`);
+
+    const contentType = response.headers.get("content-type");
+    if (contentType) res.setHeader("Content-Type", contentType);
+
+    // We need to rewrite any relative URLs in the HTML to also go through a proxy if necessary.
+    // However, usually embeds just load m3u8. m3u8 might be CORS protected too.
+    // Let's first try just serving the HTML.
+
+    // Actually, if we just serve the HTML, the browser will load scripts/m3u8 from the original domain.
+    // If those resources check Referer, they might fail because the Referer will be OUR domain (localhost/vercel).
+    // But usually video hosts checks referer on the iframe load, not necessarily on the .ts segments (though they might).
+
+    // Let's pipe the body.
+    const html = await response.text();
+
+    // If the HTML contains relative paths, we might need to fix them.
+    // But let's try raw piping first (or text sending).
+    res.send(html);
+  } catch (error) {
+    console.error("Cossora Proxy Error:", error.message);
+    res.status(500).send("Error fetching video");
   }
 });
 
@@ -922,7 +965,28 @@ app.get("/api/cosplay/detail", async (req, res) => {
     });
 
     // Extract Video Iframe (if any)
-    const videoIframe = $("iframe").attr("src");
+    const rawIframe = $("iframe").attr("src");
+
+    // Debug logging to file
+    const fs = await import("fs");
+    fs.appendFileSync(
+      "debug_log.txt",
+      `[${new Date().toISOString()}] Detail Hit: ${targetUrl}\n`,
+    );
+    fs.appendFileSync(
+      "debug_log.txt",
+      `[${new Date().toISOString()}] Raw Iframe: ${rawIframe}\n`,
+    );
+
+    console.log("[Debug] Raw Iframe:", rawIframe);
+    const videoIframe = rawIframe
+      ? `/api/proxy/cossora?url=${encodeURIComponent(rawIframe)}`
+      : null;
+    console.log("[Debug] Proxied Iframe:", videoIframe);
+    fs.appendFileSync(
+      "debug_log.txt",
+      `[${new Date().toISOString()}] Proxied: ${videoIframe}\n`,
+    );
 
     // Extract Download Links
     const downloadLinks = [];
