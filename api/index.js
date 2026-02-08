@@ -966,27 +966,9 @@ app.get("/api/cosplay/detail", async (req, res) => {
 
     // Extract Video Iframe (if any)
     const rawIframe = $("iframe").attr("src");
-
-    // Debug logging to file
-    const fs = await import("fs");
-    fs.appendFileSync(
-      "debug_log.txt",
-      `[${new Date().toISOString()}] Detail Hit: ${targetUrl}\n`,
-    );
-    fs.appendFileSync(
-      "debug_log.txt",
-      `[${new Date().toISOString()}] Raw Iframe: ${rawIframe}\n`,
-    );
-
-    console.log("[Debug] Raw Iframe:", rawIframe);
     const videoIframe = rawIframe
       ? `/api/proxy/cossora?url=${encodeURIComponent(rawIframe)}`
       : null;
-    console.log("[Debug] Proxied Iframe:", videoIframe);
-    fs.appendFileSync(
-      "debug_log.txt",
-      `[${new Date().toISOString()}] Proxied: ${videoIframe}\n`,
-    );
 
     // Extract Download Links
     const downloadLinks = [];

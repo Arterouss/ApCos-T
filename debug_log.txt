@@ -31,3 +31,6 @@
 [2026-02-08T12:57:22.694Z] Detail Hit: https://cosplaytele.com/iuno-2/
 [2026-02-08T12:57:22.694Z] Raw Iframe: https://cossora.stream/embed/da23ef66-2d8b-4c49-ab01-69dadab08b40
 [2026-02-08T12:57:22.695Z] Proxied: /api/proxy/cossora?url=https%3A%2F%2Fcossora.stream%2Fembed%2Fda23ef66-2d8b-4c49-ab01-69dadab08b40
+[2026-02-08T13:01:31.205Z] Detail Hit: https://cosplaytele.com/feixiao-2/
+[2026-02-08T13:01:31.205Z] Raw Iframe: https://cossora.stream/embed/04f454ba-7fa2-49cb-8602-a1cf523103a0
+[2026-02-08T13:01:31.205Z] Proxied: /api/proxy/cossora?url=https%3A%2F%2Fcossora.stream%2Fembed%2F04f454ba-7fa2-49cb-8602-a1cf523103a0
