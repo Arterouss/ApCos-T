@@ -12,13 +12,21 @@ export default function CosplayDetailPage() {
   const { slug } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadDetail = async () => {
       setLoading(true);
-      const detail = await getCosplayDetail(slug);
-      setData(detail);
-      setLoading(false);
+      setError(null);
+      try {
+        const detail = await getCosplayDetail(slug);
+        setData(detail);
+      } catch (err) {
+        console.error(err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
     if (slug) loadDetail();
   }, [slug]);
@@ -31,11 +39,19 @@ export default function CosplayDetailPage() {
     );
   }
 
-  if (!data) {
+  if (error || !data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white bg-neutral-950">
-        <h2 className="text-2xl font-bold mb-4">Post Not Found</h2>
-        <Link to="/cosplay" className="text-pink-400 hover:underline">
+      <div className="min-h-screen flex flex-col items-center justify-center text-white bg-neutral-950 px-4 text-center">
+        <h2 className="text-2xl font-bold mb-4 text-red-500">
+          {error ? "Error Loading Post" : "Post Not Found"}
+        </h2>
+        <p className="text-gray-400 mb-6 max-w-md">
+          {error || "The requested cosplay post could not be found."}
+        </p>
+        <Link
+          to="/cosplay"
+          className="px-6 py-2 bg-pink-600 rounded-lg hover:bg-pink-700 transition-colors"
+        >
           Back to Gallery
         </Link>
       </div>
