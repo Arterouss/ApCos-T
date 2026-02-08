@@ -73,16 +73,29 @@ export default function CosplayDetailPage() {
           {data.title}
         </h1>
 
-        {/* Video Player */}
-        {data.videoIframe && (
-          <div className="mb-10 aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 bg-black">
-            <iframe
-              src={data.videoIframe}
-              className="w-full h-full"
-              allowFullScreen
-              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-              title="Cosplay Video"
-            ></iframe>
+        {/* Video Players */}
+        {data.videoIframes && data.videoIframes.length > 0 && (
+          <div className="space-y-6 mb-10">
+            <h3 className="text-xl font-semibold flex items-center gap-2">
+              <span className="text-pink-400">▶</span> Videos (
+              {data.videoIframes.length})
+            </h3>
+            <div className="grid grid-cols-1 gap-6">
+              {data.videoIframes.map((iframeSrc, idx) => (
+                <div
+                  key={idx}
+                  className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 bg-black"
+                >
+                  <iframe
+                    src={iframeSrc}
+                    className="w-full h-full"
+                    allowFullScreen
+                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                    title={`Cosplay Video ${idx + 1}`}
+                  ></iframe>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

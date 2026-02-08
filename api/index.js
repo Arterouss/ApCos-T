@@ -191,7 +191,6 @@ app.get("/api/proxy/image", async (req, res) => {
     res.setHeader("Cache-Control", "public, max-age=86400");
 
     response.body.pipe(res);
-    response.body.pipe(res);
   } catch (error) {
     console.error("Image Proxy Error:", error.message);
     res.status(500).send("Error fetching image");
@@ -231,9 +230,13 @@ app.get("/api/proxy/cossora", async (req, res) => {
     // Let's pipe the body.
     const html = await response.text();
 
-    // If the HTML contains relative paths, we might need to fix them.
-    // But let's try raw piping first (or text sending).
-    res.send(html);
+    // Inject no-referrer to try and bypass 232011 (Hotlink protection)
+    const modifiedHtml = html.replace(
+      "<head>",
+      '<head><meta name="referrer" content="no-referrer">',
+    );
+
+    res.send(modifiedHtml);
   } catch (error) {
     console.error("Cossora Proxy Error:", error.message);
     res.status(500).send("Error fetching video");
@@ -964,11 +967,14 @@ app.get("/api/cosplay/detail", async (req, res) => {
       }
     });
 
-    // Extract Video Iframe (if any)
-    const rawIframe = $("iframe").attr("src");
-    const videoIframe = rawIframe
-      ? `/api/proxy/cossora?url=${encodeURIComponent(rawIframe)}`
-      : null;
+    // Extract Video Iframes (Multiple)
+    const videoIframes = [];
+    $("iframe").each((i, el) => {
+      const src = $(el).attr("src");
+      if (src) {
+        videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
+      }
+    });
 
     // Extract Download Links
     const downloadLinks = [];
@@ -992,7 +998,7 @@ app.get("/api/cosplay/detail", async (req, res) => {
     res.json({
       title,
       images,
-      videoIframe,
+      videoIframes, // Return array
       downloadLinks,
       originalUrl: targetUrl,
     });
