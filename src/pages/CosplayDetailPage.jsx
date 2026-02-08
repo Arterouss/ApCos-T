@@ -93,6 +93,17 @@ export default function CosplayDetailPage() {
                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                     title={`Cosplay Video ${idx + 1}`}
                   ></iframe>
+                  <div className="bg-neutral-900/50 p-2 text-center border-t border-white/10">
+                    <a
+                      href={iframeSrc}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-pink-400 hover:text-pink-300 flex items-center justify-center gap-2 font-medium"
+                    >
+                      <ExternalLink size={14} /> Trouble playing? Open in new
+                      tab
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
