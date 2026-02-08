@@ -241,13 +241,40 @@ app.get("/api/proxy/cossora", async (req, res) => {
       const proxyUrl = `/api/proxy?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent("https://cosplaytele.com/")}`;
 
       // Return a simple HTML player that points to our proxy
+      // Return a proper HLS Player (hls.js) for Chrome/Firefox support
       const playerHtml = `
+            <!DOCTYPE html>
             <html>
             <head>
-                <style>body{margin:0;background:black;height:100vh;display:flex;align-items:center;justify-content:center;}</style>
+                <style>body{margin:0;background:black;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;} video{width:100%;height:100%;object-fit:contain;}</style>
+                <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
             </head>
             <body>
-                <video src="${proxyUrl}" controls autoplay width="100%" height="100%"></video>
+                <video id="video" controls autoplay></video>
+                <script>
+                    var video = document.getElementById('video');
+                    var videoSrc = "${proxyUrl}";
+                    
+                    if (Hls.isSupported()) {
+                        var hls = new Hls();
+                        hls.loadSource(videoSrc);
+                        hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            video.play().catch(e => console.log("Autoplay blocked", e));
+                        });
+                        hls.on(Hls.Events.ERROR, function(event, data) {
+                            console.error("HLS Error:", data);
+                        });
+                    }
+                    // hls.js is not supported on platforms that do not have Media Source Extensions (MSE) enabled.
+                    // When the browser has built-in HLS support (check using \`canPlayType\`), we can provide an HLS manifest (i.e. .m3u8 URL) directly to the video element through the \`src\` property.
+                    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        video.src = videoSrc;
+                        video.addEventListener('loadedmetadata', function() {
+                            video.play().catch(e => console.log("Autoplay blocked", e));
+                        });
+                    }
+                </script>
             </body>
             </html>
         `;
