@@ -230,13 +230,36 @@ app.get("/api/proxy/cossora", async (req, res) => {
     // Let's pipe the body.
     const html = await response.text();
 
-    // Inject no-referrer to try and bypass 232011 (Hotlink protection)
-    const modifiedHtml = html.replace(
-      "<head>",
-      '<head><meta name="referrer" content="no-referrer">',
-    );
+    // Extract valid video source (m3u8 or mp4) from JS config
+    // Look for: file: "https://..."
+    const fileMatch = /file:\s*["']([^"']+)["']/.exec(html);
 
-    res.send(modifiedHtml);
+    if (fileMatch && fileMatch[1]) {
+      const videoUrl = fileMatch[1];
+      // Redirect to our generic proxy with the correct Referer
+      // We use the recursive proxy to handle m3u8 and ts segments
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent("https://cosplaytele.com/")}`;
+
+      // Return a simple HTML player that points to our proxy
+      const playerHtml = `
+            <html>
+            <head>
+                <style>body{margin:0;background:black;height:100vh;display:flex;align-items:center;justify-content:center;}</style>
+            </head>
+            <body>
+                <video src="${proxyUrl}" controls autoplay width="100%" height="100%"></video>
+            </body>
+            </html>
+        `;
+      res.send(playerHtml);
+    } else {
+      // Fallback: Inject no-referrer and hope for the best (or maybe it's a different player source)
+      const modifiedHtml = html.replace(
+        "<head>",
+        '<head><meta name="referrer" content="no-referrer">',
+      );
+      res.send(modifiedHtml);
+    }
   } catch (error) {
     console.error("Cossora Proxy Error:", error.message);
     res.status(500).send("Error fetching video");
@@ -524,15 +547,23 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
 
 // Generic Proxy for Streams (m3u8/ts) & Images/Videos
 app.get("/api/proxy", async (req, res) => {
-  const { url } = req.query;
+  const { url, referer } = req.query;
   if (!url) return res.status(400).send("URL required");
 
   try {
     const decodedUrl = decodeURIComponent(url);
+    const decodedReferer = referer ? decodeURIComponent(referer) : null;
+
     // Default headers
     const headers = {
       "User-Agent": getRandomUA(),
     };
+
+    // Add Referer if provided
+    if (decodedReferer) {
+      headers["Referer"] = decodedReferer;
+      headers["Origin"] = new URL(decodedReferer).origin;
+    }
 
     // Forward Range header if present (Critical for video seeking/buffering)
     if (req.headers.range) {
@@ -571,10 +602,33 @@ app.get("/api/proxy", async (req, res) => {
 
       // Rewrite absolute URLs to go through proxy
       const rewritten = text.replace(/(https?:\/\/[^\s"']+)/g, (match) => {
-        return `${host}/api/proxy?url=${encodeURIComponent(match)}`;
+        let replacement = `${host}/api/proxy?url=${encodeURIComponent(match)}`;
+        if (decodedReferer)
+          replacement += `&referer=${encodeURIComponent(decodedReferer)}`;
+        return replacement;
       });
 
-      res.send(rewritten);
+      // Rewrite relative URLs (lines starting with neither # nor http)
+      // m3u8 lines: stream_1080p.m3u8 or segment_001.ts
+      // We need to resolve them against the original URL base.
+      const baseUrl = decodedUrl.substring(0, decodedUrl.lastIndexOf("/") + 1);
+
+      const rewrittenRelative = rewritten.replace(
+        /^[^#\s](?!http)(.+)$/gm,
+        (match) => {
+          // If it was already rewritten by the absolute regex, skip (but regex above catches http)
+          // If line doesn't start with http, it's relative.
+          if (match.startsWith("http")) return match;
+
+          const absolute = new URL(match, baseUrl).href;
+          let replacement = `${host}/api/proxy?url=${encodeURIComponent(absolute)}`;
+          if (decodedReferer)
+            replacement += `&referer=${encodeURIComponent(decodedReferer)}`;
+          return replacement;
+        },
+      );
+
+      res.send(rewrittenRelative);
     } else {
       // Pipe the stream directly instead of buffering!
       response.body.pipe(res);
