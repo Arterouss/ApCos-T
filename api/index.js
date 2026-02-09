@@ -191,15 +191,62 @@ app.get("/api/proxy/image", async (req, res) => {
   if (!url) return res.status(400).send("Missing URL");
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Referer: "https://cosplaytele.com/",
-      },
-    });
+    let response;
 
-    if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+    // 1. Try Direct Fetch
+    try {
+      response = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Referer: "https://cosplaytele.com/",
+        },
+      });
+    } catch (directError) {
+      console.warn(
+        `[Image Proxy] Direct fetch network error: ${directError.message}`,
+      );
+    }
+
+    // 2. If blocked/failed, try wsrv.nl
+    if (!response || !response.ok || response.status === 403) {
+      const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
+      // console.log(`[Image Proxy] Try wsrv: ${proxyUrl}`);
+      try {
+        response = await fetch(proxyUrl);
+      } catch (e) {
+        console.warn(`[Image Proxy] wsrv network error: ${e.message}`);
+      }
+    }
+
+    // 3. If wsrv failed, try CodeTabs (No Headers)
+    if (!response || !response.ok) {
+      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+      // console.log(`[Image Proxy] Try CodeTabs: ${proxyUrl}`);
+      try {
+        response = await fetch(proxyUrl);
+      } catch (e) {
+        console.warn(`[Image Proxy] CodeTabs network error: ${e.message}`);
+        response = undefined;
+      }
+    }
+
+    // 4. If CodeTabs failed, try AllOrigins (No Headers)
+    if (!response || !response.ok) {
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      // console.log(`[Image Proxy] Try AllOrigins: ${proxyUrl}`);
+      try {
+        response = await fetch(proxyUrl);
+      } catch (e) {
+        console.warn(`[Image Proxy] AllOrigins network error: ${e.message}`);
+        response = undefined;
+      }
+    }
+
+    if (!response || !response.ok)
+      throw new Error(
+        `Image fetch failed: ${response ? response.status : "No response"}`,
+      );
 
     const contentType = response.headers.get("content-type");
     if (contentType) res.setHeader("Content-Type", contentType);
@@ -210,7 +257,7 @@ app.get("/api/proxy/image", async (req, res) => {
     response.body.pipe(res);
   } catch (error) {
     console.error("Image Proxy Error:", error.message);
-    res.status(500).send("Error fetching image");
+    res.status(500).send(`Error fetching image: ${error.message}`);
   }
 });
 
@@ -235,9 +282,17 @@ app.get("/api/proxy/cossora", async (req, res) => {
     // but we know we're mostly serving HTML players.
     res.setHeader("Content-Type", "text/html");
 
-    // Extract valid video source (m3u8 or mp4) from JS config
-    // Look for: file: "https://..."
-    const fileMatch = /file:\s*["']([^"']+)["']/.exec(html);
+    // Extract valid video source (m3u8 or mp4)
+    // 1. Look for file: "..." (Standard JWPlayer/Clappr)
+    let fileMatch = /file:\s*["']([^"']+)["']/.exec(html);
+
+    // 2. Look for explicit .mp4 or .m3u8 inside quotes (Vidnest/General)
+    if (!fileMatch) {
+      fileMatch = /["']([^"']+\.mp4.*?)["']/.exec(html);
+    }
+    if (!fileMatch) {
+      fileMatch = /["']([^"']+\.m3u8.*?)["']/.exec(html);
+    }
 
     if (fileMatch && fileMatch[1]) {
       const videoUrl = fileMatch[1];
