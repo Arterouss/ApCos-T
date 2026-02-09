@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3001/api/nekopoi";
+const API_URL = "/api/nekopoi";
 
 export const getNekopoiLatest = async (page = 1) => {
   try {
