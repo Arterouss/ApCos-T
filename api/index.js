@@ -100,7 +100,11 @@ const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Helper: Try to fetch from multiple sources (Shared)
-const fetchWithFallback = async (targetUrl, customHeaders = {}) => {
+const fetchWithFallback = async (
+  targetUrl,
+  customHeaders = {},
+  skipDirect = false,
+) => {
   let lastError;
 
   const defaultHeaders = {
@@ -110,18 +114,31 @@ const fetchWithFallback = async (targetUrl, customHeaders = {}) => {
   };
 
   // 1. Direct Fetch
-  try {
-    console.log(`[Proxy] Direct: ${targetUrl}`);
-    const res = await fetch(targetUrl, { headers: defaultHeaders });
-    if (res.ok) return await res.text();
-    console.warn(`[Proxy] Direct failed: ${res.status}`);
-    lastError = `Direct: ${res.status}`;
-  } catch (e) {
-    console.warn(`[Proxy] Direct error: ${e.message}`);
-    lastError = e.message;
-  }
+  if (!skipDirect) {
+    try {
+      console.log(`[Proxy] Direct: ${targetUrl}`);
+      const res = await fetch(targetUrl, { headers: defaultHeaders });
 
-  await delay(1000); // Wait 1s before proxy to be polite
+      // Check for ISP Block / Soft Block
+      const text = await res.text();
+      if (
+        res.ok &&
+        !text.includes("Internet Positif") &&
+        !text.includes("mercysub")
+      ) {
+        return text;
+      }
+
+      console.warn(`[Proxy] Direct failed: ${res.status} or Blocked`);
+      lastError = `Direct: ${res.status} or Blocked`;
+    } catch (e) {
+      console.warn(`[Proxy] Direct error: ${e.message}`);
+      lastError = e.message;
+    }
+    await delay(1000); // Wait 1s before proxy to be polite
+  } else {
+    console.log(`[Proxy] Skipping Direct Fetch for ${targetUrl}`);
+  }
 
   // 2. CorsProxy.io
   try {
@@ -205,30 +222,18 @@ app.get("/api/proxy/cossora", async (req, res) => {
   if (!url) return res.status(400).send("Missing URL");
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Referer: "https://cosplaytele.com/",
-      },
-    });
+    const headers = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Referer: "https://cosplaytele.com/",
+    };
 
-    if (!response.ok)
-      throw new Error(`Cossora proxy failed: ${response.status}`);
+    // Force Proxy (skipDirect = true) to bypass ISP blocks
+    const html = await fetchWithFallback(url, headers, true);
 
-    const contentType = response.headers.get("content-type");
-    if (contentType) res.setHeader("Content-Type", contentType);
-
-    // We need to rewrite any relative URLs in the HTML to also go through a proxy if necessary.
-    // However, usually embeds just load m3u8. m3u8 might be CORS protected too.
-    // Let's first try just serving the HTML.
-
-    // Actually, if we just serve the HTML, the browser will load scripts/m3u8 from the original domain.
-    // If those resources check Referer, they might fail because the Referer will be OUR domain (localhost/vercel).
-    // But usually video hosts checks referer on the iframe load, not necessarily on the .ts segments (though they might).
-
-    // Let's pipe the body.
-    const html = await response.text();
+    // We can't easily get Content-Type from fetchWithFallback (it returns text),
+    // but we know we're mostly serving HTML players.
+    res.setHeader("Content-Type", "text/html");
 
     // Extract valid video source (m3u8 or mp4) from JS config
     // Look for: file: "https://..."
@@ -1105,14 +1110,153 @@ app.get("/api/cosplay/detail", async (req, res) => {
       images,
       videoIframes, // Return array
       downloadLinks,
-      originalUrl: targetUrl,
+      originalUrl: url,
     });
   } catch (error) {
-    console.error("CosplayTele Detail Error:", error);
+    console.error("Nekopoi Detail Error:", error.message);
     res.status(500).json({ error: "Failed to fetch detail" });
   }
 });
 
+// ==========================================
+// NEKOPOI API
+// ==========================================
+
+const parseNekopoiPosts = ($) => {
+  const posts = [];
+  // Strategy: Try multiple selectors.
+  let items = $(".eropost");
+  if (items.length === 0) items = $("article.post");
+  if (items.length === 0) items = $(".result-item");
+
+  items.each((i, el) => {
+    const $el = $(el);
+    let titleEl = $el.find("h2 a");
+    if (titleEl.length === 0) titleEl = $el.find(".title a");
+
+    let imgEl = $el.find("img");
+
+    const title = titleEl.text().trim();
+    const url = titleEl.attr("href");
+    const thumb =
+      imgEl.attr("src") ||
+      imgEl.attr("data-src") ||
+      imgEl.attr("data-lazy-src");
+
+    const slug = url ? url.split("/").filter(Boolean).pop() : null;
+
+    if (title && url) {
+      posts.push({
+        id: slug,
+        slug,
+        title,
+        thumbnail: thumb
+          ? `/api/proxy/image?url=${encodeURIComponent(thumb)}`
+          : null,
+        url,
+      });
+    }
+  });
+  return posts;
+};
+
+app.get("/api/nekopoi/latest", async (req, res) => {
+  const page = req.query.page || 1;
+  const url =
+    page > 1 ? `https://nekopoi.care/page/${page}/` : `https://nekopoi.care/`;
+
+  try {
+    // Force Proxy (skipDirect = true) to bypass ISP blocks
+    const html = await fetchWithFallback(url, {}, true);
+    const $ = cheerio.load(html);
+    const posts = parseNekopoiPosts($);
+    res.json(posts);
+  } catch (error) {
+    console.error("Nekopoi Latest Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch Nekopoi data" });
+  }
+});
+
+app.get("/api/nekopoi/detail", async (req, res) => {
+  const { slug } = req.query;
+  if (!slug) return res.status(400).json({ error: "Slug required" });
+
+  const url = `https://nekopoi.care/${slug}/`;
+
+  try {
+    // Force Proxy (skipDirect = true) to bypass ISP blocks
+    const html = await fetchWithFallback(url, {}, true);
+    const $ = cheerio.load(html);
+
+    const title =
+      $("h1.entry-title").text().trim() || $("h1.title").text().trim();
+    const images = [];
+
+    // Extract Stream
+    let videoIframes = [];
+
+    // Strategy 1: Look for iframes (streams)
+    $("iframe").each((i, el) => {
+      const src = $(el).attr("src");
+      if (src) {
+        // Try to proxy it if it looks like a stream
+        videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
+      }
+    });
+
+    // Strategy 2: Look for 'video' tag
+    $("video source").each((i, el) => {
+      const src = $(el).attr("src");
+      if (src) {
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}&referer=${encodeURIComponent("https://nekopoi.care/")}`;
+        videoIframes.push(proxyUrl);
+      }
+    });
+
+    // Strategy 3: Look for stream scripts
+    const scriptContent = $("script").text();
+    const fileMatch = /file:\s*["']([^"']+)["']/.exec(scriptContent);
+    if (fileMatch && fileMatch[1]) {
+      const src = fileMatch[1];
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}&referer=${encodeURIComponent("https://nekopoi.care/")}`;
+      videoIframes.push(proxyUrl);
+    }
+
+    // Extract Content Images
+    $(".entry-content img, .content img").each((i, el) => {
+      const src = $(el).attr("src") || $(el).attr("data-src");
+      if (src) images.push(`/api/proxy/image?url=${encodeURIComponent(src)}`);
+    });
+
+    // Extract Download Links
+    const downloadLinks = [];
+    $("a").each((i, el) => {
+      const txt = $(el).text().trim().toLowerCase();
+      const href = $(el).attr("href");
+      if (
+        href &&
+        (txt.includes("download") ||
+          txt.includes("zippyshare") ||
+          txt.includes("gdrive"))
+      ) {
+        downloadLinks.push({ label: $(el).text().trim(), url: href });
+      }
+    });
+
+    res.json({
+      title,
+      images,
+      videoIframes,
+      downloadLinks,
+      originalUrl: url,
+    });
+  } catch (error) {
+    console.error("Nekopoi Detail Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch detail" });
+  }
+});
+
+// Start Server
 app.listen(PORT, () => {
   console.log(`Proxy server running at http://localhost:${PORT}`);
 });

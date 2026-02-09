@@ -1,46 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getCosplayLatest,
-  getCosplaySearch,
-  getCosplayVideos,
-} from "../services/cosplayService";
-import { Menu, Camera, Video, Download, Play } from "lucide-react";
-import SearchBar from "../components/SearchBar";
+import { getNekopoiLatest } from "../services/nekopoiService";
+import { Menu, Cat, Play } from "lucide-react";
 
-export default function CosplayTelePage({ onOpenSidebar }) {
+export default function NekopoiPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   const fetchData = async (pageNum, isLoadMore = false) => {
     if (isLoadMore) setLoadingMore(true);
     else setLoading(true);
 
     try {
-      let results;
-      if (debouncedQuery) {
-        results = await getCosplaySearch(debouncedQuery, pageNum);
-      } else {
-        results = await getCosplayLatest(pageNum);
-      }
-
+      const results = await getNekopoiLatest(pageNum);
       const newHits = Array.isArray(results) ? results : [];
 
       if (isLoadMore) {
         setData((prev) => {
-          // Avoid duplicates by slug
           const existingSlugs = new Set(prev.map((p) => p.slug));
           const uniqueNew = newHits.filter((h) => !existingSlugs.has(h.slug));
           return [...prev, ...uniqueNew];
@@ -49,19 +27,17 @@ export default function CosplayTelePage({ onOpenSidebar }) {
         setData(newHits);
       }
     } catch (error) {
-      console.error("Failed to load cosplay data", error);
-      if (!isLoadMore) setData([]);
+      console.error("Failed to load Nekopoi data", error);
     } finally {
       if (isLoadMore) setLoadingMore(false);
       else setLoading(false);
     }
   };
 
-  // Initial fetch / Search change
   useEffect(() => {
     setPage(1);
     fetchData(1, false);
-  }, [debouncedQuery]);
+  }, []);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
@@ -80,56 +56,46 @@ export default function CosplayTelePage({ onOpenSidebar }) {
 
       <div className="max-w-7xl mx-auto">
         <header className="mb-8 text-center md:text-left">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-rose-600 bg-clip-text text-transparent">
-            CosplayTele Gallery
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent flex items-center justify-center md:justify-start gap-2">
+            <Cat size={32} className="text-yellow-500" /> Nekopoi Gallery
           </h1>
-          <p className="text-gray-400 mt-1">
-            {debouncedQuery
-              ? `Results for "${debouncedQuery}"`
-              : "Latest Cosplay Packs & Sets"}
-          </p>
+          <p className="text-gray-400 mt-1">Latest Hentai Releases</p>
         </header>
 
-        <div className="mb-8 max-w-2xl">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
-        </div>
-
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="bg-gray-800 aspect-[2/3] rounded-xl mb-3"></div>
-                <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
-              </div>
-            ))}
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
             {data.map((item) => (
               <Link
                 key={item.slug}
-                to={`/cosplay/${item.slug}`}
-                className="group relative block overflow-hidden rounded-xl bg-gray-900 border border-white/5 hover:border-pink-500/50 transition-all duration-300"
+                to={`/nekopoi/${item.slug}`}
+                className="group relative bg-white/5 rounded-xl overflow-hidden hover:-translate-y-1 transition-all duration-300 border border-white/5 hover:border-yellow-500/30 hover:shadow-xl hover:shadow-yellow-500/10"
               >
-                <div className="aspect-[2/3] overflow-hidden relative">
+                <div className="aspect-[3/4] overflow-hidden relative">
                   <img
-                    src={item.thumbnail}
+                    src={
+                      item.thumbnail ||
+                      "https://via.placeholder.com/300x400?text=No+Image"
+                    }
                     alt={item.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
-                  {/* Hover Icon */}
+                  {/* Play Icon Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-pink-600/90 p-3 rounded-full backdrop-blur-sm">
-                      <Camera size={24} className="text-white" />
+                    <div className="bg-yellow-500/90 p-3 rounded-full backdrop-blur-sm shadow-lg shadow-yellow-500/20">
+                      <Play className="fill-white text-white" size={24} />
                     </div>
                   </div>
                 </div>
 
                 <div className="p-4">
-                  <h3 className="font-medium text-sm md:text-base line-clamp-2 group-hover:text-pink-400 transition-colors">
+                  <h3 className="font-medium text-sm md:text-base line-clamp-2 group-hover:text-yellow-400 transition-colors">
                     {item.title}
                   </h3>
                 </div>
@@ -143,17 +109,15 @@ export default function CosplayTelePage({ onOpenSidebar }) {
             <button
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-full font-medium transition-all disabled:opacity-50 border border-white/10"
+              className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-full font-medium transition-all disabled:opacity-50 border border-white/10 hover:border-yellow-500/30 text-yellow-500/80 hover:text-yellow-400"
             >
-              {loadingMore ? "Loading..." : "Load More Cosplay"}
+              {loadingMore ? "Loading..." : "Load More Hentai"}
             </button>
           </div>
         )}
 
         {!loading && data.length === 0 && (
-          <div className="text-center py-20 text-gray-500">
-            No cosplay sets found.
-          </div>
+          <div className="text-center py-20 text-gray-500">No posts found.</div>
         )}
       </div>
     </div>

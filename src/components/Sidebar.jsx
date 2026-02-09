@@ -1,11 +1,12 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, Users, Tv, Image, Book, Camera } from "lucide-react";
+import { X, Users, Tv, Image, Book, Camera, Cat } from "lucide-react";
 
 const menuItems = [
   { name: "E-Hentai", path: "/", icon: <Book size={20} /> },
   { name: "Bunkr", path: "/hanime", icon: <Tv size={20} /> },
+  { name: "Nekopoi", path: "/nekopoi", icon: <Cat size={20} /> },
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
   { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
 ];
@@ -31,6 +32,26 @@ const SidebarContent = ({ onClose, location }) => (
     <div className="space-y-3">
       {menuItems.map((item) => {
         const isActive = location.pathname === item.path;
+        if (item.isExternal) {
+          return (
+            <a
+              key={item.name}
+              href={item.path}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClose}
+              className="relative flex items-center gap-4 px-4 py-3.5 rounded-r-xl transition-all duration-300 group overflow-hidden text-gray-400 hover:text-white hover:bg-white/5 hover:pl-6"
+            >
+              <span className="relative z-10 transition-transform group-hover:scale-110">
+                {item.icon}
+              </span>
+              <span className="font-semibold tracking-wide relative z-10 text-sm">
+                {item.name}
+              </span>
+            </a>
+          );
+        }
+
         return (
           <Link
             key={item.name}
