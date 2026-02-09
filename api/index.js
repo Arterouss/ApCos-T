@@ -594,12 +594,17 @@ app.get("/api/proxy", async (req, res) => {
       headers["Origin"] = new URL(decodedReferer).origin;
     }
 
+    // Forward Cookies (Critical for authenticated streams)
+    if (req.headers.cookie) {
+      headers["Cookie"] = req.headers.cookie;
+    }
+
     // Forward Range header if present (Critical for video seeking/buffering)
     if (req.headers.range) {
       headers["Range"] = req.headers.range;
     }
 
-    const response = await fetch(decodedUrl, { headers });
+    const response = await fetch(decodedUrl, { headers, redirect: "manual" });
 
     if (!response.ok)
       console.warn(`Proxy fetch warning: ${response.status} for ${decodedUrl}`);
@@ -612,9 +617,26 @@ app.get("/api/proxy", async (req, res) => {
 
     res.setHeader("Content-Type", contentType || "application/octet-stream");
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true"); // Allow cookies
+
     if (contentRange) res.setHeader("Content-Range", contentRange);
     if (contentLength) res.setHeader("Content-Length", contentLength);
     if (acceptRanges) res.setHeader("Accept-Ranges", acceptRanges);
+
+    // Forward Set-Cookie (Rewrite Domain to localhost)
+    const rawSetCookie = response.headers.get("set-cookie");
+    if (rawSetCookie) {
+      // Removing 'Domain=...' and 'Secure' and 'SameSite=...' to ensure browser accepts it on localhost
+      // Simple strategy: Split multiple cookies and clean them
+      const cookies = rawSetCookie.split(/,(?=\s*[^;]+=[^;]+)/g);
+      const cleanedCookies = cookies.map((c) => {
+        return c
+          .replace(/Domain=[^;]+;?/gi, "")
+          .replace(/Secure;?/gi, "")
+          .replace(/SameSite=[^;]+;?/gi, "");
+      });
+      res.setHeader("Set-Cookie", cleanedCookies);
+    }
 
     // Set status code (200 or 206)
     res.status(response.status);
@@ -1055,7 +1077,7 @@ app.get("/api/cosplay/detail", async (req, res) => {
     $("iframe").each((i, el) => {
       const src = $(el).attr("src");
       if (src) {
-        videoIframes.push(src); // Return raw URL
+        videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
       }
     });
 
