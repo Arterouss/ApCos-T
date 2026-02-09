@@ -6,6 +6,7 @@ import {
   Download,
   ExternalLink,
   Image as ImageIcon,
+  Play,
 } from "lucide-react";
 
 export default function CosplayDetailPage() {
@@ -73,38 +74,38 @@ export default function CosplayDetailPage() {
           {data.title}
         </h1>
 
-        {/* Video Players */}
+        {/* Video Links (Fallback) */}
         {data.videoIframes && data.videoIframes.length > 0 && (
-          <div className="space-y-6 mb-10">
+          <div className="space-y-4 mb-10">
             <h3 className="text-xl font-semibold flex items-center gap-2">
               <span className="text-pink-400">▶</span> Videos (
               {data.videoIframes.length})
             </h3>
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {data.videoIframes.map((iframeSrc, idx) => (
-                <div
+                <a
                   key={idx}
-                  className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 bg-black"
+                  href={iframeSrc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-pink-600/20 hover:border-pink-500/50 transition-all group"
                 >
-                  <iframe
-                    src={iframeSrc}
-                    className="w-full h-full"
-                    allowFullScreen
-                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                    title={`Cosplay Video ${idx + 1}`}
-                  ></iframe>
-                  <div className="bg-neutral-900/50 p-2 text-center border-t border-white/10">
-                    <a
-                      href={iframeSrc}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-pink-400 hover:text-pink-300 flex items-center justify-center gap-2 font-medium"
-                    >
-                      <ExternalLink size={14} /> Trouble playing? Open in new
-                      tab
-                    </a>
+                  <div className="p-3 bg-pink-600 rounded-full group-hover:scale-110 transition-transform">
+                    <Play size={20} className="fill-white text-white" />
                   </div>
-                </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-white group-hover:text-pink-300">
+                      Watch Video {idx + 1}
+                    </span>
+                    <span className="text-xs text-gray-500 group-hover:text-gray-400">
+                      Opens in new tab
+                    </span>
+                  </div>
+                  <ExternalLink
+                    size={16}
+                    className="ml-auto text-gray-600 group-hover:text-white"
+                  />
+                </a>
               ))}
             </div>
           </div>

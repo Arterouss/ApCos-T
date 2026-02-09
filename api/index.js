@@ -1055,7 +1055,7 @@ app.get("/api/cosplay/detail", async (req, res) => {
     $("iframe").each((i, el) => {
       const src = $(el).attr("src");
       if (src) {
-        videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
+        videoIframes.push(src); // Return raw URL
       }
     });
 
