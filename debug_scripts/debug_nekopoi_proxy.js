@@ -49,64 +49,35 @@ const fetchViaProxy = async (targetUrl) => {
 
 async function run() {
   try {
-    console.log("=== 1. FETCHING LIST PAGE ===");
-    const html = await fetchViaProxy("https://nekopoi.care/");
-    const $ = cheerio.load(html);
+    const detailUrl =
+      "https://nekopoi.care/uncensored-ichigo-aika-zatsu-de-namaiki-na-imouto-to-warikirenai-ani-episode-6-subtitle-indonesia/";
+    console.log(`=== FETCHING DETAIL PAGE: ${detailUrl} ===`);
 
-    // Debug List Items
-    const items = $(".eropost");
-    console.log(`Found ${items.length} .eropost items`);
-
-    if (items.length > 0) {
-      const first = items.first();
-      console.log("\n--- First Item HTML ---");
-      console.log(first.html());
-
-      const img = first.find("img");
-      console.log("\n--- Image Attributes ---");
-      console.log("src:", img.attr("src"));
-      console.log("data-src:", img.attr("data-src"));
-      console.log("data-lazy-src:", img.attr("data-lazy-src"));
-
-      const link = first.find("h2 a, .title a").first();
-      const detailUrl = link.attr("href");
-      console.log(`\nDetail URL: ${detailUrl}`);
-
-      if (detailUrl) {
-        console.log("\n=== 2. FETCHING DETAIL PAGE ===");
-        const detailHtml = await fetchViaProxy(detailUrl);
-        const $$ = cheerio.load(detailHtml);
-
-        console.log("Page Title:", $$("title").text());
-
-        console.log("\n--- Iframes ---");
-        $$("iframe").each((i, el) => {
-          console.log(`[${i}] src:`, $$(el).attr("src"));
-        });
-
-        console.log("\n--- Video Tags ---");
-        $$("video source").each((i, el) => {
-          console.log(`[${i}] src:`, $$(el).attr("src"));
-        });
-
-        console.log("\n--- Scripts (Stream Search) ---");
-        const scriptContent = $$("script").text();
-        const fileMatch = /file:\s*["']([^"']+)["']/.exec(scriptContent);
-        if (fileMatch) {
-          console.log("Found stream in script:", fileMatch[1]);
-        } else {
-          console.log("No stream found in scripts.");
-        }
-
-        console.log("\n--- Stream/Download Links ---");
-        $$("#stream1, #stream2, #stream3").each((i, el) => {
-          console.log(`Stream Div [${i}]:`, $$(el).html());
-        });
-      }
-    } else {
-      console.log("Body HTML preview:");
-      console.log($("body").html().substring(0, 500));
+    const html = await fetchViaProxy(detailUrl);
+    if (!html) {
+      console.log("Failed to fetch HTML");
+      return;
     }
+
+    const $ = cheerio.load(html);
+    console.log("Page Title:", $("title").text());
+
+    console.log("\n--- IFRAMES FOUND ---");
+    $("iframe").each((i, el) => {
+      console.log(`[${i + 1}] ${$(el).attr("src")}`);
+    });
+
+    console.log("\n--- VIDEO TAGS ---");
+    $("video source").each((i, el) => {
+      console.log(`[${i + 1}] ${$(el).attr("src")}`);
+    });
+
+    console.log("\n--- STREAM TABS ---");
+    $(".stream-tab, .tab-content").each((i, el) => {
+      console.log(
+        `[${i + 1}] Tab Content: ${$(el).text().substring(0, 50)}...`,
+      );
+    });
   } catch (e) {
     console.error("Error:", e.message);
   }
