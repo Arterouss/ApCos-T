@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getCavPornDetail } from "../services/cavpornService";
+import Hls from "hls.js";
 import {
   ArrowLeft,
   Download,
@@ -17,6 +18,9 @@ export default function CavPornDetailPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [videoError, setVideoError] = useState(null);
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -34,6 +38,114 @@ export default function CavPornDetailPage() {
     };
     if (id) loadDetail();
   }, [id, slug]);
+
+  // Helper to build proxy URL
+  const buildProxyUrl = useCallback((url, referer) => {
+    let abs = url;
+    if (!url.startsWith("http")) {
+      // relative URL — shouldn't happen but handle it
+      abs = url;
+    }
+    return `/api/proxy?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(referer || "")}`;
+  }, []);
+
+  // Initialize HLS.js when data is available
+  useEffect(() => {
+    if (!data?.rawVideoSrc || !videoRef.current) return;
+
+    const video = videoRef.current;
+    const videoUrl = data.rawVideoSrc;
+    const referer = data.originalUrl || "";
+    const isM3U8 = videoUrl.includes(".m3u8");
+
+    // Cleanup previous instance
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isM3U8 && Hls.isSupported()) {
+      console.log("[HLS] Initializing with URL:", videoUrl);
+
+      const hls = new Hls({
+        xhrSetup: (xhr, xhrUrl) => {
+          // Check if URL is already proxied (from m3u8 rewriting by backend)
+          let finalUrl = xhrUrl;
+          if (xhrUrl.includes("/api/proxy")) {
+            // Already proxied — extract path if absolute URL
+            if (xhrUrl.startsWith("http")) {
+              try {
+                const u = new URL(xhrUrl);
+                finalUrl = u.pathname + u.search;
+              } catch {
+                finalUrl = xhrUrl;
+              }
+            }
+            // Already relative proxy URL — use as-is
+          } else {
+            // Not proxied yet — proxy it
+            finalUrl = buildProxyUrl(xhrUrl, referer);
+          }
+          console.log(
+            "[HLS XHR]",
+            xhrUrl.substring(0, 50),
+            "→",
+            finalUrl.substring(0, 50),
+          );
+          xhr.open("GET", finalUrl, true);
+        },
+        enableWorker: false,
+        lowLatencyMode: false,
+        backBufferLength: 90,
+      });
+
+      // Load the m3u8 through our proxy
+      hls.loadSource(buildProxyUrl(videoUrl, referer));
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log("[HLS] Manifest parsed, starting playback");
+        video.play().catch((e) => console.log("[HLS] Autoplay blocked:", e));
+      });
+
+      hls.on(Hls.Events.ERROR, (_, hlsData) => {
+        console.error("[HLS] Error:", hlsData.type, hlsData.details);
+        if (hlsData.fatal) {
+          if (hlsData.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            console.log("[HLS] Recovering from media error...");
+            hls.recoverMediaError();
+          } else if (hlsData.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            console.log("[HLS] Network error, retrying in 2s...");
+            setTimeout(() => hls.startLoad(), 2000);
+          } else {
+            setVideoError(
+              "Video playback failed. Try watching on the original site.",
+            );
+            hls.destroy();
+          }
+        }
+      });
+
+      hlsRef.current = hls;
+    } else if (isM3U8 && video.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari native HLS
+      video.src = buildProxyUrl(videoUrl, referer);
+      video.play().catch(() => {});
+    } else if (!isM3U8) {
+      // Direct MP4
+      video.src = buildProxyUrl(videoUrl, referer);
+      video.play().catch(() => {});
+    } else {
+      setVideoError("HLS playback is not supported in this browser.");
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [data, buildProxyUrl]);
 
   if (loading) {
     return (
@@ -78,16 +190,56 @@ export default function CavPornDetailPage() {
           {data.title}
         </h1>
 
-        {/* Video Player - Server-side embed proxy handles everything */}
+        {/* Video Player - Direct HLS.js integration, no iframe */}
         <div className="mb-8">
-          <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10 bg-black">
-            <iframe
-              src={`/api/cavporn/player?id=${data.id}`}
-              className="w-full h-full border-0"
-              allowFullScreen
-              allow="autoplay; fullscreen; encrypted-media"
-              title={data.title}
-            />
+          <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10 bg-black relative">
+            {data.rawVideoSrc ? (
+              <>
+                <video
+                  ref={videoRef}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain"
+                  poster={data.thumbnail}
+                />
+                {videoError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+                    <div className="text-center p-4">
+                      <AlertTriangle
+                        className="mx-auto mb-2 text-red-500"
+                        size={32}
+                      />
+                      <p className="text-gray-300 text-sm mb-3">{videoError}</p>
+                      <a
+                        href={data.originalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 rounded-full hover:bg-red-700 transition-colors text-sm"
+                      >
+                        <ExternalLink size={14} /> Watch on Original Site
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-4">
+                  <p className="text-gray-400 mb-4">
+                    Video stream could not be extracted.
+                  </p>
+                  <a
+                    href={data.originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 rounded-full hover:bg-red-700 transition-colors"
+                  >
+                    <ExternalLink size={20} /> Watch on Original Site
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-center mt-2">
             <a

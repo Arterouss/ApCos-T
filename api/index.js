@@ -2021,112 +2021,19 @@ app.get("/api/cavporn/detail", async (req, res) => {
   }
 });
 
-// CavPorn Video Player - Server-side embed proxy
-// Fetches the KVS embed page, extracts video URL from JS, serves our own player
-app.get("/api/cavporn/player", async (req, res) => {
-  const { id } = req.query;
-  if (!id) return res.status(400).send("Missing video ID");
+// CavPorn Video Player - HLS.js player with backend proxy
+// Accepts a direct video URL (extracted by /api/cavporn/detail)
+app.get("/api/cavporn/player", (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing video URL");
 
-  try {
-    // Fetch the embed page from cav103.com
-    const embedPageUrl = `${CAVPORN_BASE}/embed/${id}/`;
-    console.log(`[CavPorn Player] Fetching embed page: ${embedPageUrl}`);
+  console.log(`[CavPorn Player] Playing: ${url.substring(0, 80)}...`);
 
-    const embedHtml = await fetchWithFallback(embedPageUrl, {
-      "User-Agent": getRandomUA(),
-      Referer: `${CAVPORN_BASE}/video/${id}/`,
-      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    });
+  const baseUrl = url.substring(0, url.lastIndexOf("/") + 1);
+  const referer = CAVPORN_BASE + "/";
+  const isHLS = url.includes(".m3u8");
 
-    console.log(`[CavPorn Player] Embed HTML length: ${embedHtml.length}`);
-
-    // Extract video URL from embed page using multiple KVS patterns
-    let videoUrl = "";
-
-    // Pattern 1: video_url in flashvars/config (most common in KVS)
-    const patterns = [
-      /video_url\s*[:=]\s*['"]([^'"]+)['"]/,
-      /video_alt_url\s*[:=]\s*['"]([^'"]+)['"]/,
-      /file\s*:\s*['"]([^'"]+\.(?:m3u8|mp4)[^'"]*)['"]/i,
-      /['"](?:file|src|url|source)\s*['"]?\s*[:=]\s*['"]([^'"]*\.(?:m3u8|mp4)[^'"]*)['"]/i,
-      /sources?\s*[:=]\s*\[\s*\{[^}]*['"]?(?:file|src|url)['"]?\s*:\s*['"]([^'"]+)['"]/i,
-      /(https?:\/\/[^'"<>\s]+\.m3u8[^'"<>\s]*)/i,
-      /(https?:\/\/[^'"<>\s]+\.mp4[^'"<>\s]*)/i,
-      /video_url_text\s*[:=]\s*['"]([^'"]+)['"]/,
-      /postfix\s*[:=]\s*['"]([^'"]+)['"]/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = pattern.exec(embedHtml);
-      if (match && match[1]) {
-        const candidate = match[1];
-        // Skip if it's a JS variable reference or placeholder
-        if (candidate.includes("function") || candidate === "video_url")
-          continue;
-        videoUrl = candidate;
-        console.log(
-          `[CavPorn Player] Found video URL with pattern: ${pattern.source.substring(0, 40)}...`,
-        );
-        break;
-      }
-    }
-
-    // Pattern 2: KVS uses function/license encoding. Look for the encoded URL path
-    if (!videoUrl) {
-      // KVS format: /get_file/HASH/KEY/FILE.m3u8 or similar
-      const getFileMatch = /['"]([^'"]*\/get_file\/[^'"]+)['"]/i.exec(
-        embedHtml,
-      );
-      if (getFileMatch) {
-        videoUrl = getFileMatch[1];
-        console.log(`[CavPorn Player] Found get_file URL`);
-      }
-    }
-
-    // Pattern 3: Look for any URL to a known video CDN domain
-    if (!videoUrl) {
-      const cdnMatch =
-        /(https?:\/\/[a-zA-Z0-9.-]+(?:\.cdn|cdn\.|stream|video|media|hls)[a-zA-Z0-9.-]*\/[^'"<>\s]+)/i.exec(
-          embedHtml,
-        );
-      if (cdnMatch) {
-        videoUrl = cdnMatch[1];
-        console.log(`[CavPorn Player] Found CDN URL`);
-      }
-    }
-
-    console.log(
-      `[CavPorn Player] Extracted video URL: ${videoUrl ? videoUrl.substring(0, 100) + "..." : "NOT FOUND"}`,
-    );
-
-    // Log what patterns exist in the HTML for debugging
-    const debugPatterns = [];
-    if (embedHtml.includes("video_url")) debugPatterns.push("video_url");
-    if (embedHtml.includes("kt_player")) debugPatterns.push("kt_player");
-    if (embedHtml.includes("flashvars")) debugPatterns.push("flashvars");
-    if (embedHtml.includes(".m3u8")) debugPatterns.push("m3u8");
-    if (embedHtml.includes(".mp4")) debugPatterns.push("mp4");
-    if (embedHtml.includes("get_file")) debugPatterns.push("get_file");
-    if (embedHtml.includes("license_code")) debugPatterns.push("license_code");
-    if (embedHtml.includes("video_url_text"))
-      debugPatterns.push("video_url_text");
-    console.log(
-      `[CavPorn Player] Patterns found in embed: ${debugPatterns.join(", ") || "NONE"}`,
-    );
-
-    // If we found a video URL, serve our HLS player
-    if (videoUrl) {
-      // Make URL absolute if needed
-      if (videoUrl.startsWith("/")) {
-        videoUrl = CAVPORN_BASE + videoUrl;
-      } else if (!videoUrl.startsWith("http")) {
-        videoUrl = `${CAVPORN_BASE}/${videoUrl}`;
-      }
-
-      const baseUrl = videoUrl.substring(0, videoUrl.lastIndexOf("/") + 1);
-      const referer = CAVPORN_BASE + "/";
-
-      const playerHtml = `<!DOCTYPE html>
+  const playerHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -2135,92 +2042,100 @@ app.get("/api/cavporn/player", async (req, res) => {
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#000;overflow:hidden;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
     video{width:100%;height:100%;object-fit:contain}
+    .loading{color:#fff;font-family:sans-serif;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script>
+  ${isHLS ? '<script src="/api/proxy?url=' + encodeURIComponent("https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js") + '"><\\/script>' : ""}
 </head>
 <body>
+  <div class="loading" id="loader">Loading video...</div>
   <video id="player" controls autoplay playsinline></video>
   <script>
-    var rawUrl = decodeURIComponent("${encodeURIComponent(videoUrl)}");
+    var rawUrl = decodeURIComponent("${encodeURIComponent(url)}");
     var baseUrl = decodeURIComponent("${encodeURIComponent(baseUrl)}");
     var referer = decodeURIComponent("${encodeURIComponent(referer)}");
     var video = document.getElementById("player");
+    var loader = document.getElementById("loader");
 
     function proxyUrl(u) {
       var abs = u;
-      if (!u.startsWith("http")) { abs = u.startsWith("/") ? "${CAVPORN_BASE}" + u : baseUrl + u; }
+      if (!u.startsWith("http")) {
+        abs = u.startsWith("/") ? "${CAVPORN_BASE}" + u : baseUrl + u;
+      }
       return "/api/proxy?url=" + encodeURIComponent(abs) + "&referer=" + encodeURIComponent(referer);
     }
 
-    if (rawUrl.includes(".m3u8") && Hls.isSupported()) {
+    function hideLoader() { loader.style.display = "none"; }
+    video.addEventListener("playing", hideLoader);
+    video.addEventListener("loadeddata", hideLoader);
+
+    ${
+      isHLS
+        ? `
+    if (typeof Hls !== "undefined" && Hls.isSupported()) {
       var hls = new Hls({
-        xhrSetup: function(xhr, url) {
-          var p = proxyUrl(url);
-          xhr.open("GET", p, true);
+        xhrSetup: function(xhr, xhrUrl) {
+          // The proxy endpoint rewrites m3u8 content so segment URLs are already proxied.
+          // Don't re-proxy URLs that are already going through our proxy.
+          var finalUrl = xhrUrl;
+          if (xhrUrl.indexOf("/api/proxy") !== -1) {
+            // Already a proxy URL (from m3u8 rewriting) - extract just the path
+            if (xhrUrl.startsWith("http")) {
+              // The proxy rewrites to https://host/api/proxy?url=... - extract path
+              try { finalUrl = new URL(xhrUrl).pathname + new URL(xhrUrl).search; } catch(e) { finalUrl = xhrUrl; }
+            }
+            // else it's already a relative /api/proxy URL, use as-is
+          } else {
+            // Not yet proxied - proxy it
+            finalUrl = proxyUrl(xhrUrl);
+          }
+          console.log("HLS fetch:", xhrUrl.substring(0, 60), "->", finalUrl.substring(0, 60));
+          xhr.open("GET", finalUrl, true);
         },
-        enableWorker: false
+        enableWorker: false,
+        lowLatencyMode: false,
+        backBufferLength: 90
       });
       hls.loadSource(proxyUrl(rawUrl));
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, function() { video.play().catch(function(){}); });
+      hls.on(Hls.Events.MANIFEST_PARSED, function() {
+        console.log("HLS manifest loaded, starting playback");
+        video.play().catch(function(e){ console.log("Autoplay blocked:", e); });
+      });
       hls.on(Hls.Events.ERROR, function(ev, data) {
+        console.error("HLS Error:", data.type, data.details);
         if (data.fatal) {
-          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); }
-          else { video.src = proxyUrl(rawUrl); video.play().catch(function(){}); }
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            console.log("Recovering from media error...");
+            hls.recoverMediaError();
+          } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            console.log("Network error, retrying...");
+            setTimeout(function(){ hls.startLoad(); }, 1000);
+          } else {
+            console.log("Fatal error, trying direct load");
+            hls.destroy();
+            video.src = proxyUrl(rawUrl);
+            video.play().catch(function(){});
+          }
         }
       });
-    } else {
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari native HLS
       video.src = proxyUrl(rawUrl);
       video.play().catch(function(){});
+    } else {
+      loader.textContent = "HLS not supported in this browser";
+    }`
+        : `
+    video.src = proxyUrl(rawUrl);
+    video.play().catch(function(){});
+    `
     }
-  <\/script>
+  <\\/script>
 </body>
 </html>`;
 
-      res.setHeader("Content-Type", "text/html");
-      return res.send(playerHtml);
-    }
-
-    // FALLBACK: If we couldn't extract a video URL, serve the embed page content
-    // modified to work through our proxy (rewrite resource URLs)
-    console.log(
-      `[CavPorn Player] No video URL found, serving modified embed page`,
-    );
-
-    // Rewrite the embed HTML to proxy resources through our server
-    let modifiedHtml = embedHtml;
-    // Rewrite absolute URLs to cav103 domain
-    modifiedHtml = modifiedHtml.replace(
-      /(?:src|href)="(\/[^"]+)"/g,
-      (match, path) =>
-        match.replace(
-          path,
-          `/api/proxy?url=${encodeURIComponent(CAVPORN_BASE + path)}&referer=${encodeURIComponent(CAVPORN_BASE + "/")}`,
-        ),
-    );
-    // Rewrite full URLs to cav103 domain
-    modifiedHtml = modifiedHtml.replace(
-      /(?:src|href)="(https?:\/\/cav\d+\.com[^"]+)"/g,
-      (match, url) =>
-        match.replace(
-          url,
-          `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(CAVPORN_BASE + "/")}`,
-        ),
-    );
-
-    res.setHeader("Content-Type", "text/html");
-    res.send(modifiedHtml);
-  } catch (error) {
-    console.error("[CavPorn Player] Error:", error.message);
-    res.status(500).send(`
-      <html><body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-        <div style="text-align:center">
-          <p>Failed to load video player</p>
-          <a href="${CAVPORN_BASE}/video/${id}/" target="_blank" style="color:#ef4444;margin-top:10px;display:inline-block">Watch on original site</a>
-        </div>
-      </body></html>
-    `);
-  }
+  res.setHeader("Content-Type", "text/html");
+  res.send(playerHtml);
 });
 
 // Start Server
