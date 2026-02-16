@@ -186,26 +186,39 @@ const fetchWithFallback = async (
 // ==========================================
 // IMAGE PROXY (Bypass ISP Blocks)
 // ==========================================
+// ==========================================
 app.get("/api/proxy/image", async (req, res) => {
-  const { url } = req.query;
+  const { url, referer } = req.query;
   if (!url) return res.status(400).send("Missing URL");
 
   try {
     let response;
+    const headers = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    };
+    if (referer) {
+      headers["Referer"] = referer;
+    }
 
     // 1. Try Direct Fetch
     try {
-      response = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Referer: "https://cosplaytele.com/",
-        },
-      });
+      response = await fetch(url, { headers });
     } catch (directError) {
       console.warn(
         `[Image Proxy] Direct fetch network error: ${directError.message}`,
       );
+    }
+
+    // Retry with origin as referer if 403
+    if (response && response.status === 403) {
+      try {
+        const targetOrigin = new URL(url).origin;
+        headers["Referer"] = targetOrigin + "/";
+        response = await fetch(url, { headers });
+      } catch (e) {
+        // ignore
+      }
     }
 
     // 2. If blocked/failed, try wsrv.nl
@@ -1274,13 +1287,72 @@ app.get("/api/cosplay/detail", async (req, res) => {
     });
 
     // Extract Video Iframes (Multiple)
+    // Strategy 1: Look for iframes (streams)
+    const rawVideoUrls = [];
+    const videoPromises = [];
     const videoIframes = [];
+
     $("iframe").each((i, el) => {
       const src = $(el).attr("src");
       if (src) {
         videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
+
+        // Also try to extract raw video URL for HLS player
+        const p = (async () => {
+          try {
+            // console.log(`[Nekopoi] Fetching iframe: ${src}`);
+            const iframeHtml = await fetchWithFallback(src, {
+              Referer: "https://nekopoi.care/",
+            });
+
+            // 1. Try Packer unpacking
+            if (iframeHtml.includes("eval(function(p,a,c,k,e,d)")) {
+              const packedMatch =
+                /eval\(function\(p,a,c,k,e,d\)[\s\S]*?\.split\('\|'\)\)\)/.exec(
+                  iframeHtml,
+                );
+              if (packedMatch) {
+                const unpacked = unpack(packedMatch[0]);
+                // console.log(`[Nekopoi] Unpacked: ${unpacked.substring(0, 50)}...`);
+
+                // Find file: or src:
+                const fileMatch =
+                  /file\s*:\s*["']([^"']+)["']/.exec(unpacked) ||
+                  /src\s*:\s*["']([^"']+)["']/.exec(unpacked);
+                if (fileMatch && fileMatch[1]) {
+                  const vUrl = fileMatch[1];
+                  if (vUrl.includes(".m3u8") || vUrl.includes(".mp4")) {
+                    rawVideoUrls.push({
+                      url: vUrl,
+                      referer: new URL(src).origin + "/",
+                    });
+                  }
+                }
+              }
+            }
+
+            // 2. Try Direct Regex
+            const m3u8Match = /["']([^"']+\.m3u8[^"']*)["']/.exec(iframeHtml);
+            if (m3u8Match) {
+              rawVideoUrls.push({
+                url: m3u8Match[1],
+                referer: new URL(src).origin + "/",
+              });
+            }
+          } catch (e) {
+            console.warn(
+              `[Nekopoi] Failed to extract raw video from ${src}: ${e.message}`,
+            );
+          }
+        })();
+        videoPromises.push(p);
       }
     });
+
+    // Wait for all iframe extractions (capped time to avoid slow response)
+    if (videoPromises.length > 0) {
+      await Promise.allSettled(videoPromises);
+    }
 
     // Extract Download Links
     const downloadLinks = [];
@@ -1972,7 +2044,20 @@ app.get("/api/cavporn/detail", async (req, res) => {
       if (relatedVideos.length >= 12) return;
 
       const img = $(el).find("img");
-      let thumb = img.attr("src") || img.attr("data-src") || "";
+      let thumb =
+        img.attr("data-src") ||
+        img.attr("data-original") ||
+        img.attr("data-thumb_url") ||
+        img.attr("src") ||
+        "";
+
+      // Fallback: check style background-image on parent or itself
+      if (!thumb) {
+        const style =
+          $(el).find(".img").attr("style") || $(el).attr("style") || "";
+        const bgMatch = /url\(['"]?([^'"]+)['"]?\)/.exec(style);
+        if (bgMatch) thumb = bgMatch[1];
+      }
 
       const textParts = $(el)
         .text()
@@ -1992,7 +2077,7 @@ app.get("/api/cavporn/detail", async (req, res) => {
           slug: relSlug,
           title: relTitle,
           thumbnail: thumb
-            ? `/api/proxy/image?url=${encodeURIComponent(thumb.startsWith("http") ? thumb : CAVPORN_BASE + thumb)}`
+            ? `/api/proxy/image?url=${encodeURIComponent(thumb.startsWith("http") ? thumb : CAVPORN_BASE + thumb)}&referer=${encodeURIComponent(CAVPORN_BASE + "/")}`
             : null,
           duration: relDuration,
         });

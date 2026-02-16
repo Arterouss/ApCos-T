@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getNekopoiDetail } from "../services/nekopoiService";
+import Hls from "hls.js";
 import {
   ArrowLeft,
   Download,
@@ -9,11 +10,136 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+// Individual HLS Video Player component
+function HlsVideoPlayer({ videoUrl, referer, title, index }) {
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+  const [playerError, setPlayerError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const buildProxyUrl = useCallback((url, ref) => {
+    return `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(ref || "")}`;
+  }, []);
+
+  useEffect(() => {
+    if (!videoUrl || !videoRef.current) return;
+
+    const video = videoRef.current;
+    const isM3U8 = videoUrl.includes(".m3u8");
+
+    // Cleanup previous instance
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isM3U8 && Hls.isSupported()) {
+      console.log(`[Nekopoi HLS ${index}] Initializing:`, videoUrl);
+
+      const hls = new Hls({
+        xhrSetup: (xhr, xhrUrl) => {
+          let finalUrl = xhrUrl;
+          if (xhrUrl.includes("/api/proxy")) {
+            if (xhrUrl.startsWith("http")) {
+              try {
+                const u = new URL(xhrUrl);
+                finalUrl = u.pathname + u.search;
+              } catch {
+                finalUrl = xhrUrl;
+              }
+            }
+          } else {
+            finalUrl = buildProxyUrl(xhrUrl, referer);
+          }
+          xhr.open("GET", finalUrl, true);
+        },
+        enableWorker: false,
+        lowLatencyMode: false,
+        backBufferLength: 90,
+      });
+
+      hls.loadSource(buildProxyUrl(videoUrl, referer));
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log(`[Nekopoi HLS ${index}] Manifest parsed, ready to play`);
+        setIsLoading(false);
+        video.play().catch((e) => console.log("Autoplay blocked:", e));
+      });
+
+      hls.on(Hls.Events.ERROR, (_, hlsData) => {
+        console.error(
+          `[Nekopoi HLS ${index}] Error:`,
+          hlsData.type,
+          hlsData.details,
+        );
+        if (hlsData.fatal) {
+          if (hlsData.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+          } else if (hlsData.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            setTimeout(() => hls.startLoad(), 2000);
+          } else {
+            setPlayerError("Video playback failed.");
+            setIsLoading(false);
+            hls.destroy();
+          }
+        }
+      });
+
+      hlsRef.current = hls;
+    } else if (isM3U8 && video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = buildProxyUrl(videoUrl, referer);
+      video.addEventListener("loadeddata", () => setIsLoading(false));
+      video.play().catch(() => {});
+    } else {
+      // Direct MP4
+      video.src = buildProxyUrl(videoUrl, referer);
+      video.addEventListener("loadeddata", () => setIsLoading(false));
+      video.play().catch(() => {});
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [videoUrl, referer, index, buildProxyUrl]);
+
+  return (
+    <div className="relative">
+      <video
+        ref={videoRef}
+        controls
+        playsInline
+        className="w-full h-full object-contain"
+      />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500 mx-auto mb-2"></div>
+            <p className="text-gray-300 text-sm">Loading video...</p>
+          </div>
+        </div>
+      )}
+      {playerError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+          <div className="text-center p-4">
+            <AlertTriangle className="mx-auto mb-2 text-yellow-500" size={32} />
+            <p className="text-gray-300 text-sm">{playerError}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NekopoiDetailPage() {
   const { slug } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("hls"); // "hls" or "iframe"
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -22,6 +148,12 @@ export default function NekopoiDetailPage() {
       try {
         const detail = await getNekopoiDetail(slug);
         setData(detail);
+        // Auto-select tab: prefer HLS if raw URLs available
+        if (detail.rawVideoUrls && detail.rawVideoUrls.length > 0) {
+          setActiveTab("hls");
+        } else if (detail.videoIframes && detail.videoIframes.length > 0) {
+          setActiveTab("iframe");
+        }
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -60,6 +192,9 @@ export default function NekopoiDetailPage() {
     );
   }
 
+  const hasHlsVideos = data.rawVideoUrls && data.rawVideoUrls.length > 0;
+  const hasIframes = data.videoIframes && data.videoIframes.length > 0;
+
   return (
     <div className="min-h-screen text-white pb-20 pt-20 px-4 md:px-8 bg-neutral-950">
       <div className="max-w-6xl mx-auto">
@@ -76,31 +211,87 @@ export default function NekopoiDetailPage() {
         </h1>
 
         {/* Video Player Section */}
-        {data.videoIframes && data.videoIframes.length > 0 ? (
-          <div className="space-y-8 mb-10">
-            {data.videoIframes.map((iframeSrc, idx) => (
-              <div key={idx} className="space-y-2">
-                <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-yellow-500/10 bg-black">
-                  <iframe
-                    src={iframeSrc}
-                    className="w-full h-full"
-                    allowFullScreen
-                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                    title={`Nekopoi Video ${idx + 1}`}
-                  ></iframe>
-                </div>
-                <div className="flex justify-center">
-                  <a
-                    href={data.originalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-yellow-500 hover:text-yellow-400 flex items-center gap-1"
-                  >
-                    <ExternalLink size={12} /> Direct Link (Original Source)
-                  </a>
-                </div>
+        {hasHlsVideos || hasIframes ? (
+          <div className="space-y-4 mb-10">
+            {/* Tab switcher if both available */}
+            {hasHlsVideos && hasIframes && (
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => setActiveTab("hls")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === "hls"
+                      ? "bg-yellow-600 text-white"
+                      : "bg-white/10 text-gray-400 hover:bg-white/20"
+                  }`}
+                >
+                  <Play size={14} className="inline mr-1" /> Direct Player
+                </button>
+                <button
+                  onClick={() => setActiveTab("iframe")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === "iframe"
+                      ? "bg-yellow-600 text-white"
+                      : "bg-white/10 text-gray-400 hover:bg-white/20"
+                  }`}
+                >
+                  <ExternalLink size={14} className="inline mr-1" /> Embed
+                  Player
+                </button>
               </div>
-            ))}
+            )}
+
+            {/* HLS Direct Player */}
+            {activeTab === "hls" && hasHlsVideos && (
+              <div className="space-y-6">
+                {data.rawVideoUrls.map((vid, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-yellow-500/10 bg-black">
+                      <HlsVideoPlayer
+                        videoUrl={vid.url}
+                        referer={vid.referer}
+                        title={`${data.title} - Video ${idx + 1}`}
+                        index={idx}
+                      />
+                    </div>
+                    {data.rawVideoUrls.length > 1 && (
+                      <p className="text-center text-xs text-gray-500">
+                        Stream {idx + 1}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Iframe Fallback Player */}
+            {activeTab === "iframe" && hasIframes && (
+              <div className="space-y-6">
+                {data.videoIframes.map((iframeSrc, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-yellow-500/10 bg-black">
+                      <iframe
+                        src={iframeSrc}
+                        className="w-full h-full"
+                        allowFullScreen
+                        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                        title={`Nekopoi Video ${idx + 1}`}
+                      ></iframe>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <a
+                href={data.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-yellow-500 hover:text-yellow-400 flex items-center gap-1"
+              >
+                <ExternalLink size={12} /> Direct Link (Original Source)
+              </a>
+            </div>
           </div>
         ) : (
           // Fallback if no iframes found
