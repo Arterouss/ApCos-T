@@ -140,6 +140,7 @@ export default function NekopoiDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("hls"); // "hls" or "iframe"
+  const [selectedStreamIndex, setSelectedStreamIndex] = useState(0);
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -151,6 +152,7 @@ export default function NekopoiDetailPage() {
         // Auto-select tab: prefer HLS if raw URLs available
         if (detail.rawVideoUrls && detail.rawVideoUrls.length > 0) {
           setActiveTab("hls");
+          setSelectedStreamIndex(0);
         } else if (detail.videoIframes && detail.videoIframes.length > 0) {
           setActiveTab("iframe");
         }
@@ -243,23 +245,37 @@ export default function NekopoiDetailPage() {
             {/* HLS Direct Player */}
             {activeTab === "hls" && hasHlsVideos && (
               <div className="space-y-6">
-                {data.rawVideoUrls.map((vid, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-yellow-500/10 bg-black">
-                      <HlsVideoPlayer
-                        videoUrl={vid.url}
-                        referer={vid.referer}
-                        title={`${data.title} - Video ${idx + 1}`}
-                        index={idx}
-                      />
-                    </div>
-                    {data.rawVideoUrls.length > 1 && (
-                      <p className="text-center text-xs text-gray-500">
+                {/* Stream Selector */}
+                {data.rawVideoUrls.length > 1 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {data.rawVideoUrls.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedStreamIndex(idx)}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                          selectedStreamIndex === idx
+                            ? "bg-yellow-600 text-white"
+                            : "bg-white/10 text-gray-400 hover:bg-white/20"
+                        }`}
+                      >
                         Stream {idx + 1}
-                      </p>
-                    )}
+                      </button>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {/* Single Player */}
+                <div className="space-y-2">
+                  <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-yellow-500/10 bg-black">
+                    <HlsVideoPlayer
+                      key={selectedStreamIndex} // Force re-mount on change
+                      videoUrl={data.rawVideoUrls[selectedStreamIndex].url}
+                      referer={data.rawVideoUrls[selectedStreamIndex].referer}
+                      title={`${data.title} - Stream ${selectedStreamIndex + 1}`}
+                      index={selectedStreamIndex}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

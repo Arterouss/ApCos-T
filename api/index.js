@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
+import { Buffer } from "buffer";
 
 const app = express();
 const PORT = 3001;
@@ -285,6 +286,9 @@ const unpack = (p, a, c, k, e, d) => {
 // ==========================================
 // COSSORA IFRAME PROXY
 // ==========================================
+// ==========================================
+// COSSORA IFRAME PROXY
+// ==========================================
 app.get("/api/proxy/cossora", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send("Missing URL");
@@ -293,131 +297,31 @@ app.get("/api/proxy/cossora", async (req, res) => {
     const headers = {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Referer: "https://cosplaytele.com/",
+      Referer: "https://nekopoi.care/",
     };
 
     // Force Proxy (skipDirect = true) to bypass ISP blocks
-    // Note: Streampoi/Vidnest might block generic proxies, but we try anyway.
     let html = await fetchWithFallback(url, headers, true);
 
     // We can't easily get Content-Type from fetchWithFallback (it returns text),
     // but we know we're mostly serving HTML players.
     res.setHeader("Content-Type", "text/html");
 
-    // 1. Check for P.A.C.K.E.R (Streampoi)
-    if (html && html.includes("eval(function(p,a,c,k,e,d)")) {
-      try {
-        // Robust extraction: Split by the start of the packer function
-        const parts = html.split("eval(function(p,a,c,k,e,d)");
-        if (parts.length > 1) {
-          // Get the part after the preamble
-          let packedBlock = parts[1];
+    // Helper to generate player HTML
+    const sendPlayer = (videoUrl) => {
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent("https://vidnest.io/")}`; // Default referer to vidnest/streampoi base
 
-          // Find the payload start (after the function body)
-          const payloadStart = packedBlock.indexOf("}('");
-          if (payloadStart !== -1) {
-            packedBlock = packedBlock.substring(payloadStart + 2); // Start after }('
-
-            // Let's try to find the split pattern first
-            const splitIndex = packedBlock.lastIndexOf(".split('|')))");
-            if (splitIndex !== -1) {
-              const headerPart = packedBlock.substring(0, splitIndex);
-              // headerPart looks like: payload',radix,count,'keywords'
-
-              // The keywords are at the end: ,'keywords'
-              const lastCommaInfo = headerPart.lastIndexOf(",'");
-              if (lastCommaInfo !== -1) {
-                const keywordsRaw = headerPart.substring(
-                  lastCommaInfo + 2,
-                  headerPart.length - 1,
-                ); // remove ' at end
-                const k = keywordsRaw.split("|");
-
-                const rest = headerPart.substring(0, lastCommaInfo);
-                // rest: payload',radix,count
-
-                const lastCommaCount = rest.lastIndexOf(",");
-                const count = parseInt(rest.substring(lastCommaCount + 1));
-
-                const rest2 = rest.substring(0, lastCommaCount);
-                const lastCommaRadix = rest2.lastIndexOf(",");
-                const radix = parseInt(rest2.substring(lastCommaRadix + 1));
-
-                const payload = rest2.substring(0, lastCommaRadix - 1); // remove ' at end
-
-                const unpacked = unpack(payload, radix, count, k, 0, {});
-
-                const fileMatch = /file:\s*["']([^"']+)["']/.exec(unpacked);
-                if (fileMatch && fileMatch[1]) {
-                  const videoUrl = fileMatch[1];
-                  const proxyUrl = `/api/proxy?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent("https://streampoi.com/")}`;
-
-                  return res.send(`
-                                    <html>
-                                        <body style="margin:0;padding:0;background:black;display:flex;align-items:center;justify-content:center;height:100vh;">
-                                            <video controls style="width:100%;height:100%" autoplay playsinline>
-                                                <source src="${proxyUrl}" type="application/x-mpegURL">
-                                                Your browser does not support the video tag.
-                                            </video>
-                                             <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-                                            <script>
-                                                if (Hls.isSupported()) {
-                                                    var video = document.querySelector('video');
-                                                    var hls = new Hls();
-                                                    hls.loadSource('${proxyUrl}');
-                                                    hls.attachMedia(video);
-                                                    hls.on(Hls.Events.MANIFEST_PARSED,function() {
-                                                      video.play();
-                                                  });
-                                                }
-                                                else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                                                  video.src = '${proxyUrl}';
-                                                  video.addEventListener('loadedmetadata',function() {
-                                                    video.play();
-                                                  });
-                                                }
-                                            </script>
-                                        </body>
-                                    </html>
-                                `);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Packer unpack error:", e.message);
-      }
-    }
-
-    // 2. Normal Regex (Vidnest/Cossora)
-    let fileMatch = /file:\s*["']([^"']+)["']/.exec(html);
-
-    // 3. Look for explicit .mp4 or .m3u8 inside quotes (Video tag fallback)
-    if (!fileMatch) {
-      fileMatch = /["']([^"']+\.mp4.*?)["']/.exec(html);
-    }
-    if (!fileMatch) {
-      fileMatch = /["']([^"']+\.m3u8.*?)["']/.exec(html);
-    }
-
-    if (fileMatch && fileMatch[1]) {
-      const videoUrl = fileMatch[1];
-      // Redirect to our generic proxy with the correct Referer
-      // We use the recursive proxy to handle m3u8 and ts segments
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent("https://cosplaytele.com/")}`;
-
-      // Return a simple HTML player that points to our proxy
-      // Return a proper HLS Player (hls.js) for Chrome/Firefox support
       const playerHtml = `
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>body{margin:0;background:black;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;} video{width:100%;height:100%;object-fit:contain;}</style>
                 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
             </head>
             <body>
-                <video id="video" controls autoplay></video>
+                <video id="video" controls autoplay playsinline></video>
                 <script>
                     var video = document.getElementById('video');
                     var videoSrc = "${proxyUrl}";
@@ -430,30 +334,86 @@ app.get("/api/proxy/cossora", async (req, res) => {
                             video.play().catch(e => console.log("Autoplay blocked", e));
                         });
                         hls.on(Hls.Events.ERROR, function(event, data) {
-                            console.error("HLS Error:", data);
+                             if (data.fatal) {
+                                switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.log("fatal network error encountered, try to recover");
+                                    hls.startLoad();
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    console.log("fatal media error encountered, try to recover");
+                                    hls.recoverMediaError();
+                                    break;
+                                default:
+                                    hls.destroy();
+                                    break;
+                                }
+                            }
                         });
                     }
-                    // hls.js is not supported on platforms that do not have Media Source Extensions (MSE) enabled.
-                    // When the browser has built-in HLS support (check using \`canPlayType\`), we can provide an HLS manifest (i.e. .m3u8 URL) directly to the video element through the \`src\` property.
                     else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                         video.src = videoSrc;
                         video.addEventListener('loadedmetadata', function() {
                             video.play().catch(e => console.log("Autoplay blocked", e));
                         });
+                    } else {
+                        // Direct MP4 fallback
+                         video.src = videoSrc;
+                         video.play().catch(e => console.log("Autoplay blocked", e));
                     }
                 </script>
             </body>
             </html>
         `;
-      res.send(playerHtml);
-    } else {
-      // Fallback: Inject no-referrer and hope for the best (or maybe it's a different player source)
-      const modifiedHtml = html.replace(
-        "<head>",
-        '<head><meta name="referrer" content="no-referrer">',
-      );
-      res.send(modifiedHtml);
+      return res.send(playerHtml);
+    };
+
+    // 1. Try P.A.C.K.E.R (Streampoi)
+    if (html && html.includes("eval(function(p,a,c,k,e,d)")) {
+      try {
+        const parts = html.split("eval(function(p,a,c,k,e,d)");
+        if (parts.length > 1) {
+          let packedBlock = parts[1];
+          // ... (Same packed unpacking logic as before, simplified by using regex on the block)
+          // Actually, reusing the robust extraction logic from detail scraper is better
+          const packedMatch =
+            /eval\(function\(p,a,c,k,e,d\)[\s\S]*?\.split\('\|'\)\)\)/.exec(
+              html,
+            );
+          if (packedMatch) {
+            const unpacked = unpack(packedMatch[0]);
+
+            // Find file: or src:
+            const fileMatch =
+              /file\s*:\s*["']([^"']+)["']/.exec(unpacked) ||
+              /src\s*:\s*["']([^"']+)["']/.exec(unpacked);
+
+            if (fileMatch && fileMatch[1]) {
+              return sendPlayer(fileMatch[1]);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Packer unpack error:", e.message);
+      }
     }
+
+    // 2. Normal Regex (Vidnest/Cossora) - Robust patterns
+    let fileMatch = /file\s*:\s*["']([^"']+)["']/.exec(html);
+    if (!fileMatch) fileMatch = /src\s*:\s*["']([^"']+)["']/.exec(html);
+    if (!fileMatch) fileMatch = /["']([^"']+\.mp4[^"']*)["']/.exec(html);
+    if (!fileMatch) fileMatch = /["']([^"']+\.m3u8[^"']*)["']/.exec(html);
+
+    if (fileMatch && fileMatch[1]) {
+      return sendPlayer(fileMatch[1]);
+    }
+
+    // Fallback: Inject no-referrer and hope for the best (or maybe it's a different player source)
+    const modifiedHtml = html.replace(
+      "<head>",
+      '<head><meta name="referrer" content="no-referrer">',
+    );
+    res.send(modifiedHtml);
   } catch (error) {
     console.error("Cossora Proxy Error:", error.message);
     res.status(500).send("Error fetching video");
@@ -652,90 +612,172 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
       }
     });
 
-    console.log(`[Bunkr] Found ${files.length} files in album.`);
+    res.json({
+      id: slug,
+      slug: slug,
+      name: title,
+      files: files,
+    });
+  } catch (e) {
+    console.error("[Bunkr/Hnime] Error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
-    // Fallback if cheerio fails (maybe class names changed)
-    if (files.length === 0) {
-      console.log("[Bunkr] Cheerio found no files, using Regex fallback...");
-      const fileBlocks = html.split(
-        /class=["']relative group\/item theItem["']/,
-      );
-      for (let i = 1; i < fileBlocks.length; i++) {
-        const block = fileBlocks[i];
-        const thumbMatch =
-          /class=["']grid-images_box-img["'][^>]*src=["']([^"']+)["']/.exec(
-            block,
-          );
-        const nameMatch =
-          /class=["'][^"']*theName[^"']*["'][^>]*>([^<]+)</.exec(block);
-        const linkMatch = /href=["']\/f\/([^"']+)["']/.exec(block);
-        if (linkMatch) {
+// Bunkr Detail Endpoint
+app.get("/api/bunkr/detail", async (req, res) => {
+  const { slug } = req.query;
+  if (!slug) return res.status(400).json({ error: "Slug is required" });
+
+  try {
+    // Try domains until one works
+    const domains = [
+      "https://bunkr.cr",
+      "https://bunkr.si",
+      "https://bunkr.ph",
+      "https://bunkr.la",
+    ];
+    let html = null;
+    let usedDomain = "";
+
+    for (const domain of domains) {
+      try {
+        const url = `${domain}/a/${slug}`;
+        console.log(`[Bunkr] Trying detail: ${url}`);
+        html = await fetchWithFallback(url, getNekoHeaders());
+        if (
+          html &&
+          !html.includes("404 Not Found") &&
+          (html.includes("grid-images_box") || html.includes("group/item"))
+        ) {
+          usedDomain = domain;
+          break;
+        }
+      } catch (e) {
+        console.warn(`[Bunkr] Failed ${domain}: ${e.message}`);
+      }
+    }
+
+    if (!html || !usedDomain) {
+      throw new Error("Album not found on any Bunkr domain");
+    }
+
+    const $ = cheerio.load(html);
+    const title = $("h1").first().text().trim() || $("title").text().trim();
+    const files = [];
+
+    // Parse Files (Both new and old layouts)
+    // Layout A: div.relative.group/item
+    $("div.relative.group\\/item").each((i, el) => {
+      const link = $(el).find("a[href*='/f/']").first();
+      const href = link.attr("href");
+      const thumb = $(el).find("img").attr("src");
+      const name = $(el).find("p").first().text().trim() || link.text().trim();
+
+      if (href) {
+        const fileSlugMatch = /\/f\/([a-zA-Z0-9]+)/.exec(href);
+        if (fileSlugMatch) {
           files.push({
-            slug: linkMatch[1],
-            name: nameMatch ? nameMatch[1].trim() : "Unknown File",
-            thumb: thumbMatch ? thumbMatch[1] : "",
+            slug: fileSlugMatch[1],
+            name: name,
+            thumb: thumb,
+            domain: usedDomain, // store domain to construct file URL
           });
         }
       }
-    }
+    });
 
+    // Layout B: grid-images_box (older?)
     if (files.length === 0) {
-      throw new Error("No files found in Bunkr Album");
+      $(".grid-images_box").each((i, el) => {
+        const link = $(el).closest("a") || $(el).find("a").first();
+        const href = link.attr("href");
+        // ... (similar extraction)
+        // For brevity, relying on the robust one mostly.
+        if (href && href.includes("/f/")) {
+          const fileSlugMatch = /\/f\/([a-zA-Z0-9]+)/.exec(href);
+          if (fileSlugMatch) {
+            const thumb = $(el).find("img").attr("src");
+            files.push({
+              slug: fileSlugMatch[1],
+              name: "File " + (i + 1),
+              thumb: thumb,
+              domain: usedDomain,
+            });
+          }
+        }
+      });
     }
 
-    // ... (Rest of logic: determine default file, sources, etc.)
+    console.log(`[Bunkr] Found ${files.length} files in album.`);
 
-    // We need to re-implement getType logic and default file selection
+    // Helper to determine type
     const getType = (name) => {
       const ext = name.split(".").pop().toLowerCase();
-      if (["mp4", "mkv", "webm", "avi", "mov"].includes(ext)) return "video";
+      if (["mp4", "mkv", "webm", "avi", "mov", "m4v"].includes(ext))
+        return "video";
       if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
-      if (["zip", "rar", "7z", "tar"].includes(ext)) return "archive";
       return "file";
     };
 
-    let defaultFileIndex = 0;
-    const firstVideoIndex = files.findIndex((f) => getType(f.name) === "video");
-    if (firstVideoIndex !== -1) {
-      defaultFileIndex = firstVideoIndex;
-    }
+    // Extract raw video URL for the FIRST video found (to be efficient)
+    // We can do this lazily on frontend, but for "sources" we want valid links.
+    // NOTE: Generating "sources" for ALL files is slow if we have to fetch every page.
+    // STRATEGY: Return the file page URL as the "src" and let a centralized Play/Proxy endpoint handle the extraction.
+    // BUT user wants "Raw Video".
+    // Let's extract the FIRST video immediately so the main player works.
 
-    // Fetch the download link for the DEFAULT file
-    const targetFile = files[defaultFileIndex];
-    let downloadUrl = "";
+    let defaultVideoUrl = "";
+    const firstVideo = files.find((f) => getType(f.name) === "video");
 
-    if (targetFile) {
-      const fileUrl = `https://bunkr.cr/f/${targetFile.slug}`;
+    if (firstVideo) {
       try {
-        const fileResp = await fetchWithFallback(
-          fileUrl,
-          getNekoHeaders(),
-          true,
-        ); // Use fetchWithFallback to bypass blocks
-        // Regex for download button still needed as it might be inside script or button
-        const downloadMatch = /class="btn btn-main[^"]*" href="([^"]+)"/.exec(
-          fileResp,
-        );
-        downloadUrl = downloadMatch ? downloadMatch[1] : "";
+        const filePageUrl = `${firstVideo.domain}/f/${firstVideo.slug}`;
+        console.log(`[Bunkr] Extracting raw video from: ${filePageUrl}`);
+        const fileHtml = await fetchWithFallback(filePageUrl, getNekoHeaders());
+
+        // Robust extraction similar to CavPorn/Nekopoi
+        const $f = cheerio.load(fileHtml);
+        let rawSrc = "";
+
+        // 1. Look for <video> or <source>
+        rawSrc =
+          $f("source[src*='.mp4']").attr("src") || $f("video").attr("src");
+
+        // 2. Regex in scripts (mediaUrl | linkUrl)
+        if (!rawSrc) {
+          const match =
+            /mediaUrl\s*=\s*["']([^"']+)["']/.exec(fileHtml) ||
+            /linkUrl\s*=\s*["']([^"']+)["']/.exec(fileHtml) ||
+            /downloadUrl\s*=\s*["']([^"']+)["']/.exec(fileHtml);
+          if (match) rawSrc = match[1];
+        }
+
+        // 3. Look for the "Download" button href
+        if (!rawSrc) {
+          rawSrc = $f("a.btn-main:contains('Download')").attr("href");
+        }
+
+        if (rawSrc) defaultVideoUrl = rawSrc;
       } catch (e) {
-        console.error("Error fetching file page:", e);
+        console.error("Failed to extract default video:", e.message);
       }
     }
 
-    const sources = files.map((f, index) => {
+    // Build Sources List
+    const sources = files.map((f, i) => {
       const type = getType(f.name);
-      let url = `https://bunkr.cr/f/${f.slug}`;
-      if (type === "image" && f.thumb) {
-        url = f.thumb.replace("/thumbs/", "/");
-        if (f.name.toLowerCase().endsWith(".webp")) {
-          url = url.replace(/\.png$/, ".webp");
-        }
-      }
       return {
-        url: url,
-        name: `File ${index + 1}: ${f.name}`,
+        name: f.name,
         type: type,
-        isDefault: index === defaultFileIndex,
+        // For images, we can guess the direct link or valid thumb
+        url:
+          type === "image"
+            ? f.thumb.replace("/thumbs/", "/")
+            : `${f.domain}/f/${f.slug}`,
+        slug: f.slug,
+        domain: f.domain,
+        isDefault: firstVideo && f.slug === firstVideo.slug,
       };
     });
 
@@ -743,16 +785,18 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
       id: slug,
       slug: slug,
       name: title,
-      description: "Scraped from Bunkr",
+      description: "Scraped from Bunkr via Reddit",
       views: 0,
-      poster_url: "",
-      cover_url: "",
-      tags: ["Bunkr", "Bunkr Albums"],
-      iframe_url: downloadUrl || "",
+      poster_url: firstVideo?.thumb || "",
+      // If we found a direct link for the default video, pass it.
+      // Otherwise frontend uses the /f/ link (which we need to handle in proxy or frontend)
+      rawVideoUrls: defaultVideoUrl
+        ? [{ url: defaultVideoUrl, referer: usedDomain }]
+        : [],
       sources: sources,
     });
   } catch (err) {
-    console.error("Bunkr Video Error:", err.message);
+    console.error("Bunkr Detail Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1428,6 +1472,28 @@ const parseNekopoiPosts = ($) => {
   return posts;
 };
 
+app.get("/api/nekopoi/search", async (req, res) => {
+  const { q, page = 1 } = req.query;
+  if (!q)
+    return res.status(400).json({ error: "Query parameter 'q' is required" });
+
+  try {
+    const url = `https://nekopoi.care/search/${encodeURIComponent(q)}/page/${page}`;
+    console.log(`[Nekopoi] Searching: ${url}`);
+
+    // Force Proxy (skipDirect = true) to bypass ISP blocks
+    const html = await fetchWithFallback(url, {}, true);
+    const $ = cheerio.load(html);
+    const posts = parseNekopoiPosts($); // Re-use the existing parser function!
+
+    console.log(`[Nekopoi] Search found ${posts.length} items`);
+    res.json(posts);
+  } catch (error) {
+    console.error("Nekopoi Search Error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/api/nekopoi/latest", async (req, res) => {
   const page = req.query.page || 1;
   const url =
@@ -1462,6 +1528,8 @@ app.get("/api/nekopoi/detail", async (req, res) => {
 
     // Extract Stream
     let videoIframes = [];
+    let rawVideoUrls = [];
+    const iframePromises = [];
 
     // Strategy 1: Look for iframes (streams)
     $("iframe").each((i, el) => {
@@ -1469,6 +1537,69 @@ app.get("/api/nekopoi/detail", async (req, res) => {
       if (src) {
         // Try to proxy it if it looks like a stream
         videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
+
+        // also try to extract raw video URL for HLS player
+        const p = (async () => {
+          try {
+            const iframeHtml = await fetchWithFallback(
+              src,
+              {
+                Referer: "https://nekopoi.care/",
+              },
+              true,
+            );
+
+            // 1. Try Packer unpacking
+            if (iframeHtml.includes("eval(function(p,a,c,k,e,d)")) {
+              const packedMatch =
+                /eval\(function\(p,a,c,k,e,d\)[\s\S]*?\.split\('\|'\)\)\)/.exec(
+                  iframeHtml,
+                );
+              if (packedMatch) {
+                const unpacked = unpack(packedMatch[0]);
+                // Find file: or src:
+                const fileMatch =
+                  /file\s*:\s*["']([^"']+)["']/.exec(unpacked) ||
+                  /src\s*:\s*["']([^"']+)["']/.exec(unpacked);
+                if (fileMatch && fileMatch[1]) {
+                  const vUrl = fileMatch[1];
+                  if (vUrl.includes(".m3u8") || vUrl.includes(".mp4")) {
+                    rawVideoUrls.push({
+                      url: vUrl,
+                      referer: new URL(src).origin + "/",
+                    });
+                  }
+                }
+              }
+            }
+
+            // 2. Try Direct Regex
+            const m3u8Match = /["']([^"']+\.m3u8[^"']*)["']/.exec(iframeHtml);
+            if (m3u8Match) {
+              rawVideoUrls.push({
+                url: m3u8Match[1],
+                referer: new URL(src).origin + "/",
+              });
+            }
+
+            // 3. Try generic file: pattern
+            const fileMatch = /file\s*:\s*["']([^"']+)["']/.exec(iframeHtml);
+            if (fileMatch && fileMatch[1]) {
+              const vUrl = fileMatch[1];
+              if (vUrl.includes(".m3u8") || vUrl.includes(".mp4")) {
+                rawVideoUrls.push({
+                  url: vUrl,
+                  referer: new URL(src).origin + "/",
+                });
+              }
+            }
+          } catch (e) {
+            console.warn(
+              `[Nekopoi] Failed to extract raw video from ${src}: ${e.message}`,
+            );
+          }
+        })();
+        iframePromises.push(p);
       }
     });
 
@@ -1478,6 +1609,10 @@ app.get("/api/nekopoi/detail", async (req, res) => {
       if (src) {
         const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}&referer=${encodeURIComponent("https://nekopoi.care/")}`;
         videoIframes.push(proxyUrl);
+        rawVideoUrls.push({
+          url: src,
+          referer: "https://nekopoi.care/",
+        });
       }
     });
 
@@ -1488,7 +1623,20 @@ app.get("/api/nekopoi/detail", async (req, res) => {
       const src = fileMatch[1];
       const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}&referer=${encodeURIComponent("https://nekopoi.care/")}`;
       videoIframes.push(proxyUrl);
+      rawVideoUrls.push({
+        url: src,
+        referer: "https://nekopoi.care/",
+      });
     }
+
+    if (iframePromises.length > 0) {
+      await Promise.allSettled(iframePromises);
+    }
+
+    // Remove duplicates
+    rawVideoUrls = rawVideoUrls.filter(
+      (v, i, self) => i === self.findIndex((t) => t.url === v.url),
+    );
 
     // Extract Content Images
     $(".entry-content img, .content img").each((i, el) => {
@@ -1515,6 +1663,7 @@ app.get("/api/nekopoi/detail", async (req, res) => {
       title,
       images,
       videoIframes,
+      rawVideoUrls, // Added this field
       downloadLinks,
       originalUrl: url,
     });
@@ -2227,5 +2376,3 @@ app.get("/api/cavporn/player", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Proxy server running at http://localhost:${PORT}`);
 });
-
-export default app;

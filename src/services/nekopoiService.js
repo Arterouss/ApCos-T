@@ -11,6 +11,19 @@ export const getNekopoiLatest = async (page = 1) => {
   }
 };
 
+export const getNekopoiSearch = async (query, page = 1) => {
+  try {
+    const res = await fetch(
+      `${API_URL}/search?q=${encodeURIComponent(query)}&page=${page}`,
+    );
+    if (!res.ok) throw new Error("Failed to fetch search results");
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
+
 export const getNekopoiDetail = async (slug) => {
   try {
     const res = await fetch(`${API_URL}/detail?slug=${slug}`);

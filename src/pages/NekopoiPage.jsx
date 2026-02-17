@@ -1,48 +1,76 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getNekopoiLatest } from "../services/nekopoiService";
-import { Menu, Cat, Play } from "lucide-react";
+import { getNekopoiLatest, getNekopoiSearch } from "../services/nekopoiService";
+import { Menu, Cat, Play, Search } from "lucide-react";
+import SearchBar from "../components/SearchBar";
 
 export default function NekopoiPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  const fetchData = async (pageNum, isLoadMore = false) => {
-    if (isLoadMore) setLoadingMore(true);
-    else setLoading(true);
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
+  // Reset page when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery]);
+
+  // Fetch Data (Latest or Search)
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        let results;
+        if (debouncedQuery) {
+          results = await getNekopoiSearch(debouncedQuery, page);
+        } else {
+          results = await getNekopoiLatest(page);
+        }
+        setData(Array.isArray(results) ? results : []);
+      } catch (error) {
+        console.error("Failed to load Nekopoi data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [page, debouncedQuery]);
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    const nextPage = page + 1;
     try {
-      const results = await getNekopoiLatest(pageNum);
+      let results;
+      if (debouncedQuery) {
+        results = await getNekopoiSearch(debouncedQuery, nextPage);
+      } else {
+        results = await getNekopoiLatest(nextPage);
+      }
       const newHits = Array.isArray(results) ? results : [];
-
-      if (isLoadMore) {
+      if (newHits.length > 0) {
         setData((prev) => {
           const existingSlugs = new Set(prev.map((p) => p.slug));
           const uniqueNew = newHits.filter((h) => !existingSlugs.has(h.slug));
           return [...prev, ...uniqueNew];
         });
-      } else {
-        setData(newHits);
+        setPage(nextPage);
       }
     } catch (error) {
-      console.error("Failed to load Nekopoi data", error);
+      console.error("Failed to load more", error);
     } finally {
-      if (isLoadMore) setLoadingMore(false);
-      else setLoading(false);
+      setLoadingMore(false);
     }
-  };
-
-  useEffect(() => {
-    setPage(1);
-    fetchData(1, false);
-  }, []);
-
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchData(nextPage, true);
   };
 
   return (
@@ -59,8 +87,21 @@ export default function NekopoiPage({ onOpenSidebar }) {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent flex items-center justify-center md:justify-start gap-2">
             <Cat size={32} className="text-yellow-500" /> Nekopoi Gallery
           </h1>
-          <p className="text-gray-400 mt-1">Latest Hentai Releases</p>
+          <p className="text-gray-400 mt-1">
+            {debouncedQuery
+              ? `Search results for "${debouncedQuery}"`
+              : "Latest Hentai Releases"}
+          </p>
         </header>
+
+        {/* Search Bar */}
+        <div className="mb-8 max-w-xl">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search Nekopoi..."
+          />
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-20">
