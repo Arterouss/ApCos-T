@@ -5,6 +5,7 @@ import * as cheerio from "cheerio";
 import { Buffer } from "buffer";
 import axios from "axios";
 import https from "https";
+import { createHash } from "crypto";
 
 const app = express();
 const PORT = 3001;
@@ -1470,15 +1471,29 @@ const parseOreno3dPosts = ($) => {
   return posts;
 };
 
-const orenoAgent = new https.Agent({ rejectUnauthorized: false });
+// fetchOreno: try direct first (Vercel has valid certs), fall back to ignoring SSL
 const fetchOreno = async (url) => {
-  const res = await axios.get(url, {
-    httpsAgent: orenoAgent,
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-  });
-  return res.data;
+  try {
+    const res = await axios.get(url, {
+      timeout: 8000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      }
+    });
+    return res.data;
+  } catch (e) {
+    // Fallback: ignore SSL (for local dev where cert may differ)
+    const agent = new https.Agent({ rejectUnauthorized: false });
+    const res = await axios.get(url, {
+      httpsAgent: agent,
+      timeout: 8000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      }
+    });
+    return res.data;
+  }
 };
 
 app.get("/api/oreno3d/search", async (req, res) => {
@@ -1565,23 +1580,22 @@ app.get("/api/oreno3d/detail", async (req, res) => {
         const iwaraVideoId = externalLink.split("/video/")[1].split("/")[0];
         console.log(`[Oreno3D] Fetching Iwara API for: ${iwaraVideoId}`);
 
-        // Step 1: Get video info from Iwara API
+        // Step 1: Get video info — short timeout so Vercel doesn't hit 10s limit
         const infoRes = await axios.get(`https://api.iwara.tv/video/${iwaraVideoId}`, {
           headers: {
             "User-Agent": "Mozilla/5.0",
             "Accept": "application/json",
           },
-          timeout: 10000,
+          timeout: 6000,
         });
         const videoInfo = infoRes.data;
 
-        // Step 2: Get signed video sources
+        // Step 2: Get signed video sources using statically-imported createHash
         if (videoInfo && videoInfo.fileUrl) {
           const fileUrl = videoInfo.fileUrl;
-          // fileUrl needs X-Version header computed from sha1
-          const { createHash } = await import("crypto");
+          const fileKey = fileUrl.split("/")[6] || "";
           const xVersion = createHash("sha1")
-            .update(`${fileUrl.split("/")[6]}_5nFp9kmbNnHdAFhaqMvt`)
+            .update(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`)
             .digest("hex");
 
           const sourcesRes = await axios.get(`https:${fileUrl}`, {
@@ -1589,16 +1603,14 @@ app.get("/api/oreno3d/detail", async (req, res) => {
               "X-Version": xVersion,
               "User-Agent": "Mozilla/5.0",
             },
-            timeout: 10000,
+            timeout: 6000,
           });
 
           if (Array.isArray(sourcesRes.data)) {
-            // Sort by quality: Source > 720 > 540 > 360
             const qualityOrder = { "Source": 0, "720": 1, "540": 2, "360": 3 };
-            const sorted = sourcesRes.data.sort((a, b) =>
+            const sorted = [...sourcesRes.data].sort((a, b) =>
               (qualityOrder[a.name] ?? 99) - (qualityOrder[b.name] ?? 99)
             );
-
             for (const src of sorted) {
               if (src.src && src.src.download) {
                 rawVideoUrls.push({
@@ -1612,8 +1624,8 @@ app.get("/api/oreno3d/detail", async (req, res) => {
           }
         }
       } catch (iwaraErr) {
+        // Non-fatal — log and fall through; frontend shows external link
         console.warn(`[Oreno3D] Iwara API failed: ${iwaraErr.message}`);
-        // Fallback: still return external link so user can click
       }
     }
 
