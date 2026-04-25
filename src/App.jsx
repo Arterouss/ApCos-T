@@ -15,10 +15,11 @@ import HanimeDetailPage from "./pages/HanimeDetailPage";
 import Rule34Page from "./pages/Rule34Page";
 import CosplayTelePage from "./pages/CosplayTelePage";
 import CosplayDetailPage from "./pages/CosplayDetailPage";
-import NekopoiPage from "./pages/NekopoiPage";
-import NekopoiDetailPage from "./pages/NekopoiDetailPage";
+import Oreno3dPage from "./pages/Oreno3dPage";
+import Oreno3dDetailPage from "./pages/Oreno3dDetailPage";
 import CavPornPage from "./pages/CavPornPage";
 import CavPornDetailPage from "./pages/CavPornDetailPage";
+import AiToolsPage from "./pages/AiToolsPage";
 import Sidebar from "./components/Sidebar";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
@@ -48,16 +49,20 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         />
         <Route path="/cosplay/:slug" element={<CosplayDetailPage />} />
         <Route
-          path="/nekopoi"
-          element={<NekopoiPage onOpenSidebar={onOpenSidebar} />}
+          path="/oreno3d"
+          element={<Oreno3dPage onOpenSidebar={onOpenSidebar} />}
         />
-        <Route path="/nekopoi/:slug" element={<NekopoiDetailPage />} />
+        <Route path="/oreno3d/:slug" element={<Oreno3dDetailPage />} />
         <Route
           path="/cavporn"
           element={<CavPornPage onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/cavporn/:id/:slug" element={<CavPornDetailPage />} />
         <Route path="/g/:id/:token" element={<EHentaiDetailPage />} />
+        <Route
+          path="/ai-tools"
+          element={<AiToolsPage onOpenSidebar={onOpenSidebar} />}
+        />
       </Routes>
     </AnimatePresence>
   );

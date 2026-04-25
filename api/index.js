@@ -3,6 +3,8 @@ import cors from "cors";
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import { Buffer } from "buffer";
+import axios from "axios";
+import https from "https";
 
 const app = express();
 const PORT = 3001;
@@ -100,6 +102,14 @@ const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Timeout wrapper for node-fetch
+const fetchWithTimeout = (url, options, timeout = 20000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout))
+  ]);
+};
+
 // Helper: Try to fetch from multiple sources (Shared)
 const fetchWithFallback = async (
   targetUrl,
@@ -118,7 +128,7 @@ const fetchWithFallback = async (
   if (!skipDirect) {
     try {
       console.log(`[Proxy] Direct: ${targetUrl}`);
-      const res = await fetch(targetUrl, { headers: defaultHeaders });
+      const res = await fetchWithTimeout(targetUrl, { headers: defaultHeaders });
 
       // Check for ISP Block / Soft Block
       const text = await res.text();
@@ -145,7 +155,7 @@ const fetchWithFallback = async (
   try {
     console.log(`[Proxy] CorsProxy: ${targetUrl}`);
     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-    const res = await fetch(proxyUrl, { headers: defaultHeaders });
+    const res = await fetchWithTimeout(proxyUrl, { headers: defaultHeaders });
     if (res.ok) return await res.text();
     lastError = `CorsProxy: ${res.status}`;
   } catch (e) {
@@ -158,7 +168,7 @@ const fetchWithFallback = async (
   try {
     console.log(`[Proxy] CodeTabs: ${targetUrl}`);
     const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-    const res = await fetch(proxyUrl, { headers: defaultHeaders });
+    const res = await fetchWithTimeout(proxyUrl, { headers: defaultHeaders });
     if (res.ok) return await res.text();
     lastError = `CodeTabs: ${res.status}`;
   } catch (e) {
@@ -171,7 +181,7 @@ const fetchWithFallback = async (
   try {
     console.log(`[Proxy] AllOrigins: ${targetUrl}`);
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-    const res = await fetch(proxyUrl, { headers: defaultHeaders });
+    const res = await fetchWithTimeout(proxyUrl, { headers: defaultHeaders });
     if (res.ok) {
       const data = await res.json();
       if (data.contents) return data.contents;
@@ -1431,29 +1441,19 @@ app.get("/api/cosplay/detail", async (req, res) => {
 });
 
 // ==========================================
-// NEKOPOI API
+// ORENO3D API
 // ==========================================
 
-const parseNekopoiPosts = ($) => {
+const parseOreno3dPosts = ($) => {
   const posts = [];
-  // Strategy: Try multiple selectors.
-  let items = $(".eropost");
-  if (items.length === 0) items = $("article.post");
-  if (items.length === 0) items = $(".result-item");
-
-  items.each((i, el) => {
-    const $el = $(el);
-    let titleEl = $el.find("h2 a");
-    if (titleEl.length === 0) titleEl = $el.find(".title a");
-
-    let imgEl = $el.find("img");
-
-    const title = titleEl.text().trim();
-    const url = titleEl.attr("href");
-    const thumb =
-      imgEl.attr("src") ||
-      imgEl.attr("data-src") ||
-      imgEl.attr("data-lazy-src");
+  $("article a.box").each((i, el) => {
+    const url = $(el).attr("href");
+    const title = $(el).find("h2.box-h2").text().trim();
+    let thumb = $(el).find("img.main-thumbnail").attr("src");
+    
+    if (thumb && thumb.startsWith("/")) {
+      thumb = `https://oreno3d.com${thumb}`;
+    }
 
     const slug = url ? url.split("/").filter(Boolean).pop() : null;
 
@@ -1462,9 +1462,7 @@ const parseNekopoiPosts = ($) => {
         id: slug,
         slug,
         title,
-        thumbnail: thumb
-          ? `/api/proxy/image?url=${encodeURIComponent(thumb)}`
-          : null,
+        thumbnail: thumb ? `/api/proxy/image?url=${encodeURIComponent(thumb)}` : null,
         url,
       });
     }
@@ -1472,203 +1470,170 @@ const parseNekopoiPosts = ($) => {
   return posts;
 };
 
-app.get("/api/nekopoi/search", async (req, res) => {
+const orenoAgent = new https.Agent({ rejectUnauthorized: false });
+const fetchOreno = async (url) => {
+  const res = await axios.get(url, {
+    httpsAgent: orenoAgent,
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+  });
+  return res.data;
+};
+
+app.get("/api/oreno3d/search", async (req, res) => {
   const { q, page = 1 } = req.query;
-  if (!q)
-    return res.status(400).json({ error: "Query parameter 'q' is required" });
+  if (!q) return res.status(400).json({ error: "Query parameter 'q' is required" });
 
   try {
-    const url = `https://nekopoi.care/search/${encodeURIComponent(q)}/page/${page}`;
-    console.log(`[Nekopoi] Searching: ${url}`);
+    const url = `https://oreno3d.com/search?keyword=${encodeURIComponent(q)}&page=${page}`;
+    console.log(`[Oreno3D] Searching: ${url}`);
 
-    // Force Proxy (skipDirect = true) to bypass ISP blocks
-    const html = await fetchWithFallback(url, {}, true);
+    const html = await fetchOreno(url);
     const $ = cheerio.load(html);
-    const posts = parseNekopoiPosts($); // Re-use the existing parser function!
+    const posts = parseOreno3dPosts($);
 
-    console.log(`[Nekopoi] Search found ${posts.length} items`);
+    console.log(`[Oreno3D] Search found ${posts.length} items`);
     res.json(posts);
   } catch (error) {
-    console.error("Nekopoi Search Error:", error.message);
+    console.error("Oreno3D Search Error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get("/api/nekopoi/latest", async (req, res) => {
+app.get("/api/oreno3d/latest", async (req, res) => {
   const page = req.query.page || 1;
-  const url =
-    page > 1 ? `https://nekopoi.care/page/${page}/` : `https://nekopoi.care/`;
+  const sort = req.query.sort || "latest";
+
+  // Map sort keys to Oreno3D URL patterns
+  let url;
+  if (sort === "popular" || sort === "view_count") {
+    url = `https://oreno3d.com/movies?sort=view_count&page=${page}`;
+  } else if (sort === "rated" || sort === "like_count") {
+    url = `https://oreno3d.com/movies?sort=like_count&page=${page}`;
+  } else if (sort === "new") {
+    url = `https://oreno3d.com/movies?page=${page}`;
+  } else {
+    // default: latest (homepage)
+    url = page > 1 ? `https://oreno3d.com/?page=${page}` : `https://oreno3d.com/`;
+  }
 
   try {
-    // Force Proxy (skipDirect = true) to bypass ISP blocks
-    const html = await fetchWithFallback(url, {}, true);
+    const html = await fetchOreno(url);
     const $ = cheerio.load(html);
-    const posts = parseNekopoiPosts($);
+    const posts = parseOreno3dPosts($);
     res.json(posts);
   } catch (error) {
-    console.error("Nekopoi Latest Error:", error.message);
-    res.status(500).json({ error: "Failed to fetch Nekopoi data" });
+    console.error("Oreno3D Latest Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch Oreno3D data" });
   }
 });
 
-app.get("/api/nekopoi/detail", async (req, res) => {
-  const { slug } = req.query;
-  if (!slug) return res.status(400).json({ error: "Slug required" });
+app.get("/api/oreno3d/detail", async (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: "ID required" });
 
-  const url = `https://nekopoi.care/${slug}/`;
+  const url = `https://oreno3d.com/movies/${id}`;
 
   try {
-    // Force Proxy (skipDirect = true) to bypass ISP blocks
-    const html = await fetchWithFallback(url, {}, true);
+    const html = await fetchOreno(url);
     const $ = cheerio.load(html);
 
-    const title =
-      $("h1.entry-title").text().trim() || $("h1.title").text().trim();
-    const images = [];
+    // ── Page metadata ──────────────────────────────────────────────
+    const title = $("h1.video-h1").text().trim();
+    const author = $("section.video-section-tag a .video-center").first().text().trim();
+    const viewsText = $("ul.video-views .video-text").first().text().trim();
+    const likesText = $("ul.video-views .video-text").eq(2).text().trim();
+    const dateText = $("ul.video-views .f-label-in").first().find(".video-text").first().text().trim();
+    let thumbnail = $("figure.video-figure img").attr("src");
+    if (thumbnail && thumbnail.startsWith("/")) thumbnail = `https://oreno3d.com${thumbnail}`;
 
-    // Extract Stream
-    let videoIframes = [];
+    const tags = [];
+    $("section.video-section-tag ul.video-tag a").each((_, el) => {
+      tags.push($(el).find(".tag-text").text().trim());
+    });
+
+    // ── Detect external video link ─────────────────────────────────
+    const externalLink = $("a.pop_separate").attr("href") || $("a.video-watch-btn2").attr("href");
+
     let rawVideoUrls = [];
-    const iframePromises = [];
+    let externalVideoUrl = externalLink || url;
 
-    // Strategy 1: Look for iframes (streams)
-    $("iframe").each((i, el) => {
-      const src = $(el).attr("src");
-      if (src) {
-        // Try to proxy it if it looks like a stream
-        videoIframes.push(`/api/proxy/cossora?url=${encodeURIComponent(src)}`);
+    // ── Try to get actual streamable URL from Iwara API ────────────
+    if (externalLink && externalLink.includes("iwara.tv/video/")) {
+      try {
+        const iwaraVideoId = externalLink.split("/video/")[1].split("/")[0];
+        console.log(`[Oreno3D] Fetching Iwara API for: ${iwaraVideoId}`);
 
-        // also try to extract raw video URL for HLS player
-        const p = (async () => {
-          try {
-            const iframeHtml = await fetchWithFallback(
-              src,
-              {
-                Referer: "https://nekopoi.care/",
-              },
-              true,
+        // Step 1: Get video info from Iwara API
+        const infoRes = await axios.get(`https://api.iwara.tv/video/${iwaraVideoId}`, {
+          headers: {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+          },
+          timeout: 10000,
+        });
+        const videoInfo = infoRes.data;
+
+        // Step 2: Get signed video sources
+        if (videoInfo && videoInfo.fileUrl) {
+          const fileUrl = videoInfo.fileUrl;
+          // fileUrl needs X-Version header computed from sha1
+          const { createHash } = await import("crypto");
+          const xVersion = createHash("sha1")
+            .update(`${fileUrl.split("/")[6]}_5nFp9kmbNnHdAFhaqMvt`)
+            .digest("hex");
+
+          const sourcesRes = await axios.get(`https:${fileUrl}`, {
+            headers: {
+              "X-Version": xVersion,
+              "User-Agent": "Mozilla/5.0",
+            },
+            timeout: 10000,
+          });
+
+          if (Array.isArray(sourcesRes.data)) {
+            // Sort by quality: Source > 720 > 540 > 360
+            const qualityOrder = { "Source": 0, "720": 1, "540": 2, "360": 3 };
+            const sorted = sourcesRes.data.sort((a, b) =>
+              (qualityOrder[a.name] ?? 99) - (qualityOrder[b.name] ?? 99)
             );
 
-            // 1. Try Packer unpacking
-            if (iframeHtml.includes("eval(function(p,a,c,k,e,d)")) {
-              const packedMatch =
-                /eval\(function\(p,a,c,k,e,d\)[\s\S]*?\.split\('\|'\)\)\)/.exec(
-                  iframeHtml,
-                );
-              if (packedMatch) {
-                const unpacked = unpack(packedMatch[0]);
-                // Find file: or src:
-                const fileMatch =
-                  /file\s*:\s*["']([^"']+)["']/.exec(unpacked) ||
-                  /src\s*:\s*["']([^"']+)["']/.exec(unpacked);
-                if (fileMatch && fileMatch[1]) {
-                  const vUrl = fileMatch[1];
-                  if (vUrl.includes(".m3u8") || vUrl.includes(".mp4")) {
-                    rawVideoUrls.push({
-                      url: vUrl,
-                      referer: new URL(src).origin + "/",
-                    });
-                  }
-                }
-              }
-            }
-
-            // 2. Try Direct Regex
-            const m3u8Match = /["']([^"']+\.m3u8[^"']*)["']/.exec(iframeHtml);
-            if (m3u8Match) {
-              rawVideoUrls.push({
-                url: m3u8Match[1],
-                referer: new URL(src).origin + "/",
-              });
-            }
-
-            // 3. Try generic file: pattern
-            const fileMatch = /file\s*:\s*["']([^"']+)["']/.exec(iframeHtml);
-            if (fileMatch && fileMatch[1]) {
-              const vUrl = fileMatch[1];
-              if (vUrl.includes(".m3u8") || vUrl.includes(".mp4")) {
+            for (const src of sorted) {
+              if (src.src && src.src.download) {
                 rawVideoUrls.push({
-                  url: vUrl,
-                  referer: new URL(src).origin + "/",
+                  url: `https:${src.src.download}`,
+                  referer: "https://www.iwara.tv/",
+                  quality: src.name || "Unknown",
                 });
               }
             }
-          } catch (e) {
-            console.warn(
-              `[Nekopoi] Failed to extract raw video from ${src}: ${e.message}`,
-            );
+            console.log(`[Oreno3D] Got ${rawVideoUrls.length} video sources from Iwara`);
           }
-        })();
-        iframePromises.push(p);
+        }
+      } catch (iwaraErr) {
+        console.warn(`[Oreno3D] Iwara API failed: ${iwaraErr.message}`);
+        // Fallback: still return external link so user can click
       }
-    });
-
-    // Strategy 2: Look for 'video' tag
-    $("video source").each((i, el) => {
-      const src = $(el).attr("src");
-      if (src) {
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}&referer=${encodeURIComponent("https://nekopoi.care/")}`;
-        videoIframes.push(proxyUrl);
-        rawVideoUrls.push({
-          url: src,
-          referer: "https://nekopoi.care/",
-        });
-      }
-    });
-
-    // Strategy 3: Look for stream scripts
-    const scriptContent = $("script").text();
-    const fileMatch = /file:\s*["']([^"']+)["']/.exec(scriptContent);
-    if (fileMatch && fileMatch[1]) {
-      const src = fileMatch[1];
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}&referer=${encodeURIComponent("https://nekopoi.care/")}`;
-      videoIframes.push(proxyUrl);
-      rawVideoUrls.push({
-        url: src,
-        referer: "https://nekopoi.care/",
-      });
     }
-
-    if (iframePromises.length > 0) {
-      await Promise.allSettled(iframePromises);
-    }
-
-    // Remove duplicates
-    rawVideoUrls = rawVideoUrls.filter(
-      (v, i, self) => i === self.findIndex((t) => t.url === v.url),
-    );
-
-    // Extract Content Images
-    $(".entry-content img, .content img").each((i, el) => {
-      const src = $(el).attr("src") || $(el).attr("data-src");
-      if (src) images.push(`/api/proxy/image?url=${encodeURIComponent(src)}`);
-    });
-
-    // Extract Download Links
-    const downloadLinks = [];
-    $("a").each((i, el) => {
-      const txt = $(el).text().trim().toLowerCase();
-      const href = $(el).attr("href");
-      if (
-        href &&
-        (txt.includes("download") ||
-          txt.includes("zippyshare") ||
-          txt.includes("gdrive"))
-      ) {
-        downloadLinks.push({ label: $(el).text().trim(), url: href });
-      }
-    });
 
     res.json({
       title,
-      images,
-      videoIframes,
-      rawVideoUrls, // Added this field
-      downloadLinks,
+      author,
+      views: viewsText,
+      likes: likesText,
+      date: dateText,
+      tags,
+      thumbnail: thumbnail ? `/api/proxy/image?url=${encodeURIComponent(thumbnail)}` : null,
+      images: [],
+      videoIframes: [],      // iwara blocks iframes, we skip
+      rawVideoUrls,
+      downloadLinks: [],
+      externalVideoUrl,      // direct link fallback
       originalUrl: url,
     });
   } catch (error) {
-    console.error("Nekopoi Detail Error:", error.message);
+    console.error("Oreno3D Detail Error:", error.message);
     res.status(500).json({ error: "Failed to fetch detail" });
   }
 });

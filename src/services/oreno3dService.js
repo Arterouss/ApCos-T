@@ -1,8 +1,8 @@
-const API_URL = "/api/nekopoi";
+const API_URL = "/api/oreno3d";
 
-export const getNekopoiLatest = async (page = 1) => {
+export const getOreno3dLatest = async (page = 1, sort = "latest") => {
   try {
-    const res = await fetch(`${API_URL}/latest?page=${page}`);
+    const res = await fetch(`${API_URL}/latest?page=${page}&sort=${sort}`);
     if (!res.ok) throw new Error("Failed to fetch latest");
     return await res.json();
   } catch (error) {
@@ -11,7 +11,7 @@ export const getNekopoiLatest = async (page = 1) => {
   }
 };
 
-export const getNekopoiSearch = async (query, page = 1) => {
+export const getOreno3dSearch = async (query, page = 1) => {
   try {
     const res = await fetch(
       `${API_URL}/search?q=${encodeURIComponent(query)}&page=${page}`,
@@ -24,9 +24,9 @@ export const getNekopoiSearch = async (query, page = 1) => {
   }
 };
 
-export const getNekopoiDetail = async (slug) => {
+export const getOreno3dDetail = async (id) => {
   try {
-    const res = await fetch(`${API_URL}/detail?slug=${slug}`);
+    const res = await fetch(`${API_URL}/detail?id=${id}`);
     if (!res.ok) throw new Error("Failed to fetch detail");
     return await res.json();
   } catch (error) {
