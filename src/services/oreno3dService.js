@@ -34,3 +34,15 @@ export const getOreno3dDetail = async (id) => {
     throw error;
   }
 };
+
+// Called on-demand when user wants to play — separate from detail to avoid timeout
+export const getOreno3dStream = async (iwaraId) => {
+  try {
+    const res = await fetch(`${API_URL}/stream?iwaraId=${iwaraId}`);
+    if (!res.ok) throw new Error("Stream fetch failed");
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return { rawVideoUrls: [] };
+  }
+};

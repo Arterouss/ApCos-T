@@ -1544,6 +1544,7 @@ app.get("/api/oreno3d/latest", async (req, res) => {
   }
 });
 
+// ── FAST: just page metadata — target < 5s ────────────────────────
 app.get("/api/oreno3d/detail", async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
@@ -1554,7 +1555,6 @@ app.get("/api/oreno3d/detail", async (req, res) => {
     const html = await fetchOreno(url);
     const $ = cheerio.load(html);
 
-    // ── Page metadata ──────────────────────────────────────────────
     const title = $("h1.video-h1").text().trim();
     const author = $("section.video-section-tag a .video-center").first().text().trim();
     const viewsText = $("ul.video-views .video-text").first().text().trim();
@@ -1568,65 +1568,12 @@ app.get("/api/oreno3d/detail", async (req, res) => {
       tags.push($(el).find(".tag-text").text().trim());
     });
 
-    // ── Detect external video link ─────────────────────────────────
     const externalLink = $("a.pop_separate").attr("href") || $("a.video-watch-btn2").attr("href");
 
-    let rawVideoUrls = [];
-    let externalVideoUrl = externalLink || url;
-
-    // ── Try to get actual streamable URL from Iwara API ────────────
+    // Extract iwara video ID if available so frontend can call /stream
+    let iwaraVideoId = null;
     if (externalLink && externalLink.includes("iwara.tv/video/")) {
-      try {
-        const iwaraVideoId = externalLink.split("/video/")[1].split("/")[0];
-        console.log(`[Oreno3D] Fetching Iwara API for: ${iwaraVideoId}`);
-
-        // Step 1: Get video info — short timeout so Vercel doesn't hit 10s limit
-        const infoRes = await axios.get(`https://api.iwara.tv/video/${iwaraVideoId}`, {
-          headers: {
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-          },
-          timeout: 6000,
-        });
-        const videoInfo = infoRes.data;
-
-        // Step 2: Get signed video sources using statically-imported createHash
-        if (videoInfo && videoInfo.fileUrl) {
-          const fileUrl = videoInfo.fileUrl;
-          const fileKey = fileUrl.split("/")[6] || "";
-          const xVersion = createHash("sha1")
-            .update(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`)
-            .digest("hex");
-
-          const sourcesRes = await axios.get(`https:${fileUrl}`, {
-            headers: {
-              "X-Version": xVersion,
-              "User-Agent": "Mozilla/5.0",
-            },
-            timeout: 6000,
-          });
-
-          if (Array.isArray(sourcesRes.data)) {
-            const qualityOrder = { "Source": 0, "720": 1, "540": 2, "360": 3 };
-            const sorted = [...sourcesRes.data].sort((a, b) =>
-              (qualityOrder[a.name] ?? 99) - (qualityOrder[b.name] ?? 99)
-            );
-            for (const src of sorted) {
-              if (src.src && src.src.download) {
-                rawVideoUrls.push({
-                  url: `https:${src.src.download}`,
-                  referer: "https://www.iwara.tv/",
-                  quality: src.name || "Unknown",
-                });
-              }
-            }
-            console.log(`[Oreno3D] Got ${rawVideoUrls.length} video sources from Iwara`);
-          }
-        }
-      } catch (iwaraErr) {
-        // Non-fatal — log and fall through; frontend shows external link
-        console.warn(`[Oreno3D] Iwara API failed: ${iwaraErr.message}`);
-      }
+      iwaraVideoId = externalLink.split("/video/")[1].split("/")[0];
     }
 
     res.json({
@@ -1637,11 +1584,8 @@ app.get("/api/oreno3d/detail", async (req, res) => {
       date: dateText,
       tags,
       thumbnail: thumbnail ? `/api/proxy/image?url=${encodeURIComponent(thumbnail)}` : null,
-      images: [],
-      videoIframes: [],      // iwara blocks iframes, we skip
-      rawVideoUrls,
-      downloadLinks: [],
-      externalVideoUrl,      // direct link fallback
+      iwaraVideoId,          // frontend uses this to call /stream
+      externalVideoUrl: externalLink || url,
       originalUrl: url,
     });
   } catch (error) {
@@ -1649,6 +1593,58 @@ app.get("/api/oreno3d/detail", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch detail" });
   }
 });
+
+// ── ON-DEMAND: video stream URLs from Iwara — called when user clicks play
+app.get("/api/oreno3d/stream", async (req, res) => {
+  const { iwaraId } = req.query;
+  if (!iwaraId) return res.status(400).json({ error: "iwaraId required" });
+
+  try {
+    console.log(`[Oreno3D Stream] Fetching for: ${iwaraId}`);
+
+    // Step 1: Get video info
+    const infoRes = await axios.get(`https://api.iwara.tv/video/${iwaraId}`, {
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+      timeout: 7000,
+    });
+
+    const fileUrl = infoRes.data?.fileUrl;
+    if (!fileUrl) return res.json({ rawVideoUrls: [] });
+
+    // Step 2: Compute X-Version and fetch sources
+    const fileKey = fileUrl.split("/")[6] || "";
+    const xVersion = createHash("sha1")
+      .update(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`)
+      .digest("hex");
+
+    const sourcesRes = await axios.get(`https:${fileUrl}`, {
+      headers: { "X-Version": xVersion, "User-Agent": "Mozilla/5.0" },
+      timeout: 7000,
+    });
+
+    const rawVideoUrls = [];
+    if (Array.isArray(sourcesRes.data)) {
+      const qualityOrder = { "Source": 0, "720": 1, "540": 2, "360": 3 };
+      const sorted = [...sourcesRes.data].sort((a, b) =>
+        (qualityOrder[a.name] ?? 99) - (qualityOrder[b.name] ?? 99)
+      );
+      for (const src of sorted) {
+        if (src.src?.download) {
+          rawVideoUrls.push({
+            url: `https:${src.src.download}`,
+            referer: "https://www.iwara.tv/",
+            quality: src.name || "Unknown",
+          });
+        }
+      }
+    }
+    console.log(`[Oreno3D Stream] Got ${rawVideoUrls.length} sources`);
+    res.json({ rawVideoUrls });
+  } catch (err) {
+    console.error("Oreno3D Stream Error:", err.message);
+  }
+});
+
 
 // ==========================================
 // CAVPORN SCRAPER (cav103.com)
