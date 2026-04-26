@@ -1486,26 +1486,67 @@ const normalizeIwaraVideo = (v) => ({
   originalUrl:      `https://www.iwara.tv/video/${v.id}`,
 });
 
+// ── Debug: test what APIs are reachable from Vercel ──────────────
+app.get("/api/oreno3d/debug", async (req, res) => {
+  const results = {};
+  const tests = [
+    { key: "iwara_ecchi", url: "https://api.iwara.tv/videos?page=0&limit=4&sort=date&rating=ecchi" },
+    { key: "iwara_all",   url: "https://api.iwara.tv/videos?page=0&limit=4&sort=date&rating=all" },
+    { key: "iwara_bare",  url: "https://api.iwara.tv/videos?page=0&limit=4&sort=date" },
+    { key: "iwara_video", url: "https://api.iwara.tv/video/fca22a1d-5c7e-4a4e-bb6f-ef1e65e2df2c" },
+  ];
+  for (const t of tests) {
+    try {
+      const r = await axios.get(t.url, {
+        headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+        timeout: 6000,
+      });
+      results[t.key] = {
+        status: r.status,
+        count: r.data?.results?.length ?? r.data?.count ?? "ok",
+        sample_id: r.data?.results?.[0]?.id || r.data?.id || "N/A",
+      };
+    } catch(e) {
+      results[t.key] = { error: e.message, status: e.response?.status };
+    }
+  }
+  res.json(results);
+});
+
 // ── Gallery (latest/sort) ─────────────────────────────────────────
 app.get("/api/oreno3d/latest", async (req, res) => {
   const page = Math.max(0, Number(req.query.page || 1) - 1); // Iwara is 0-indexed
   const sort = IWARA_SORT[req.query.sort] || "date";
 
   try {
-    const apiUrl = `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}&rating=ecchi`;
-    console.log(`[Iwara] Fetching: ${apiUrl}`);
+    // Try ecchi rating first, fallback to all, then bare
+    const urls = [
+      `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}&rating=ecchi`,
+      `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}&rating=all`,
+      `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}`,
+    ];
 
-    const result = await axios.get(apiUrl, {
-      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-      timeout: 8000,
-    });
+    let result = null;
+    let lastErr = null;
+    for (const apiUrl of urls) {
+      try {
+        console.log(`[Iwara] Trying: ${apiUrl}`);
+        const r = await axios.get(apiUrl, {
+          headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+          timeout: 8000,
+        });
+        if (r.data?.results) { result = r; break; }
+      } catch (e) { lastErr = e; }
+    }
+
+    if (!result) throw lastErr || new Error("All Iwara URLs failed");
 
     const videos = (result.data?.results || []).map(normalizeIwaraVideo);
-    console.log(`[Iwara] Got ${videos.length} videos (sort=${sort}, page=${page})`);
+    console.log(`[Iwara] Got ${videos.length} videos`);
     res.json(videos);
   } catch (err) {
-    console.error("[Iwara] Latest error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("[Iwara] Latest error:", err.message, err.response?.status);
+    res.status(500).json({ error: err.message, status: err.response?.status });
   }
 });
 
