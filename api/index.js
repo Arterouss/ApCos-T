@@ -1486,28 +1486,75 @@ const normalizeIwaraVideo = (v) => ({
   originalUrl:      `https://www.iwara.tv/video/${v.id}`,
 });
 
-// ── Debug: test what APIs are reachable from Vercel ──────────────
+// ── Iwara API helper: full browser headers + proxy fallback ──────
+const IWARA_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Origin": "https://www.iwara.tv",
+  "Referer": "https://www.iwara.tv/",
+  "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124"',
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": '"Windows"',
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-site",
+  "Connection": "keep-alive",
+};
+
+const iwaraFetch = async (url) => {
+  // Try 1: direct with full browser headers
+  try {
+    const r = await axios.get(url, { headers: IWARA_HEADERS, timeout: 8000 });
+    return r.data;
+  } catch (e) {
+    if (e.response?.status !== 403) throw e;
+    console.warn("[Iwara] 403 direct, trying allorigins proxy...");
+  }
+
+  // Try 2: route through allorigins (bypasses IP block)
+  try {
+    const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const r = await axios.get(proxied, {
+      headers: { "User-Agent": IWARA_HEADERS["User-Agent"] },
+      timeout: 9000,
+    });
+    if (typeof r.data === "string") return JSON.parse(r.data);
+    return r.data;
+  } catch (e) {
+    console.warn("[Iwara] allorigins failed:", e.message);
+  }
+
+  // Try 3: corsproxy.io
+  try {
+    const proxied = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const r = await axios.get(proxied, { timeout: 9000 });
+    if (typeof r.data === "string") return JSON.parse(r.data);
+    return r.data;
+  } catch (e) {
+    console.warn("[Iwara] corsproxy.io failed:", e.message);
+  }
+
+  throw new Error("Iwara API unreachable (403 from all sources)");
+};
+
+// ── Debug endpoint ────────────────────────────────────────────────
 app.get("/api/oreno3d/debug", async (req, res) => {
   const results = {};
-  const tests = [
-    { key: "iwara_ecchi", url: "https://api.iwara.tv/videos?page=0&limit=4&sort=date&rating=ecchi" },
-    { key: "iwara_all",   url: "https://api.iwara.tv/videos?page=0&limit=4&sort=date&rating=all" },
-    { key: "iwara_bare",  url: "https://api.iwara.tv/videos?page=0&limit=4&sort=date" },
-    { key: "iwara_video", url: "https://api.iwara.tv/video/fca22a1d-5c7e-4a4e-bb6f-ef1e65e2df2c" },
-  ];
-  for (const t of tests) {
+  const testUrls = {
+    direct_bare:    "https://api.iwara.tv/videos?page=0&limit=4&sort=date",
+    direct_ecchi:   "https://api.iwara.tv/videos?page=0&limit=4&sort=date&rating=ecchi",
+    proxy_bare:     `https://api.allorigins.win/raw?url=${encodeURIComponent("https://api.iwara.tv/videos?page=0&limit=4&sort=date")}`,
+    proxy_ecchi:    `https://api.allorigins.win/raw?url=${encodeURIComponent("https://api.iwara.tv/videos?page=0&limit=4&sort=date&rating=ecchi")}`,
+  };
+  for (const [key, url] of Object.entries(testUrls)) {
     try {
-      const r = await axios.get(t.url, {
-        headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-        timeout: 6000,
-      });
-      results[t.key] = {
-        status: r.status,
-        count: r.data?.results?.length ?? r.data?.count ?? "ok",
-        sample_id: r.data?.results?.[0]?.id || r.data?.id || "N/A",
-      };
+      const r = await axios.get(url, { headers: IWARA_HEADERS, timeout: 8000 });
+      const data = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+      results[key] = { status: r.status, count: data?.results?.length ?? data?.count ?? "ok", sample_id: data?.results?.[0]?.id || "N/A" };
     } catch(e) {
-      results[t.key] = { error: e.message, status: e.response?.status };
+      results[key] = { error: e.message.slice(0, 80), status: e.response?.status };
     }
   }
   res.json(results);
@@ -1515,57 +1562,38 @@ app.get("/api/oreno3d/debug", async (req, res) => {
 
 // ── Gallery (latest/sort) ─────────────────────────────────────────
 app.get("/api/oreno3d/latest", async (req, res) => {
-  const page = Math.max(0, Number(req.query.page || 1) - 1); // Iwara is 0-indexed
+  const page = Math.max(0, Number(req.query.page || 1) - 1);
   const sort = IWARA_SORT[req.query.sort] || "date";
 
   try {
-    // Try ecchi rating first, fallback to all, then bare
-    const urls = [
-      `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}&rating=ecchi`,
-      `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}&rating=all`,
-      `${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}`,
-    ];
-
-    let result = null;
-    let lastErr = null;
-    for (const apiUrl of urls) {
+    // Try ecchi first, fall back to no-rating filter
+    let data = null;
+    for (const rating of ["ecchi", ""]) {
+      const qs = rating ? `&rating=${rating}` : "";
       try {
-        console.log(`[Iwara] Trying: ${apiUrl}`);
-        const r = await axios.get(apiUrl, {
-          headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-          timeout: 8000,
-        });
-        if (r.data?.results) { result = r; break; }
-      } catch (e) { lastErr = e; }
+        data = await iwaraFetch(`${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}${qs}`);
+        if (data?.results?.length > 0) break;
+      } catch(e) { /* try next */ }
     }
-
-    if (!result) throw lastErr || new Error("All Iwara URLs failed");
-
-    const videos = (result.data?.results || []).map(normalizeIwaraVideo);
+    if (!data?.results) throw new Error("No results from Iwara");
+    const videos = data.results.map(normalizeIwaraVideo);
     console.log(`[Iwara] Got ${videos.length} videos`);
     res.json(videos);
   } catch (err) {
-    console.error("[Iwara] Latest error:", err.message, err.response?.status);
-    res.status(500).json({ error: err.message, status: err.response?.status });
+    console.error("[Iwara] Latest error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
+
 
 // ── Search ────────────────────────────────────────────────────────
 app.get("/api/oreno3d/search", async (req, res) => {
   const { q, page = 1 } = req.query;
   if (!q) return res.status(400).json({ error: "Query required" });
-
   const iwaraPage = Math.max(0, Number(page) - 1);
   try {
-    const apiUrl = `${IWARA_API}/videos?page=${iwaraPage}&limit=32&sort=date&rating=ecchi&search=${encodeURIComponent(q)}`;
-    console.log(`[Iwara] Search: ${apiUrl}`);
-
-    const result = await axios.get(apiUrl, {
-      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-      timeout: 8000,
-    });
-
-    const videos = (result.data?.results || []).map(normalizeIwaraVideo);
+    const data = await iwaraFetch(`${IWARA_API}/videos?page=${iwaraPage}&limit=32&sort=date&search=${encodeURIComponent(q)}`);
+    const videos = (data?.results || []).map(normalizeIwaraVideo);
     console.log(`[Iwara] Search "${q}": ${videos.length} results`);
     res.json(videos);
   } catch (err) {
@@ -1578,18 +1606,10 @@ app.get("/api/oreno3d/search", async (req, res) => {
 app.get("/api/oreno3d/detail", async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
-
   try {
-    const result = await axios.get(`${IWARA_API}/video/${id}`, {
-      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-      timeout: 8000,
-    });
-
-    const v = result.data;
+    const v = await iwaraFetch(`${IWARA_API}/video/${id}`);
     if (!v || !v.id) return res.status(404).json({ error: "Video not found" });
-
     const normalized = normalizeIwaraVideo(v);
-    // For detail page, also pass iwaraVideoId so /stream can be called
     res.json({ ...normalized, iwaraVideoId: v.id });
   } catch (err) {
     console.error("[Iwara] Detail error:", err.message);
@@ -1601,17 +1621,11 @@ app.get("/api/oreno3d/detail", async (req, res) => {
 app.get("/api/oreno3d/stream", async (req, res) => {
   const { iwaraId } = req.query;
   if (!iwaraId) return res.status(400).json({ error: "iwaraId required" });
-
   try {
     console.log(`[Iwara Stream] Fetching for: ${iwaraId}`);
-
-    // Step 1: Get video info to get fileUrl
-    const infoRes = await axios.get(`${IWARA_API}/video/${iwaraId}`, {
-      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-      timeout: 7000,
-    });
-
-    const fileUrl = infoRes.data?.fileUrl;
+    // Step 1: Get video info (fileUrl)
+    const info = await iwaraFetch(`${IWARA_API}/video/${iwaraId}`);
+    const fileUrl = info?.fileUrl;
     if (!fileUrl) return res.json({ rawVideoUrls: [] });
 
     // Step 2: Compute X-Version header (sha1 signature) and fetch sources
