@@ -1447,23 +1447,32 @@ app.get("/api/cosplay/detail", async (req, res) => {
 
 const parseOreno3dPosts = ($) => {
   const posts = [];
-  $("article a.box").each((i, el) => {
+  // Real selector from oreno3d.com HTML: article > a.box.pop_separate
+  $("article a.pop_separate").each((i, el) => {
     const url = $(el).attr("href");
     const title = $(el).find("h2.box-h2").text().trim();
-    let thumb = $(el).find("img.main-thumbnail").attr("src");
+    let thumb = $(el).find("img.main-thumbnail").attr("src") || $(el).find("img").attr("src");
     
     if (thumb && thumb.startsWith("/")) {
       thumb = `https://oreno3d.com${thumb}`;
     }
 
-    const slug = url ? url.split("/").filter(Boolean).pop() : null;
+    // Extract numeric ID from URL: /movies/322906
+    const movieMatch = /\/movies\/(\d+)/.exec(url || "");
+    const movieId = movieMatch ? movieMatch[1] : (url ? url.split("/").filter(Boolean).pop() : null);
 
-    if (title && url) {
+    // Extract views and likes
+    const views = $(el).find(".f-label-in").eq(0).find(".figure-text-in").text().trim();
+    const likes = $(el).find(".f-label-in").eq(1).find(".figure-text-in").text().trim();
+
+    if (title && movieId) {
       posts.push({
-        id: slug,
-        slug,
+        id: movieId,
+        slug: movieId,
         title,
         thumbnail: thumb ? `/api/proxy/image?url=${encodeURIComponent(thumb)}` : null,
+        views,
+        likes,
         url,
       });
     }
@@ -1471,30 +1480,58 @@ const parseOreno3dPosts = ($) => {
   return posts;
 };
 
-// fetchOreno: try direct first (Vercel has valid certs), fall back to ignoring SSL
-const fetchOreno = async (url) => {
-  try {
-    const res = await axios.get(url, {
-      timeout: 8000,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      }
-    });
-    return res.data;
-  } catch (e) {
-    // Fallback: ignore SSL (for local dev where cert may differ)
-    const agent = new https.Agent({ rejectUnauthorized: false });
-    const res = await axios.get(url, {
-      httpsAgent: agent,
-      timeout: 8000,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      }
-    });
-    return res.data;
-  }
+// Detect if we got an ISP block page instead of real content
+const isBlockedPage = (html) => {
+  if (typeof html !== "string") return true;
+  return (
+    html.includes("Internet Positif") ||
+    html.includes("bimatri.ioh") ||
+    html.includes("Nawala") ||
+    html.includes("This site can") ||
+    html.includes("blocked") ||
+    html.length < 500
+  );
 };
+
+// fetchOreno: direct first, then bypass ISP/geo block via allorigins proxy
+const fetchOreno = async (url) => {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+
+  // Try 1: Direct
+  try {
+    const agent = new https.Agent({ rejectUnauthorized: false });
+    const res = await axios.get(url, { httpsAgent: agent, timeout: 7000, headers });
+    if (!isBlockedPage(res.data)) return res.data;
+    console.warn("[Oreno3D] Direct blocked, trying proxy...");
+  } catch (e) {
+    console.warn("[Oreno3D] Direct failed:", e.message);
+  }
+
+  // Try 2: allorigins CORS proxy
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await axios.get(proxyUrl, { timeout: 8000, headers: { "User-Agent": headers["User-Agent"] } });
+    if (!isBlockedPage(res.data)) return res.data;
+  } catch (e) {
+    console.warn("[Oreno3D] allorigins failed:", e.message);
+  }
+
+  // Try 3: corsproxy.io
+  try {
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const res = await axios.get(proxyUrl, { timeout: 8000 });
+    if (!isBlockedPage(res.data)) return res.data;
+  } catch (e) {
+    console.warn("[Oreno3D] corsproxy failed:", e.message);
+  }
+
+  throw new Error("oreno3d.com is not reachable from this server");
+};
+
 
 app.get("/api/oreno3d/search", async (req, res) => {
   const { q, page = 1 } = req.query;
@@ -1520,23 +1557,26 @@ app.get("/api/oreno3d/latest", async (req, res) => {
   const page = req.query.page || 1;
   const sort = req.query.sort || "latest";
 
-  // Map sort keys to Oreno3D URL patterns
+  // Real sort params from oreno3d.com HTML: hot, favorites, latest, popularity
   let url;
-  if (sort === "popular" || sort === "view_count") {
-    url = `https://oreno3d.com/movies?sort=view_count&page=${page}`;
-  } else if (sort === "rated" || sort === "like_count") {
-    url = `https://oreno3d.com/movies?sort=like_count&page=${page}`;
+  if (sort === "popular") {
+    url = `https://oreno3d.com?sort=hot&page=${page}`;
+  } else if (sort === "rated") {
+    url = `https://oreno3d.com?sort=favorites&page=${page}`;
   } else if (sort === "new") {
-    url = `https://oreno3d.com/movies?page=${page}`;
+    url = `https://oreno3d.com?sort=latest&page=${page}`;
+  } else if (sort === "popularity") {
+    url = `https://oreno3d.com?sort=popularity&page=${page}`;
   } else {
-    // default: latest (homepage)
-    url = page > 1 ? `https://oreno3d.com/?page=${page}` : `https://oreno3d.com/`;
+    // default: homepage (hot/trending)
+    url = `https://oreno3d.com?page=${page}`;
   }
 
   try {
     const html = await fetchOreno(url);
     const $ = cheerio.load(html);
     const posts = parseOreno3dPosts($);
+    console.log(`[Oreno3D] Latest sort=${sort} page=${page}: ${posts.length} items`);
     res.json(posts);
   } catch (error) {
     console.error("Oreno3D Latest Error:", error.message);
@@ -2345,7 +2385,11 @@ app.get("/api/cavporn/player", (req, res) => {
   res.send(playerHtml);
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Proxy server running at http://localhost:${PORT}`);
-});
+// Local dev: listen on PORT. Vercel uses export default below.
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`Proxy server running at http://localhost:${PORT}`);
+  });
+}
+
+export default app;
