@@ -1467,24 +1467,31 @@ const iwaraThumbnail = (video) => {
 };
 
 // Normalize a video item from Iwara API to our common shape
-const normalizeIwaraVideo = (v) => ({
-  id:        v.id,
-  slug:      v.id,           // we use iwara video ID as slug
-  iwaraId:   v.id,
-  iwaraSlug: v.slug || "",
-  title:     v.title || "Untitled",
-  thumbnail: iwaraThumbnail(v)
-    ? `/api/proxy/image?url=${encodeURIComponent(iwaraThumbnail(v))}`
-    : null,
-  views:     v.numViews  ?? 0,
-  likes:     v.numLikes  ?? 0,
-  author:    v.user?.name || v.user?.username || "",
-  date:      v.createdAt ? v.createdAt.split("T")[0] : "",
-  tags:      (v.tags || []).map((t) => t.id || t),
-  rating:    v.rating || "",
-  externalVideoUrl: `https://www.iwara.tv/video/${v.id}/${v.slug || ""}`,
-  originalUrl:      `https://www.iwara.tv/video/${v.id}`,
-});
+const normalizeIwaraVideo = (v) => {
+  const thumbRaw = iwaraThumbnail(v);
+  return {
+    id:        v.id,
+    slug:      v.id,
+    iwaraId:   v.id,
+    iwaraSlug: v.slug || "",
+    title:     v.title || "Untitled",
+    // Pass referer so proxy/image sends Referer: https://www.iwara.tv/ to files.iwara.tv
+    thumbnail: thumbRaw
+      ? `/api/proxy/image?url=${encodeURIComponent(thumbRaw)}&referer=${encodeURIComponent("https://www.iwara.tv/")}`
+      : null,
+    views:     v.numViews  ?? 0,
+    likes:     v.numLikes  ?? 0,
+    author:    v.user?.name || v.user?.username || "",
+    date:      v.createdAt ? v.createdAt.split("T")[0] : "",
+    tags:      (v.tags || []).map((t) => t.id || t),
+    rating:    v.rating || "",
+    externalVideoUrl: `https://www.iwara.tv/video/${v.id}/${v.slug || ""}`,
+    originalUrl:      `https://www.iwara.tv/video/${v.id}`,
+    // Pass iwaraVideoId explicitly for detail page
+    iwaraVideoId: v.id,
+  };
+};
+
 
 // ── Iwara API helper: full browser headers + proxy fallback ──────
 const IWARA_HEADERS = {

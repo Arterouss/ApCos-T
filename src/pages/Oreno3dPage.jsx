@@ -12,7 +12,9 @@ import {
   TrendingUp,
   Clock,
   Sparkles,
+  Eye,
 } from "lucide-react";
+
 import SearchBar from "../components/SearchBar";
 
 const SORT_TABS = [
@@ -200,8 +202,9 @@ export default function Oreno3dPage({ onOpenSidebar }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
             {data.map((item) => (
               <Link
-                key={item.url || item.slug}
-                to={`/oreno3d/${item.slug || encodeURIComponent(item.url)}`}
+                key={item.id || item.slug}
+                to={`/oreno3d/${item.slug || item.id}`}
+                state={{ videoData: item }}
                 className="group relative bg-white/5 rounded-xl overflow-hidden hover:-translate-y-1 transition-all duration-300 border border-white/5 hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-500/10"
               >
                 {/* Thumbnail */}
@@ -211,8 +214,20 @@ export default function Oreno3dPage({ onOpenSidebar }) {
                     alt={item.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     loading="lazy"
+                    onError={(e) => { e.target.src = "https://placehold.co/300x400/111827/6b7280?text=No+Image"; }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-90 transition-opacity" />
+
+                  {/* Views/likes overlay */}
+                  {(item.views || item.likes) && (
+                    <div className="absolute top-2 left-2 flex gap-1.5">
+                      {item.views != null && (
+                        <span className="flex items-center gap-0.5 bg-black/60 text-gray-300 text-[10px] px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                          <Eye size={9} /> {Number(item.views).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Play overlay */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -222,11 +237,14 @@ export default function Oreno3dPage({ onOpenSidebar }) {
                   </div>
                 </div>
 
-                {/* Title */}
+                {/* Title + author */}
                 <div className="p-3">
                   <h3 className="font-medium text-xs md:text-sm line-clamp-2 group-hover:text-cyan-400 transition-colors leading-snug">
                     {item.title}
                   </h3>
+                  {item.author && (
+                    <p className="text-[10px] text-gray-500 mt-1 truncate">{item.author}</p>
+                  )}
                 </div>
               </Link>
             ))}

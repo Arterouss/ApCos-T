@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import { getOreno3dDetail, getOreno3dStream } from "../services/oreno3dService";
 import Hls from "hls.js";
 import {
@@ -67,10 +67,9 @@ function VideoPlayer({ videoUrl, referer, quality }) {
       });
       hlsRef.current = hls;
     } else {
-      // Direct MP4 — Iwara CDN is public, try direct first
+      // Direct MP4 — try direct first, fallback to proxy
       video.src = videoUrl;
-      const onLoad = () => setIsLoading(false);
-      video.addEventListener("loadeddata", onLoad, { once: true });
+      video.addEventListener("loadeddata", () => setIsLoading(false), { once: true });
       video.addEventListener("error", () => {
         video.src = proxyUrl(videoUrl, referer);
         video.addEventListener("loadeddata", () => setIsLoading(false), { once: true });
@@ -108,10 +107,12 @@ function VideoPlayer({ videoUrl, referer, quality }) {
 // ── Main Page ────────────────────────────────────────────────────────
 export default function Oreno3dDetailPage() {
   const { slug } = useParams();
+  const location = useLocation();
 
-  // Phase 1: fast metadata
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Data from gallery link state (fast, no extra fetch needed)
+  // or fallback to API fetch if navigated directly
+  const [data,    setData]    = useState(location.state?.videoData || null);
+  const [loading, setLoading] = useState(!location.state?.videoData);
   const [error,   setError]   = useState(null);
 
   // Phase 2: on-demand stream
@@ -121,28 +122,33 @@ export default function Oreno3dDetailPage() {
   const [activeQIdx,    setActiveQIdx]    = useState(0);
   const [playerVisible, setPlayerVisible] = useState(false);
 
-  // ── Load metadata ────────────────────────────────────────────────
+  // ── Load metadata only if not passed from gallery ─────────────
   useEffect(() => {
+    if (data) return; // already have data from Link state
     if (!slug) return;
     setLoading(true);
     setError(null);
-    setStreams([]);
-    setPlayerVisible(false);
     getOreno3dDetail(slug)
       .then((d) => setData(d))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fetch stream on play click ────────────────────────────────────
+  // ── Fetch stream on play click ────────────────────────────────
   const handlePlay = async () => {
     if (streams.length > 0) { setPlayerVisible(true); return; }
-    if (!data?.iwaraVideoId) { setPlayerVisible(true); return; } // will show fallback
+
+    const iwaraId = data?.iwaraVideoId || data?.iwaraId || data?.id || slug;
+    if (!iwaraId) {
+      setStreamError("No video ID found.");
+      setPlayerVisible(true);
+      return;
+    }
 
     setStreamLoading(true);
     setStreamError(null);
     try {
-      const result = await getOreno3dStream(data.iwaraVideoId);
+      const result = await getOreno3dStream(iwaraId);
       setStreams(result.rawVideoUrls || []);
       setActiveQIdx(0);
     } catch (e) {
@@ -153,7 +159,7 @@ export default function Oreno3dDetailPage() {
     }
   };
 
-  // ── Loading & error ───────────────────────────────────────────────
+  // ── Loading & error ───────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white bg-neutral-950">
@@ -194,8 +200,8 @@ export default function Oreno3dDetailPage() {
         {/* Meta */}
         <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-5">
           {data.author && <span className="flex items-center gap-1.5"><User size={14} className="text-cyan-500"/>{data.author}</span>}
-          {data.views  && <span className="flex items-center gap-1.5"><Eye  size={14} className="text-blue-400"/>{Number(data.views).toLocaleString()} views</span>}
-          {data.likes  && <span className="flex items-center gap-1.5"><Heart size={14} className="text-pink-400"/>{Number(data.likes).toLocaleString()} likes</span>}
+          {data.views  != null && <span className="flex items-center gap-1.5"><Eye  size={14} className="text-blue-400"/>{Number(data.views).toLocaleString()} views</span>}
+          {data.likes  != null && <span className="flex items-center gap-1.5"><Heart size={14} className="text-pink-400"/>{Number(data.likes).toLocaleString()} likes</span>}
           {data.date   && <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-500"/>{data.date}</span>}
         </div>
 
@@ -204,7 +210,10 @@ export default function Oreno3dDetailPage() {
 
           {!playerVisible ? (
             /* Thumbnail + Play button */
-            <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-cyan-500/10 bg-black group cursor-pointer" onClick={handlePlay}>
+            <div
+              className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-cyan-500/10 bg-black group cursor-pointer"
+              onClick={handlePlay}
+            >
               {data.thumbnail && (
                 <img src={data.thumbnail} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
               )}
@@ -252,7 +261,7 @@ export default function Oreno3dDetailPage() {
                   {data.thumbnail && <img src={data.thumbnail} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-20" />}
                   <div className="relative z-10 text-center px-6">
                     <AlertTriangle size={36} className="mx-auto mb-3 text-amber-400" />
-                    <p className="text-gray-400 text-sm mb-4">{streamError || "Stream unavailable. Watch on the original site."}</p>
+                    <p className="text-gray-400 text-sm mb-4">{streamError || "Stream unavailable."}</p>
                     <a href={data.externalVideoUrl || data.originalUrl} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-full transition-all shadow-lg shadow-cyan-500/30 hover:scale-105">
                       <Play size={18} className="fill-black" /> Watch on Iwara
