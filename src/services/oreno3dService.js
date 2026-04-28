@@ -32,6 +32,9 @@ export const getOreno3dDetail = async (id) => {
   } catch (error) {
     console.error(error);
     throw error;
+  }
+};
+
 // Utility to compute SHA-1 hash natively in the browser
 async function sha1(str) {
   const buffer = new TextEncoder().encode(str);
