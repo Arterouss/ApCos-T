@@ -851,6 +851,10 @@ app.get("/api/proxy", async (req, res) => {
       headers["Range"] = req.headers.range;
     }
 
+    if (req.headers["x-version"]) {
+      headers["X-Version"] = req.headers["x-version"];
+    }
+
     let response;
     try {
       console.log(`[Proxy] Attempting Direct: ${decodedUrl}`);

@@ -47,27 +47,35 @@ async function sha1(str) {
 // Fetch stream purely from frontend to bypass Vercel's backend IP block
 export const getOreno3dStream = async (iwaraId) => {
   try {
-    const proxyBase = "https://corsproxy.io/?";
-
-    // 1. Fetch video info to get fileUrl
+    // 1. Fetch video info to get fileUrl - using allorigins for metadata (metadata usually doesn't need custom headers)
     const infoUrl = `https://api.iwara.tv/video/${iwaraId}`;
-    let res = await fetch(proxyBase + encodeURIComponent(infoUrl));
-    if (!res.ok) throw new Error("Could not fetch video info via corsproxy");
+    const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(infoUrl)}`;
+    
+    let res = await fetch(allOriginsUrl);
+    if (!res.ok) throw new Error("Could not fetch video info via allorigins");
     const info = await res.json();
     
     const fileUrl = info.fileUrl;
     if (!fileUrl) throw new Error("No fileUrl found in video info");
 
-    // 2. Compute X-Version signature
-    const fileKey = fileUrl.split("/")[6] || "";
-    const xVersion = await sha1(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`);
+    // 2. Compute X-Version signature using file.id and expires
+    const fileId = info.file?.id || "";
+    const fullUrl = fileUrl.startsWith("//") ? "https:" + fileUrl : fileUrl;
+    const parsedUrl = new URL(fullUrl);
+    const expires = parsedUrl.searchParams.get("expires") || "";
+    
+    const xVersion = await sha1(`${fileId}_${expires}_5nFp9kmbNnHdAFhaqMvt`);
 
-    // 3. Fetch sources with X-Version
+    // 3. Fetch sources using our own /api/proxy (which we've updated to forward X-Version)
+    // This bypasses CORS and keeps the headers intact
     const sourcesUrl = `https:${fileUrl}`;
-    res = await fetch(proxyBase + encodeURIComponent(sourcesUrl), {
+    const localProxyUrl = `/api/proxy?url=${encodeURIComponent(sourcesUrl)}`;
+    
+    res = await fetch(localProxyUrl, {
       headers: { "X-Version": xVersion },
     });
-    if (!res.ok) throw new Error("Could not fetch stream sources via corsproxy");
+    
+    if (!res.ok) throw new Error("Could not fetch stream sources via local proxy");
     const sourcesData = await res.json();
 
     const rawVideoUrls = [];
@@ -86,7 +94,7 @@ export const getOreno3dStream = async (iwaraId) => {
         }
       }
     }
-    return { rawVideoUrls, debug: ["Frontend fetch success"] };
+    return { rawVideoUrls, debug: ["Frontend proxy fetch success"] };
   } catch (error) {
     console.error("Stream Service Error:", error);
     return { rawVideoUrls: [], error: error.message };
