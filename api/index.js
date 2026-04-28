@@ -233,10 +233,19 @@ app.get("/api/proxy/image", async (req, res) => {
       }
     }
 
-    // 2. If blocked/failed, try wsrv.nl
+    // 2. Try corsproxy.io (preserves headers like Referer)
+    if (!response || !response.ok || response.status === 403) {
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      try {
+        response = await fetch(proxyUrl, { headers });
+      } catch (e) {
+        console.warn(`[Image Proxy] corsproxy network error: ${e.message}`);
+      }
+    }
+
+    // 3. If corsproxy failed, try wsrv.nl (good for images)
     if (!response || !response.ok || response.status === 403) {
       const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
-      // console.log(`[Image Proxy] Try wsrv: ${proxyUrl}`);
       try {
         response = await fetch(proxyUrl);
       } catch (e) {
@@ -244,10 +253,9 @@ app.get("/api/proxy/image", async (req, res) => {
       }
     }
 
-    // 3. If wsrv failed, try CodeTabs (No Headers)
+    // 4. If wsrv failed, try CodeTabs (No Headers)
     if (!response || !response.ok) {
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-      // console.log(`[Image Proxy] Try CodeTabs: ${proxyUrl}`);
       try {
         response = await fetch(proxyUrl);
       } catch (e) {
@@ -256,10 +264,9 @@ app.get("/api/proxy/image", async (req, res) => {
       }
     }
 
-    // 4. If CodeTabs failed, try AllOrigins (No Headers)
-    if (!response || !response.ok) {
+    // 5. If CodeTabs failed, try AllOrigins (No Headers)
+    if (!response || !response.ok || response.status === 429) {
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      // console.log(`[Image Proxy] Try AllOrigins: ${proxyUrl}`);
       try {
         response = await fetch(proxyUrl);
       } catch (e) {
@@ -1645,7 +1652,25 @@ app.get("/api/oreno3d/stream", async (req, res) => {
       .update(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`)
       .digest("hex");
 
-    const sourcesData = await iwaraFetch(`https:${fileUrl}`, { "X-Version": xVersion });
+    let sourcesData = null;
+    const streamHeaders = { "X-Version": xVersion, "User-Agent": "Mozilla/5.0" };
+    
+    // Try direct first (files CDN usually doesn't block Vercel)
+    try {
+      const res = await axios.get(`https:${fileUrl}`, { headers: streamHeaders, timeout: 7000 });
+      sourcesData = res.data;
+    } catch (e) {
+      console.warn("[Iwara Stream] Direct failed, trying corsproxy...", e.message);
+      // Fallback to corsproxy which forwards custom headers (allorigins strips them)
+      try {
+        const proxied = `https://corsproxy.io/?${encodeURIComponent("https:" + fileUrl)}`;
+        const res = await axios.get(proxied, { headers: streamHeaders, timeout: 8000 });
+        sourcesData = res.data;
+      } catch (err2) {
+        console.warn("[Iwara Stream] corsproxy failed:", err2.message);
+        throw new Error("Could not fetch stream sources");
+      }
+    }
 
     const rawVideoUrls = [];
     if (Array.isArray(sourcesData)) {
