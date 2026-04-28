@@ -1654,21 +1654,37 @@ app.get("/api/oreno3d/stream", async (req, res) => {
 
     let sourcesData = null;
     const streamHeaders = { "X-Version": xVersion, "User-Agent": "Mozilla/5.0" };
+    let debugInfo = [];
     
     // Try direct first (files CDN usually doesn't block Vercel)
     try {
+      debugInfo.push(`Trying direct: https:${fileUrl}`);
       const res = await axios.get(`https:${fileUrl}`, { headers: streamHeaders, timeout: 7000 });
       sourcesData = res.data;
+      debugInfo.push(`Direct success: ${Array.isArray(sourcesData) ? sourcesData.length : "object"}`);
     } catch (e) {
-      console.warn("[Iwara Stream] Direct failed, trying corsproxy...", e.message);
-      // Fallback to corsproxy which forwards custom headers (allorigins strips them)
+      debugInfo.push(`Direct failed: ${e.message} (Status: ${e.response?.status})`);
+      // Fallback to corsproxy
       try {
         const proxied = `https://corsproxy.io/?${encodeURIComponent("https:" + fileUrl)}`;
+        debugInfo.push(`Trying corsproxy: ${proxied}`);
         const res = await axios.get(proxied, { headers: streamHeaders, timeout: 8000 });
         sourcesData = res.data;
+        debugInfo.push(`corsproxy success: ${Array.isArray(sourcesData) ? sourcesData.length : "object"}`);
       } catch (err2) {
-        console.warn("[Iwara Stream] corsproxy failed:", err2.message);
-        throw new Error("Could not fetch stream sources");
+        debugInfo.push(`corsproxy failed: ${err2.message} (Status: ${err2.response?.status})`);
+        
+        // Try allorigins just in case it doesn't need X-Version (unlikely)
+        try {
+          const proxied2 = `https://api.allorigins.win/raw?url=${encodeURIComponent("https:" + fileUrl)}`;
+          debugInfo.push(`Trying allorigins: ${proxied2}`);
+          const res = await axios.get(proxied2, { headers: streamHeaders, timeout: 8000 });
+          sourcesData = res.data;
+          debugInfo.push(`allorigins success: ${Array.isArray(sourcesData) ? sourcesData.length : "object"}`);
+        } catch (err3) {
+          debugInfo.push(`allorigins failed: ${err3.message} (Status: ${err3.response?.status})`);
+          throw new Error("All stream fetch attempts failed. Debug: " + debugInfo.join(" | "));
+        }
       }
     }
 
@@ -1689,10 +1705,11 @@ app.get("/api/oreno3d/stream", async (req, res) => {
       }
     }
     console.log(`[Iwara Stream] Got ${rawVideoUrls.length} sources`);
-    res.json({ rawVideoUrls });
+    res.json({ rawVideoUrls, debug: debugInfo });
   } catch (err) {
     console.error("[Iwara Stream] Error:", err.message);
-    res.status(500).json({ error: err.message, rawVideoUrls: [] });
+    // Return 200 with error field so frontend can log it instead of just 500 crash
+    res.status(200).json({ error: err.message, rawVideoUrls: [] });
   }
 });
 

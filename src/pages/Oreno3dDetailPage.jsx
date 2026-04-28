@@ -149,8 +149,15 @@ export default function Oreno3dDetailPage() {
     setStreamError(null);
     try {
       const result = await getOreno3dStream(iwaraId);
-      setStreams(result.rawVideoUrls || []);
-      setActiveQIdx(0);
+      if (result.debug) console.log("Stream debug info:", result.debug);
+      if (result.error) {
+        setStreamError("Backend Error: " + result.error);
+      } else if (!result.rawVideoUrls || result.rawVideoUrls.length === 0) {
+        setStreamError("No video sources found.");
+      } else {
+        setStreams(result.rawVideoUrls);
+        setActiveQIdx(0);
+      }
     } catch (e) {
       setStreamError("Could not load stream.");
     } finally {
