@@ -1,12 +1,12 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, Users, Tv, Image, Book, Camera, Box, Video, Sparkles } from "lucide-react";
+import { X, Users, Tv, Image, Book, Camera, Box, Video, Sparkles, Film } from "lucide-react";
 
 const menuItems = [
   { name: "E-Hentai", path: "/", icon: <Book size={20} /> },
-  { name: "Bunkr", path: "/hanime", icon: <Tv size={20} /> },
-  { name: "Oreno3D", path: "/oreno3d", icon: <Box size={20} /> },
+  { name: "HNime", path: "/hnime", icon: <Film size={20} /> },
+  { name: "Iwara TV", path: "/oreno3d", icon: <Box size={20} /> },
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
   { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
   { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },

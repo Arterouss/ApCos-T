@@ -1510,10 +1510,11 @@ const IWARA_HEADERS = {
   "Connection": "keep-alive",
 };
 
-const iwaraFetch = async (url) => {
+const iwaraFetch = async (url, customHeaders = {}) => {
+  const headers = { ...IWARA_HEADERS, ...customHeaders };
   // Try 1: direct with full browser headers
   try {
-    const r = await axios.get(url, { headers: IWARA_HEADERS, timeout: 8000 });
+    const r = await axios.get(url, { headers, timeout: 8000 });
     return r.data;
   } catch (e) {
     if (e.response?.status !== 403) throw e;
@@ -1524,7 +1525,7 @@ const iwaraFetch = async (url) => {
   try {
     const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
     const r = await axios.get(proxied, {
-      headers: { "User-Agent": IWARA_HEADERS["User-Agent"] },
+      headers: { "User-Agent": headers["User-Agent"], ...customHeaders },
       timeout: 9000,
     });
     if (typeof r.data === "string") return JSON.parse(r.data);
@@ -1536,7 +1537,10 @@ const iwaraFetch = async (url) => {
   // Try 3: corsproxy.io
   try {
     const proxied = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const r = await axios.get(proxied, { timeout: 9000 });
+    const r = await axios.get(proxied, {
+      headers: customHeaders,
+      timeout: 9000
+    });
     if (typeof r.data === "string") return JSON.parse(r.data);
     return r.data;
   } catch (e) {
@@ -1641,15 +1645,12 @@ app.get("/api/oreno3d/stream", async (req, res) => {
       .update(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`)
       .digest("hex");
 
-    const sourcesRes = await axios.get(`https:${fileUrl}`, {
-      headers: { "X-Version": xVersion, "User-Agent": "Mozilla/5.0" },
-      timeout: 7000,
-    });
+    const sourcesData = await iwaraFetch(`https:${fileUrl}`, { "X-Version": xVersion });
 
     const rawVideoUrls = [];
-    if (Array.isArray(sourcesRes.data)) {
+    if (Array.isArray(sourcesData)) {
       const qualityOrder = { "Source": 0, "720": 1, "540": 2, "360": 3 };
-      const sorted = [...sourcesRes.data].sort((a, b) =>
+      const sorted = [...sourcesData].sort((a, b) =>
         (qualityOrder[a.name] ?? 99) - (qualityOrder[b.name] ?? 99)
       );
       for (const src of sorted) {

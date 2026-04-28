@@ -153,7 +153,7 @@ export default function Oreno3dPage({ onOpenSidebar }) {
         {/* Header */}
         <header className="mb-6 text-center md:text-left">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent flex items-center justify-center md:justify-start gap-2">
-            <Box size={32} className="text-cyan-500" /> Oreno3D Gallery
+            <Box size={32} className="text-cyan-500" /> Iwara TV Gallery
           </h1>
           <p className="text-gray-400 mt-1 text-sm">
             {debouncedQuery
@@ -167,7 +167,7 @@ export default function Oreno3dPage({ onOpenSidebar }) {
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search Oreno3D..."
+            placeholder="Search Iwara TV..."
           />
         </div>
 
