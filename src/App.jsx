@@ -11,6 +11,8 @@ import EHentaiDetailPage from "./pages/EHentaiDetailPage";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
 import HanimeDetailPage from "./pages/HanimeDetailPage";
+import HanimeTvPage from "./pages/HanimeTvPage";
+import HanimeTvDetailPage from "./pages/HanimeTvDetailPage";
 
 import Rule34Page from "./pages/Rule34Page";
 import CosplayTelePage from "./pages/CosplayTelePage";
@@ -39,6 +41,12 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           element={<HanimePage onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/hanime/:slug" element={<HanimeDetailPage />} />
+        
+        <Route
+          path="/hanimetv"
+          element={<HanimeTvPage onOpenSidebar={onOpenSidebar} />}
+        />
+        <Route path="/hanimetv/:slug" element={<HanimeTvDetailPage />} />
         <Route
           path="/rule34"
           element={<Rule34Page onOpenSidebar={onOpenSidebar} />}

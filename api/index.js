@@ -178,15 +178,12 @@ const fetchWithFallback = async (
 
   await delay(500);
 
-  // 4. AllOrigins (Returns JSON { contents: "..." })
+  // 4. AllOrigins (Returns RAW content)
   try {
     console.log(`[Proxy] AllOrigins: ${targetUrl}`);
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
     const res = await fetchWithTimeout(proxyUrl, { headers: defaultHeaders });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.contents) return data.contents;
-    }
+    if (res.ok) return await res.text();
     lastError = `AllOrigins: ${res.status}`;
   } catch (e) {
     lastError = e.message;
@@ -1060,6 +1057,147 @@ app.get("/api/r34/posts", async (req, res) => {
 
 app.get("/", (req, res) => {
   res.send("ApiCos Proxy Server is Running");
+});
+
+// ==========================================
+// HANIME TV API Integration
+// ==========================================
+
+const HANIME_BASE_URL = "https://hanime.tv";
+
+// Trending Endpoint
+app.get("/api/hanime/trending", async (req, res) => {
+  try {
+    const { time = "month", page = 0 } = req.query;
+    
+    // Hanime's browse-trending requires signatures. We can use search.htv-services.com instead
+    // which returns videos sorted by views or likes to simulate trending
+    const targetUrl = "https://search.htv-services.com/";
+    
+    const payload = {
+      search_text: "",
+      tags: [],
+      tags_mode: "AND",
+      brands: [],
+      blacklist: [],
+      order_by: "views",
+      ordering: "desc",
+      page: parseInt(page) || 0
+    };
+
+    const response = await fetch(targetUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Origin": "https://hanime.tv",
+        "Referer": "https://hanime.tv/"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error("Search API returned " + response.status);
+    const data = await response.json();
+    
+    // Convert hits to standard format
+    let hits = [];
+    if (data && data.hits) {
+      if (typeof data.hits === "string") {
+        try {
+          hits = JSON.parse(data.hits);
+        } catch (e) {
+          hits = [];
+        }
+      } else {
+        hits = data.hits;
+      }
+    }
+    
+    res.json(hits);
+  } catch (err) {
+    console.error("[Hanime] Trending Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Video Detail Endpoint
+app.get("/api/hanime/video", async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: "Missing video id/slug" });
+
+    const targetUrl = `${HANIME_BASE_URL}/api/v8/video?id=${id}`;
+    console.log(`[Hanime] Fetching Video: ${targetUrl}`);
+
+    const jsonString = await fetchWithFallback(targetUrl, {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Origin": "https://hanime.tv",
+      "Referer": "https://hanime.tv/"
+    }, false); // Try direct first for video details
+    
+    let data;
+    try {
+      data = JSON.parse(jsonString);
+    } catch(e) {
+      throw new Error("Failed to parse Hanime JSON. Response might be blocked.");
+    }
+    
+    res.json(data);
+  } catch (err) {
+    console.error("[Hanime] Video Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Hanime Search Endpoint
+app.get("/api/hanime/search", async (req, res) => {
+  try {
+    const { q, page = 0, sort = "created_at_unix", order = "desc" } = req.query;
+    
+    const targetUrl = "https://search.htv-services.com/";
+    const payload = {
+      search_text: q || "",
+      tags: [],
+      tags_mode: "AND",
+      brands: [],
+      blacklist: [],
+      order_by: sort,
+      ordering: order,
+      page: parseInt(page) || 0
+    };
+
+    const response = await fetch(targetUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Origin": "https://hanime.tv",
+        "Referer": "https://hanime.tv/"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error("Search API returned " + response.status);
+    const data = await response.json();
+    
+    let hits = [];
+    if (data && data.hits) {
+      if (typeof data.hits === "string") {
+        try {
+          hits = JSON.parse(data.hits);
+        } catch (e) {
+          hits = [];
+        }
+      } else {
+        hits = data.hits;
+      }
+    }
+    
+    res.json(hits);
+  } catch (err) {
+    console.error("[Hanime] Search Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- E-HENTAI SCRAPER Integration ---
@@ -2416,6 +2554,116 @@ app.get("/api/cavporn/player", (req, res) => {
 
   res.setHeader("Content-Type", "text/html");
   res.send(playerHtml);
+});
+
+// ==========================================
+// M3U8 PROXY (Bypass ISP Blocks for HLS)
+// ==========================================
+app.get("/api/proxy/m3u8", async (req, res) => {
+  let { url, referer } = req.query;
+  if (!url) return res.status(400).send("Missing URL");
+
+  // Fix protocol-less URLs
+  if (!url.startsWith("http")) {
+    url = "https://" + url;
+  }
+
+  console.log(`[M3U8 Proxy] Requesting: ${url}`);
+
+  try {
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    };
+    if (referer) headers["Referer"] = referer;
+
+    // Use the existing fetchWithFallback utility
+    let text;
+    try {
+      text = await fetchWithFallback(url, headers);
+    } catch (e) {
+      console.warn(`[M3U8 Proxy] Primary fetch failed: ${e.message}. Trying domain correction...`);
+      
+      // Hack: if streamable.cloud is failing/dead, try weeb.hanime.tv
+      if (url.includes("streamable.cloud")) {
+        const altUrl = url.replace("streamable.cloud", "weeb.hanime.tv");
+        console.log(`[M3U8 Proxy] Trying alternate: ${altUrl}`);
+        text = await fetchWithFallback(altUrl, headers);
+      } else {
+        throw e;
+      }
+    }
+    
+    if (!text || typeof text !== "string") throw new Error("Empty or invalid m3u8 content");
+    
+    // Rewrite TS segments to also use proxy
+    const lines = text.split('\n');
+    let baseUrl = url.substring(0, url.lastIndexOf("/") + 1);
+    
+    const rewritten = lines.map(line => {
+      line = line.trim();
+      if (!line || line.startsWith("#")) {
+        // If it's a URI in an EXT-X tag, rewrite it
+        if (line.includes("URI=\"")) {
+          return line.replace(/URI="([^"]+)"/g, (match, p1) => {
+            const absUrl = p1.startsWith("http") ? p1 : baseUrl + p1;
+            return `URI="/api/proxy/ts?url=${encodeURIComponent(absUrl)}&referer=${encodeURIComponent(referer || '')}"`;
+          });
+        }
+        return line;
+      }
+      
+      // It's a segment URL
+      const absUrl = line.startsWith("http") ? line : baseUrl + line;
+      return `/api/proxy/ts?url=${encodeURIComponent(absUrl)}&referer=${encodeURIComponent(referer || '')}`;
+    }).join('\n');
+
+    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.send(rewritten);
+  } catch (error) {
+    console.error(`[M3U8 Proxy Error] ${url}:`, error.message);
+    res.status(500).send("Error fetching m3u8: " + error.message);
+  }
+});
+
+// Proxy for TS segments
+app.get("/api/proxy/ts", async (req, res) => {
+  let { url, referer } = req.query;
+  if (!url) return res.status(400).send("Missing URL");
+
+  // Fix protocol-less URLs
+  if (!url.startsWith("http")) {
+    url = "https://" + url;
+  }
+
+  try {
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    };
+    if (referer) headers["Referer"] = referer;
+
+    let response;
+    try {
+      response = await fetch(url, { headers });
+    } catch (e) {
+      // Fallback 1: CorsProxy
+      try {
+        response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { headers });
+      } catch (e2) {
+        // Fallback 2: AllOrigins Raw
+        response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { headers });
+      }
+    }
+
+    if (!response || !response.ok) throw new Error("Failed to fetch ts");
+
+    res.setHeader("Content-Type", "video/MP2T");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    response.body.pipe(res);
+  } catch (error) {
+    console.error("TS Proxy Error:", error.message);
+    res.status(500).send("Error fetching ts");
+  }
 });
 
 // Local dev: listen on PORT. Vercel uses export default below.

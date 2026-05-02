@@ -5,7 +5,8 @@ import { X, Users, Tv, Image, Book, Camera, Box, Video, Sparkles, Film } from "l
 
 const menuItems = [
   { name: "E-Hentai", path: "/", icon: <Book size={20} /> },
-  { name: "HNime", path: "/hnime", icon: <Film size={20} /> },
+  { name: "Hanime.tv", path: "/hanimetv", icon: <Film size={20} /> },
+  { name: "Bunkr", path: "/hanime", icon: <Film size={20} /> },
   { name: "Iwara TV", path: "/oreno3d", icon: <Box size={20} /> },
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
   { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
