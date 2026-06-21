@@ -946,10 +946,6 @@ app.get("/api/r34/posts", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("ApiCos Proxy Server is Running");
-});
-
 // --- EHENTAI Integration follows...const EHENTAI_BASE_URL = "https://e-hentai.org";
 
 // Search Endpoint
