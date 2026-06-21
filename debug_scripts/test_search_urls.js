@@ -22,9 +22,9 @@ async function testUrl(url) {
 
 async function run() {
   // Try Query Param
-  await testUrl(`https://bunkr-albums.io/?s=${QUERY}`);
-  await testUrl(`https://bunkr-albums.io/search?q=${QUERY}`);
-  await testUrl(`https://bunkr-albums.io/search/${QUERY}`); // No trailing slash
-  await testUrl(`https://bunkr-albums.io/search/${QUERY}/`); // With trailing slash
+  await testUrl(`https://PornavHD-albums.io/?s=${QUERY}`);
+  await testUrl(`https://PornavHD-albums.io/search?q=${QUERY}`);
+  await testUrl(`https://PornavHD-albums.io/search/${QUERY}`); // No trailing slash
+  await testUrl(`https://PornavHD-albums.io/search/${QUERY}/`); // With trailing slash
 }
 run();

@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 
 // A known existing album URL (if I can find one or guess one)
 // Or just try a random letters one which should at least give 404 not generic home
-const ALBUM_URL = "https://bunkr.si/a/8n7d5s2k"; // Example slug
+const ALBUM_URL = "https://PornavHD.si/a/8n7d5s2k"; // Example slug
 
 async function testAlbum() {
   try {

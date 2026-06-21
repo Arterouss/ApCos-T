@@ -85,7 +85,7 @@ export default function HanimePage({ onOpenSidebar }) {
           <div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600">
-                Bunkr Discovery
+                PornavHD Discovery
               </span>
             </h1>
             <p className="text-gray-400 text-sm max-w-lg">

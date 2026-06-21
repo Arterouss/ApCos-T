@@ -1,15 +1,15 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-const BUNKR_BASE_URL = "https://bunkr.si";
+const PornavHD_BASE_URL = "https://PornavHD.si";
 
 async function testRealBrowser() {
   try {
-    console.log("Testing Bunkr Search with Exact Browser Headers...");
-    const searchUrl = `${BUNKR_BASE_URL}/?search=sex`; // Common term to ensure results
+    console.log("Testing PornavHD Search with Exact Browser Headers...");
+    const searchUrl = `${PornavHD_BASE_URL}/?search=sex`; // Common term to ensure results
 
     const headers = {
-      authority: "bunkr.si",
+      authority: "PornavHD.si",
       method: "GET",
       path: "/?search=sex",
       scheme: "https",
@@ -18,7 +18,7 @@ async function testRealBrowser() {
       "accept-encoding": "gzip, deflate, br, zstd",
       "accept-language": "en-US,en;q=0.9",
       "cache-control": "max-age=0",
-      referer: "https://bunkr.si/", // Crucial: referer from self
+      referer: "https://PornavHD.si/", // Crucial: referer from self
       "sec-ch-ua":
         '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
       "sec-ch-ua-mobile": "?0",

@@ -3,13 +3,13 @@ import fetch from "node-fetch";
 async function run() {
   const id = "94d98b41-8526-4f9f-86fe-201a01c60fe1.mp4";
   const domains = [
-    "https://cdn.bunkr.ru",
-    "https://stream.bunkr.ru",
-    "https://media-files.bunkr.cr",
-    "https://files.bunkr.ru",
-    "https://i-cheese.bunkr.ru",
-    "https://bunkr.ph", // Sometimes on the main domain
-    "https://get.bunkrr.su",
+    "https://cdn.PornavHD.ru",
+    "https://stream.PornavHD.ru",
+    "https://media-files.PornavHD.cr",
+    "https://files.PornavHD.ru",
+    "https://i-cheese.PornavHD.ru",
+    "https://PornavHD.ph", // Sometimes on the main domain
+    "https://get.PornavHDr.su",
   ];
 
   for (const domain of domains) {
@@ -20,7 +20,7 @@ async function run() {
         method: "GET",
         headers: {
           Range: "bytes=0-100",
-          Referer: "https://bunkr.cr/",
+          Referer: "https://PornavHD.cr/",
         },
       });
       console.log(

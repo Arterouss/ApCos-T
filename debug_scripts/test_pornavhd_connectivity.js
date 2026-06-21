@@ -1,16 +1,16 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-const BUNKR_BASE_URL = "https://bunkr.si";
-const BUNKR_ALBUM_URL = "https://bunkr.cr";
+const PornavHD_BASE_URL = "https://PornavHD.si";
+const PornavHD_ALBUM_URL = "https://PornavHD.cr";
 
-async function testBunkr() {
+async function testPornavHD() {
   try {
-    console.log("1. Testing Bunkr Connectivity...");
+    console.log("1. Testing PornavHD Connectivity...");
 
     // Test 1: Fetch Homepage
-    console.log(`Fetching Homepage: ${BUNKR_BASE_URL}`);
-    const homeRes = await fetch(BUNKR_BASE_URL, {
+    console.log(`Fetching Homepage: ${PornavHD_BASE_URL}`);
+    const homeRes = await fetch(PornavHD_BASE_URL, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -27,7 +27,7 @@ async function testBunkr() {
 
     // Test 2: Search (mock)
     console.log("\n2. Testing Search...");
-    const searchUrl = `${BUNKR_BASE_URL}/?search=test`;
+    const searchUrl = `${PornavHD_BASE_URL}/?search=test`;
     const searchRes = await fetch(searchUrl, {
       headers: {
         "User-Agent":
@@ -46,4 +46,4 @@ async function testBunkr() {
   }
 }
 
-testBunkr();
+testPornavHD();

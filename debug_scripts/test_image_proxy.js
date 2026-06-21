@@ -5,7 +5,7 @@ const checkImage = async () => {
   // We can pick one from recent output or just use a generic one.
   // Let's use a dummy OnePiece image or similar if possible, or just a known external image that might be blocked by ISP but proxy handles.
   // Actually, let's use a real Nekopoi image URL if we can find one.
-  // If not, use a bunkr request to get one?
+  // If not, use a PornavHD request to get one?
   // Let's just use the generic external image handling.
 
   const targetUrl =

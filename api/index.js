@@ -10,7 +10,37 @@ import { createHash } from "crypto";
 const app = express();
 const PORT = 3001;
 
+// Bypass SSL verification to handle ISP (Indosat) blocking/hijacking
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+const sslAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
 app.use(cors());
+
+// --- CONSTANTS ---
+const HANIME_API = "https://hanime.tv/api/v8";
+const HANIME_SEARCH_API = "https://search.htv-services.com";
+const CAVPORN_BASE = "https://cav103.com";
+const ORENO3D_BASE = "https://oreno3d.com";
+const IWARA_API_BASE = "https://api.iwara.tv";
+const IWARA_WEB_BASE = "https://www.iwara.tv";
+
+// Helper for Hanime rapi/v7 headers
+const getHanimeV7Headers = () => {
+  const time = Math.floor(Date.now() / 1000);
+  const signature = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  return {
+    "X-Signature": signature,
+    "X-Time": time.toString(),
+    "X-Signature-Version": "web2",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+    "Origin": "https://hanime.tv",
+    "Referer": "https://hanime.tv/"
+  };
+};
 
 // Proxy endpoint for creators
 app.get("/api/creators", async (req, res) => {
@@ -75,8 +105,8 @@ app.get("/api/posts/:service/:id", async (req, res) => {
   }
 });
 
-// --- BUNKR SCRAPER Integration ---
-const BUNKR_BASE_URL = "https://bunkr.si"; // Changed from bunkr-albums.io to .si mirror
+// --- PornavHD SCRAPER Integration ---
+const PornavHD_BASE_URL = "https://pornavhd.com"; // Changed from pornavhd.com to .si mirror
 const UAS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
@@ -86,7 +116,7 @@ const UAS = [
 const getRandomUA = () => UAS[Math.floor(Math.random() * UAS.length)];
 
 // Helper headers
-const getNekoHeaders = (referer = BUNKR_BASE_URL) => ({
+const getNekoHeaders = (referer = PornavHD_BASE_URL) => ({
   "User-Agent": getRandomUA(),
   Accept:
     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -106,7 +136,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Timeout wrapper for node-fetch
 const fetchWithTimeout = (url, options, timeout = 20000) => {
   return Promise.race([
-    fetch(url, options),
+    fetch(url, { ...options, agent: sslAgent }),
     new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout))
   ]);
 };
@@ -200,93 +230,86 @@ app.get("/api/proxy/image", async (req, res) => {
   const { url, referer } = req.query;
   if (!url) return res.status(400).send("Missing URL");
 
+  // Detection list for block pages
+  const isBlockPage = (text) => {
+    const lower = text.toLowerCase();
+    return lower.includes("internet positif") || 
+           lower.includes("akses diblokir") || 
+           lower.includes("menkominfo") ||
+           lower.includes("kemkominfo");
+  };
+
+  const tryFetch = async (targetUrl, useHeaders = true) => {
+    try {
+      const headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      };
+      if (useHeaders && referer) headers["Referer"] = referer;
+      
+      const response = await fetchWithTimeout(targetUrl, { headers }, 8000);
+      if (!response.ok) return null;
+      
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        // Double check if it's a block page
+        const text = await response.text();
+        if (isBlockPage(text)) return null;
+        // If it's HTML but not a block page, we still can't use it as an image
+        return null;
+      }
+      return response;
+    } catch (e) {
+      return null;
+    }
+  };
+
   try {
     let response;
-    const headers = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    };
-    if (referer) {
-      headers["Referer"] = referer;
+
+    // Strategy 1: Google Image Proxy (Very hard to block)
+    const googleProxy = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(url)}`;
+    console.log(`[Image Proxy] Trying Google: ${url.substring(0, 40)}...`);
+    response = await tryFetch(googleProxy, false);
+
+    // Strategy 2: WordPress/Jetpack i0.wp.com (Hard to block)
+    if (!response) {
+      const wpProxy = `https://i0.wp.com/${url.replace(/^https?:\/\//, "")}`;
+      console.log(`[Image Proxy] Trying Jetpack: ${url.substring(0, 40)}...`);
+      response = await tryFetch(wpProxy, false);
     }
 
-    // 1. Try Direct Fetch
-    try {
-      response = await fetch(url, { headers });
-    } catch (directError) {
-      console.warn(
-        `[Image Proxy] Direct fetch network error: ${directError.message}`,
-      );
+    // Strategy 3: wsrv.nl (Excellent but sometimes blocked)
+    if (!response) {
+      const wsrvProxy = `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
+      console.log(`[Image Proxy] Trying wsrv: ${url.substring(0, 40)}...`);
+      response = await tryFetch(wsrvProxy, false);
     }
 
-    // Retry with origin as referer if 403
-    if (response && response.status === 403) {
-      try {
-        const targetOrigin = new URL(url).origin;
-        headers["Referer"] = targetOrigin + "/";
-        response = await fetch(url, { headers });
-      } catch (e) {
-        // ignore
-      }
+    // Strategy 4: Direct with SSL Bypass (Current NODE_TLS_REJECT_UNAUTHORIZED="0")
+    if (!response) {
+      console.log(`[Image Proxy] Trying Direct: ${url.substring(0, 40)}...`);
+      response = await tryFetch(url, true);
     }
 
-    // 2. Try corsproxy.io (preserves headers like Referer)
-    if (!response || !response.ok || response.status === 403) {
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-      try {
-        response = await fetch(proxyUrl, { headers });
-      } catch (e) {
-        console.warn(`[Image Proxy] corsproxy network error: ${e.message}`);
-      }
+    // Strategy 5: CorsProxy.io
+    if (!response) {
+      const corsProxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      console.log(`[Image Proxy] Trying CorsProxy: ${url.substring(0, 40)}...`);
+      response = await tryFetch(corsProxy, true);
     }
 
-    // 3. If corsproxy failed, try wsrv.nl (good for images)
-    if (!response || !response.ok || response.status === 403) {
-      const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
-      try {
-        response = await fetch(proxyUrl);
-      } catch (e) {
-        console.warn(`[Image Proxy] wsrv network error: ${e.message}`);
-      }
+    if (!response) {
+      throw new Error("All image proxies failed or returned block pages");
     }
-
-    // 4. If wsrv failed, try CodeTabs (No Headers)
-    if (!response || !response.ok) {
-      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-      try {
-        response = await fetch(proxyUrl);
-      } catch (e) {
-        console.warn(`[Image Proxy] CodeTabs network error: ${e.message}`);
-        response = undefined;
-      }
-    }
-
-    // 5. If CodeTabs failed, try AllOrigins (No Headers)
-    if (!response || !response.ok || response.status === 429) {
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      try {
-        response = await fetch(proxyUrl);
-      } catch (e) {
-        console.warn(`[Image Proxy] AllOrigins network error: ${e.message}`);
-        response = undefined;
-      }
-    }
-
-    if (!response || !response.ok)
-      throw new Error(
-        `Image fetch failed: ${response ? response.status : "No response"}`,
-      );
 
     const contentType = response.headers.get("content-type");
     if (contentType) res.setHeader("Content-Type", contentType);
-
-    // Cache for performance (1 day)
     res.setHeader("Cache-Control", "public, max-age=86400");
-
     response.body.pipe(res);
+
   } catch (error) {
-    console.error("Image Proxy Error:", error.message);
-    res.status(500).send(`Error fetching image: ${error.message}`);
+    console.error("[Image Proxy Error]", error.message);
+    res.status(500).send(`Error: ${error.message}`);
   }
 });
 
@@ -441,130 +464,17 @@ app.get("/api/hnime/search", async (req, res) => {
     let { q, page } = req.query;
     page = parseInt(page) || 1;
 
-    let url;
-    if (q) {
-      url = `${BUNKR_BASE_URL}/?search=${encodeURIComponent(q)}&page=${page}`;
-    } else {
-      url =
-        page > 1
-          ? `${BUNKR_BASE_URL}/?search=&page=${page}`
-          : `${BUNKR_BASE_URL}/`;
-    }
-
-    console.log(`[Proxy] Fetching: ${url}`);
-
-    let html = "";
-    try {
-      html = await fetchWithFallback(url, getNekoHeaders(url));
-    } catch (e) {
-      console.error(`[Proxy] Search Failed: ${e.message}`);
-    }
-
-    if (!html) {
-      return res.status(500).json({
-        error: "Upstream Error",
-        details: "Failed to retrieve content from Bunkr",
-      });
-    }
-
-    // --- BUNKR SEARCH PARSING (CHEERIO) ---
-    const $ = cheerio.load(html);
-    const hits = [];
-
-    console.log(`[Proxy] HTML length: ${html.length} characters`);
-    console.log(`[Proxy] Testing selectors...`);
-
-    // Debug: Count various potential elements
-    console.log(`  - Links with /a/: ${$("a[href*='/a/']").length}`);
-    console.log(`  - All links: ${$("a").length}`);
-    console.log(
-      `  - Divs with 'rounded': ${$("div[class*='rounded']").length}`,
-    );
-
-    // Strategy 1: Find ALL links and filter for /a/ pattern
-    $("a").each((i, el) => {
-      const link = $(el);
-      const href = link.attr("href");
-
-      if (!href || !href.includes("/a/")) return;
-
-      const slugMatch = /\/a\/([a-zA-Z0-9_-]+)/.exec(href);
-      if (!slugMatch) return;
-
-      const slug = slugMatch[1];
-
-      // Check duplicates
-      if (hits.find((h) => h.slug === slug)) return;
-
-      // Try to find title from link text or parent container
-      let title = link.text().trim();
-
-      if (!title || title.length < 3) {
-        // Look in parent for text
-        const parent = link.parent();
-        title = parent.find("span, p, h1, h2, h3, h4").first().text().trim();
-      }
-
-      if (!title || title.length < 3) {
-        title = `Album ${slug}`;
-      }
-
-      hits.push({
-        id: slug,
-        slug: slug,
-        name: title,
-        cover_url: "https://static.bunkr.ru/img/logo_bunkr-9Kl5M1Y.svg",
-        poster_url: "https://static.bunkr.ru/img/logo_bunkr-9Kl5M1Y.svg",
-        views: 0,
-        tags: ["Bunkr Album"],
-        original_url: href.startsWith("http")
-          ? href
-          : `https://bunkr.cr${href}`,
-      });
-    });
-
-    // Fallback regex if cheerio fails to find specific structure but valid HTML exists
-    if (hits.length === 0) {
-      console.log("[Proxy] Cheerio found no hits, trying regex fallback...");
-
-      // Look for any href="/a/SLUG" or href="https://bunkr.*/a/SLUG"
-      const linkRegex =
-        /href=["']((?:https?:\/\/[^"']*)?\/a\/([a-zA-Z0-9_-]+))["']/g;
-      let match;
-      const foundSlugs = new Set();
-
-      while ((match = linkRegex.exec(html)) !== null) {
-        const fullUrl = match[1];
-        const slug = match[2];
-
-        if (foundSlugs.has(slug)) continue;
-        foundSlugs.add(slug);
-
-        hits.push({
-          id: slug,
-          slug: slug,
-          name: `Album ${slug}`,
-          cover_url: "https://static.bunkr.ru/img/logo_bunkr-9Kl5M1Y.svg",
-          poster_url: "https://static.bunkr.ru/img/logo_bunkr-9Kl5M1Y.svg",
-          views: 0,
-          tags: ["Regex Fallback"],
-          original_url: fullUrl.startsWith("http")
-            ? fullUrl
-            : `https://bunkr.cr${fullUrl}`,
-        });
-      }
-    }
-
-    console.log(`[Proxy] Parsed ${hits.length} hits. (Page ${page})`);
+    const { scrapePornavHDSearch } = await import("./scraper.js");
+    const posts = await scrapePornavHDSearch(q, page);
 
     res.json({
-      hits: JSON.stringify(hits),
-      page: parseInt(page) || 0,
+      hits: JSON.stringify(posts),
+      page: page,
       nbPages: 50,
-      hitsPerPage: hits.length,
+      hitsPerPage: posts.length,
     });
   } catch (err) {
-    console.error(`[Proxy] Search Error:`, err);
+    console.error(`[Puppeteer] Search Error:`, err);
     res
       .status(500)
       .json({ error: "Failed to fetch data", details: err.message });
@@ -576,81 +486,39 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
   const slug = req.params[0];
 
   try {
-    // Album URLs are on bunkr.cr, not bunkr-albums.io
-    let targetUrl = `https://bunkr.cr/a/${slug}`;
-    console.log(`[Bunkr] Scraping Video: ${targetUrl}`);
+    const { scrapePornavHDVideo } = await import("./scraper.js");
+    const videoData = await scrapePornavHDVideo(slug);
 
-    let html = "";
-    try {
-      html = await fetchWithFallback(targetUrl, getNekoHeaders(targetUrl));
-    } catch (e) {
-      if (!slug.endsWith("/")) {
-        console.log("[Bunkr] Retrying with trailing slash...");
-        targetUrl = `https://bunkr.cr/a/${slug}/`;
-        try {
-          html = await fetchWithFallback(targetUrl, getNekoHeaders(targetUrl));
-        } catch (finalErr) {
-          console.error("[Bunkr] Final Retry Failed:", finalErr);
-        }
-      }
-    }
-
-    if (!html) throw new Error("Failed to retrieve content from Bunkr.");
-
-    // --- BUNKR ALBUM & FILE PARSING (CHEERIO) ---
-    const $ = cheerio.load(html);
-    const title = $("h1").first().text().trim() || `Album ${slug}`;
-
-    const files = [];
-
-    // Select all file items
-    // Structure: <div class="relative group/item theItem ...">
-    $("div.relative.group\\/item.theItem").each((i, el) => {
-      const $el = $(el);
-      const link = $el.find("a[href*='/f/']").first();
-      const thumb = $el.find("img.grid-images_box-img").attr("src");
-      // name often in a p tag
-      // Use a broad search for name if exact class is unknown/dynamic
-      let name = $el.find("p.text-[13px], p.truncate").text().trim();
-      if (!name) name = link.text().trim();
-
-      const href = link.attr("href");
-      if (href) {
-        const fileSlugMatch = /\/f\/([a-zA-Z0-9]+)/.exec(href);
-        if (fileSlugMatch) {
-          files.push({
-            slug: fileSlugMatch[1],
-            name: name || "Unknown File",
-            thumb: thumb || "",
-          });
-        }
-      }
-    });
+    if (!videoData) throw new Error("Failed to retrieve content from PornavHD.");
 
     res.json({
       id: slug,
       slug: slug,
-      name: title,
-      files: files,
+      name: videoData.title,
+      iframe_url: videoData.embedUrl,
+      description: "Video scraped via Puppeteer from PornavHD.",
+      cover_url: videoData.coverUrl,
+      sources: [],
+      files: []
     });
   } catch (e) {
-    console.error("[Bunkr/Hnime] Error:", e.message);
+    console.error("[PornavHD/Hnime] Error:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// Bunkr Detail Endpoint
-app.get("/api/bunkr/detail", async (req, res) => {
+// PornavHD Detail Endpoint
+app.get("/api/PornavHD/detail", async (req, res) => {
   const { slug } = req.query;
   if (!slug) return res.status(400).json({ error: "Slug is required" });
 
   try {
     // Try domains until one works
     const domains = [
-      "https://bunkr.cr",
-      "https://bunkr.si",
-      "https://bunkr.ph",
-      "https://bunkr.la",
+      "https://pornavhd.com",
+      "https://pornavhd.com",
+      "https://pornavhd.com",
+      "https://pornavhd.com",
     ];
     let html = null;
     let usedDomain = "";
@@ -658,7 +526,7 @@ app.get("/api/bunkr/detail", async (req, res) => {
     for (const domain of domains) {
       try {
         const url = `${domain}/a/${slug}`;
-        console.log(`[Bunkr] Trying detail: ${url}`);
+        console.log(`[PornavHD] Trying detail: ${url}`);
         html = await fetchWithFallback(url, getNekoHeaders());
         if (
           html &&
@@ -669,12 +537,12 @@ app.get("/api/bunkr/detail", async (req, res) => {
           break;
         }
       } catch (e) {
-        console.warn(`[Bunkr] Failed ${domain}: ${e.message}`);
+        console.warn(`[PornavHD] Failed ${domain}: ${e.message}`);
       }
     }
 
     if (!html || !usedDomain) {
-      throw new Error("Album not found on any Bunkr domain");
+      throw new Error("Album not found on any PornavHD domain");
     }
 
     const $ = cheerio.load(html);
@@ -724,7 +592,7 @@ app.get("/api/bunkr/detail", async (req, res) => {
       });
     }
 
-    console.log(`[Bunkr] Found ${files.length} files in album.`);
+    console.log(`[PornavHD] Found ${files.length} files in album.`);
 
     // Helper to determine type
     const getType = (name) => {
@@ -748,7 +616,7 @@ app.get("/api/bunkr/detail", async (req, res) => {
     if (firstVideo) {
       try {
         const filePageUrl = `${firstVideo.domain}/f/${firstVideo.slug}`;
-        console.log(`[Bunkr] Extracting raw video from: ${filePageUrl}`);
+        console.log(`[PornavHD] Extracting raw video from: ${filePageUrl}`);
         const fileHtml = await fetchWithFallback(filePageUrl, getNekoHeaders());
 
         // Robust extraction similar to CavPorn/Nekopoi
@@ -800,7 +668,7 @@ app.get("/api/bunkr/detail", async (req, res) => {
       id: slug,
       slug: slug,
       name: title,
-      description: "Scraped from Bunkr via Reddit",
+      description: "Scraped from PornavHD via Reddit",
       views: 0,
       poster_url: firstVideo?.thumb || "",
       // If we found a direct link for the default video, pass it.
@@ -811,7 +679,7 @@ app.get("/api/bunkr/detail", async (req, res) => {
       sources: sources,
     });
   } catch (err) {
-    console.error("Bunkr Detail Error:", err.message);
+    console.error("PornavHD Detail Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -868,18 +736,36 @@ app.get("/api/proxy", async (req, res) => {
       console.warn(
         `[Proxy] Direct failed: ${response ? response.status : "Network Error"}. Trying Fallback...`,
       );
+      
+      // Auto-correction for Hanime domains
+      let targetUrl = decodedUrl;
+      if (decodedUrl.includes("streamable.cloud")) {
+        targetUrl = decodedUrl.replace("streamable.cloud", "weeb.hanime.tv");
+        console.log(`[Proxy] Auto-correcting Hanime domain: ${targetUrl}`);
+      }
+
       try {
-        // Fallback: CorsProxy.io
-        // Note: CorsProxy might not support Range headers effectively, but it's better than nothing.
-        const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(decodedUrl)}`;
-        // We drop the custom headers for the fallback to avoid CORS preflight issues or filtering
+        // Fallback 1: CorsProxy.io
+        console.log(`[Proxy] Trying Fallback 1: CorsProxy`);
+        const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         response = await fetch(fallbackUrl);
-        console.log(`[Proxy] Fallback Status: ${response.status}`);
+        
+        if (!response.ok) {
+           throw new Error(`CorsProxy returned ${response.status}`);
+        }
+        console.log(`[Proxy] Fallback 1 Success: ${response.status}`);
       } catch (fallbackErr) {
-        console.error(`[Proxy] Fallback Error: ${fallbackErr.message}`);
-        // If fallback also fails, we must return the original error or 500
-        if (!response)
-          return res.status(500).send("Proxy Error: " + fallbackErr.message);
+        console.warn(`[Proxy] Fallback 1 Failed: ${fallbackErr.message}`);
+        try {
+          // Fallback 2: AllOrigins RAW
+          console.log(`[Proxy] Trying Fallback 2: AllOrigins RAW`);
+          const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+          response = await fetch(allOriginsUrl);
+          console.log(`[Proxy] Fallback 2 Status: ${response.status}`);
+        } catch (allOriginsErr) {
+          console.error(`[Proxy] Fallback 2 Error: ${allOriginsErr.message}`);
+          if (!response) return res.status(500).send("Proxy Error: " + allOriginsErr.message);
+        }
       }
     }
 
@@ -1059,149 +945,7 @@ app.get("/", (req, res) => {
   res.send("ApiCos Proxy Server is Running");
 });
 
-// ==========================================
-// HANIME TV API Integration
-// ==========================================
-
-const HANIME_BASE_URL = "https://hanime.tv";
-
-// Trending Endpoint
-app.get("/api/hanime/trending", async (req, res) => {
-  try {
-    const { time = "month", page = 0 } = req.query;
-    
-    // Hanime's browse-trending requires signatures. We can use search.htv-services.com instead
-    // which returns videos sorted by views or likes to simulate trending
-    const targetUrl = "https://search.htv-services.com/";
-    
-    const payload = {
-      search_text: "",
-      tags: [],
-      tags_mode: "AND",
-      brands: [],
-      blacklist: [],
-      order_by: "views",
-      ordering: "desc",
-      page: parseInt(page) || 0
-    };
-
-    const response = await fetch(targetUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Origin": "https://hanime.tv",
-        "Referer": "https://hanime.tv/"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) throw new Error("Search API returned " + response.status);
-    const data = await response.json();
-    
-    // Convert hits to standard format
-    let hits = [];
-    if (data && data.hits) {
-      if (typeof data.hits === "string") {
-        try {
-          hits = JSON.parse(data.hits);
-        } catch (e) {
-          hits = [];
-        }
-      } else {
-        hits = data.hits;
-      }
-    }
-    
-    res.json(hits);
-  } catch (err) {
-    console.error("[Hanime] Trending Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Video Detail Endpoint
-app.get("/api/hanime/video", async (req, res) => {
-  try {
-    const { id } = req.query;
-    if (!id) return res.status(400).json({ error: "Missing video id/slug" });
-
-    const targetUrl = `${HANIME_BASE_URL}/api/v8/video?id=${id}`;
-    console.log(`[Hanime] Fetching Video: ${targetUrl}`);
-
-    const jsonString = await fetchWithFallback(targetUrl, {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Origin": "https://hanime.tv",
-      "Referer": "https://hanime.tv/"
-    }, false); // Try direct first for video details
-    
-    let data;
-    try {
-      data = JSON.parse(jsonString);
-    } catch(e) {
-      throw new Error("Failed to parse Hanime JSON. Response might be blocked.");
-    }
-    
-    res.json(data);
-  } catch (err) {
-    console.error("[Hanime] Video Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Hanime Search Endpoint
-app.get("/api/hanime/search", async (req, res) => {
-  try {
-    const { q, page = 0, sort = "created_at_unix", order = "desc" } = req.query;
-    
-    const targetUrl = "https://search.htv-services.com/";
-    const payload = {
-      search_text: q || "",
-      tags: [],
-      tags_mode: "AND",
-      brands: [],
-      blacklist: [],
-      order_by: sort,
-      ordering: order,
-      page: parseInt(page) || 0
-    };
-
-    const response = await fetch(targetUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Origin": "https://hanime.tv",
-        "Referer": "https://hanime.tv/"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) throw new Error("Search API returned " + response.status);
-    const data = await response.json();
-    
-    let hits = [];
-    if (data && data.hits) {
-      if (typeof data.hits === "string") {
-        try {
-          hits = JSON.parse(data.hits);
-        } catch (e) {
-          hits = [];
-        }
-      } else {
-        hits = data.hits;
-      }
-    }
-    
-    res.json(hits);
-  } catch (err) {
-    console.error("[Hanime] Search Error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- E-HENTAI SCRAPER Integration ---
-const EHENTAI_BASE_URL = "https://e-hentai.org";
+// --- EHENTAI Integration follows...const EHENTAI_BASE_URL = "https://e-hentai.org";
 
 // Search Endpoint
 app.get("/api/ehentai/search", async (req, res) => {
@@ -1855,12 +1599,99 @@ app.get("/api/oreno3d/stream", async (req, res) => {
   }
 });
 
+// ==========================================
+// HANIME.TV ROUTES
+// ==========================================
 
+// Trending/Latest
+app.get("/api/hanime/trending", async (req, res) => {
+  const { time = "month", page = 0 } = req.query;
+  const url = `${HANIME_API}/browse/trending?time=${time}&page=${page}`;
+  
+  try {
+    // Use fetchWithFallback to bypass ISP block on API metadata
+    const jsonStr = await fetchWithFallback(url, { "User-Agent": getRandomUA() });
+    res.json(JSON.parse(jsonStr));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Search
+app.get("/api/hanime/search", async (req, res) => {
+  const { q, page = 0 } = req.query;
+  
+  try {
+    const response = await fetch(HANIME_SEARCH_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": getRandomUA()
+      },
+      body: JSON.stringify({
+        search_text: q,
+        tags: [],
+        brands: [],
+        blacklist: [],
+        order_by: "views",
+        ordering: "desc",
+        page: parseInt(page)
+      })
+    });
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Video Detail & Manifest
+app.get("/api/hanime/video", async (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: "Missing ID" });
+
+  try {
+    // Phase 1: Get basic metadata from v8 API
+    const v8Url = `${HANIME_API}/video?id=${id}`;
+    console.log(`[Hanime] Fetching Metadata: ${v8Url}`);
+    const v8JsonStr = await fetchWithFallback(v8Url, { "User-Agent": getRandomUA() });
+    const v8Data = JSON.parse(v8JsonStr);
+
+    // Phase 2: Get the manifest from rapi/v7 (more reliable for streams)
+    const slug = v8Data.hentai_video?.slug || id;
+    const v7Url = `https://hanime.tv/rapi/v7/videos_manifests/${slug}`;
+    
+    console.log(`[Hanime] Fetching Manifest: ${v7Url}`);
+    // Note: v7 manifest needs special headers, but fetchWithFallback might strip them
+    // Let's try direct first since we have SSL Bypass, but keep proxy as fallback
+    let v7Data;
+    try {
+      const v7Res = await fetchWithTimeout(v7Url, { headers: getHanimeV7Headers() });
+      if (v7Res.ok) v7Data = await v7Res.json();
+    } catch (e) {
+      console.warn("[Hanime] V7 Direct failed, trying proxy (headers will be limited)...");
+      // If direct fails, we use proxy, but it might fail because of signature mismatch 
+      // if the proxy doesn't pass headers. However, some proxies do.
+      const v7JsonStr = await fetchWithFallback(v7Url, getHanimeV7Headers());
+      v7Data = JSON.parse(v7JsonStr);
+    }
+
+    // Merge v7 manifest into v8 data
+    if (v7Data && !v8Data.videos_manifest) {
+      v8Data.videos_manifest = v7Data;
+    }
+
+    res.json(v8Data);
+  } catch (error) {
+    console.error("[Hanime Detail Error]", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ==========================================
 // CAVPORN SCRAPER (cav103.com)
 // ==========================================
-const CAVPORN_BASE = "https://cav103.com";
 
 const parseCavPornVideos = (html) => {
   const $ = cheerio.load(html);
@@ -2554,116 +2385,6 @@ app.get("/api/cavporn/player", (req, res) => {
 
   res.setHeader("Content-Type", "text/html");
   res.send(playerHtml);
-});
-
-// ==========================================
-// M3U8 PROXY (Bypass ISP Blocks for HLS)
-// ==========================================
-app.get("/api/proxy/m3u8", async (req, res) => {
-  let { url, referer } = req.query;
-  if (!url) return res.status(400).send("Missing URL");
-
-  // Fix protocol-less URLs
-  if (!url.startsWith("http")) {
-    url = "https://" + url;
-  }
-
-  console.log(`[M3U8 Proxy] Requesting: ${url}`);
-
-  try {
-    const headers = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    };
-    if (referer) headers["Referer"] = referer;
-
-    // Use the existing fetchWithFallback utility
-    let text;
-    try {
-      text = await fetchWithFallback(url, headers);
-    } catch (e) {
-      console.warn(`[M3U8 Proxy] Primary fetch failed: ${e.message}. Trying domain correction...`);
-      
-      // Hack: if streamable.cloud is failing/dead, try weeb.hanime.tv
-      if (url.includes("streamable.cloud")) {
-        const altUrl = url.replace("streamable.cloud", "weeb.hanime.tv");
-        console.log(`[M3U8 Proxy] Trying alternate: ${altUrl}`);
-        text = await fetchWithFallback(altUrl, headers);
-      } else {
-        throw e;
-      }
-    }
-    
-    if (!text || typeof text !== "string") throw new Error("Empty or invalid m3u8 content");
-    
-    // Rewrite TS segments to also use proxy
-    const lines = text.split('\n');
-    let baseUrl = url.substring(0, url.lastIndexOf("/") + 1);
-    
-    const rewritten = lines.map(line => {
-      line = line.trim();
-      if (!line || line.startsWith("#")) {
-        // If it's a URI in an EXT-X tag, rewrite it
-        if (line.includes("URI=\"")) {
-          return line.replace(/URI="([^"]+)"/g, (match, p1) => {
-            const absUrl = p1.startsWith("http") ? p1 : baseUrl + p1;
-            return `URI="/api/proxy/ts?url=${encodeURIComponent(absUrl)}&referer=${encodeURIComponent(referer || '')}"`;
-          });
-        }
-        return line;
-      }
-      
-      // It's a segment URL
-      const absUrl = line.startsWith("http") ? line : baseUrl + line;
-      return `/api/proxy/ts?url=${encodeURIComponent(absUrl)}&referer=${encodeURIComponent(referer || '')}`;
-    }).join('\n');
-
-    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.send(rewritten);
-  } catch (error) {
-    console.error(`[M3U8 Proxy Error] ${url}:`, error.message);
-    res.status(500).send("Error fetching m3u8: " + error.message);
-  }
-});
-
-// Proxy for TS segments
-app.get("/api/proxy/ts", async (req, res) => {
-  let { url, referer } = req.query;
-  if (!url) return res.status(400).send("Missing URL");
-
-  // Fix protocol-less URLs
-  if (!url.startsWith("http")) {
-    url = "https://" + url;
-  }
-
-  try {
-    const headers = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    };
-    if (referer) headers["Referer"] = referer;
-
-    let response;
-    try {
-      response = await fetch(url, { headers });
-    } catch (e) {
-      // Fallback 1: CorsProxy
-      try {
-        response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { headers });
-      } catch (e2) {
-        // Fallback 2: AllOrigins Raw
-        response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { headers });
-      }
-    }
-
-    if (!response || !response.ok) throw new Error("Failed to fetch ts");
-
-    res.setHeader("Content-Type", "video/MP2T");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    response.body.pipe(res);
-  } catch (error) {
-    console.error("TS Proxy Error:", error.message);
-    res.status(500).send("Error fetching ts");
-  }
 });
 
 // Local dev: listen on PORT. Vercel uses export default below.

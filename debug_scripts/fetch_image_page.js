@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 
 // Slug for "Fern (22).png" found in previous dump
 const SLUG = "LkQgzncMZv7tJ";
-const URL = `https://bunkr.cr/f/${SLUG}`;
+const URL = `https://PornavHD.cr/f/${SLUG}`;
 
 async function run() {
   try {

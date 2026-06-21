@@ -21,19 +21,13 @@ function VideoPlayer({ videoUrl, referer, quality }) {
   const [playerError, setPlayerError] = useState(null);
   const [isLoading,   setIsLoading]   = useState(true);
 
-  const getProxyUrl = useCallback((url, ref) => {
+  const buildProxyUrl = useCallback((url, referer) => {
     if (!url) return "";
-    let finalUrl = url;
-    // Add protocol if missing (e.g. streamable.cloud -> https://streamable.cloud)
-    if (!finalUrl.startsWith("http")) {
-      finalUrl = "https://" + finalUrl;
+    let abs = url;
+    if (!abs.startsWith("http")) {
+      abs = "https://" + abs;
     }
-    
-    if (finalUrl.includes(".m3u8")) {
-      return `/api/proxy/m3u8?url=${encodeURIComponent(finalUrl)}&referer=${encodeURIComponent(ref || "")}`;
-    }
-    // Generic proxy for other types (fallback to ts proxy or similar)
-    return `/api/proxy/ts?url=${encodeURIComponent(finalUrl)}&referer=${encodeURIComponent(ref || "")}`;
+    return `/api/proxy?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(referer || "")}`;
   }, []);
 
   useEffect(() => {
@@ -48,11 +42,27 @@ function VideoPlayer({ videoUrl, referer, quality }) {
 
     if (isM3U8 && Hls.isSupported()) {
       const hls = new Hls({
+        xhrSetup: (xhr, xhrUrl) => {
+          let finalUrl = xhrUrl;
+          if (xhrUrl.includes("/api/proxy")) {
+            if (xhrUrl.startsWith("http")) {
+              try {
+                const u = new URL(xhrUrl);
+                finalUrl = u.pathname + u.search;
+              } catch {
+                finalUrl = xhrUrl;
+              }
+            }
+          } else {
+            finalUrl = buildProxyUrl(xhrUrl, referer);
+          }
+          xhr.open("GET", finalUrl, true);
+        },
         enableWorker: false,
         lowLatencyMode: false,
         backBufferLength: 90,
       });
-      hls.loadSource(getProxyUrl(videoUrl, referer));
+      hls.loadSource(buildProxyUrl(videoUrl, referer));
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false);
@@ -62,12 +72,12 @@ function VideoPlayer({ videoUrl, referer, quality }) {
         if (d.fatal) {
           if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
           else if (d.type === Hls.ErrorTypes.NETWORK_ERROR) setTimeout(() => hls.startLoad(), 2000);
-          else { setPlayerError("Playback failed."); setIsLoading(false); hls.destroy(); }
+          else { setPlayerError("Playback failed. The video might be blocked in your region."); setIsLoading(false); hls.destroy(); }
         }
       });
       hlsRef.current = hls;
     } else {
-      video.src = getProxyUrl(videoUrl, referer);
+      video.src = buildProxyUrl(videoUrl, referer);
       video.addEventListener("loadeddata", () => setIsLoading(false), { once: true });
       video.addEventListener("error", () => {
         setPlayerError("Could not load video."); setIsLoading(false);
@@ -76,7 +86,7 @@ function VideoPlayer({ videoUrl, referer, quality }) {
     }
 
     return () => { if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; } };
-  }, [videoUrl, referer, getProxyUrl]);
+  }, [videoUrl, referer, buildProxyUrl]);
 
   return (
     <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10">
@@ -93,7 +103,15 @@ function VideoPlayer({ videoUrl, referer, quality }) {
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <div className="text-center p-4">
             <AlertTriangle className="mx-auto mb-2 text-red-400" size={32} />
-            <p className="text-gray-300 text-sm">{playerError}</p>
+            <p className="text-gray-300 text-sm mb-4">{playerError}</p>
+            <a 
+              href={`https://hanime.tv/hentai-videos/${videoUrl.split('/').pop().replace('.m3u8', '')}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 rounded-full hover:bg-red-700 transition-colors text-xs"
+            >
+              <ExternalLink size={12} /> Watch on Original Site
+            </a>
           </div>
         </div>
       )}

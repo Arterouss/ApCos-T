@@ -1,16 +1,16 @@
 import fetch from "node-fetch";
 
 const DOMAINS = [
-  "https://bunkr.si",
-  "https://bunkr.cr",
-  "https://bunkr.ru",
-  "https://bunkr.ph",
-  "https://bunkr.sk",
-  "https://bunkr.la",
+  "https://PornavHD.si",
+  "https://PornavHD.cr",
+  "https://PornavHD.ru",
+  "https://PornavHD.ph",
+  "https://PornavHD.sk",
+  "https://PornavHD.la",
 ];
 
 async function testDomains() {
-  console.log("Testing Bunkr Domains...");
+  console.log("Testing PornavHD Domains...");
 
   for (const domain of DOMAINS) {
     try {

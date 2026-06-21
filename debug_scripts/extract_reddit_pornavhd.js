@@ -3,11 +3,11 @@ import * as cheerio from "cheerio";
 
 async function extractRedditLinks() {
   try {
-    console.log("Searching Reddit for recent Bunkr links...");
+    console.log("Searching Reddit for recent PornavHD links...");
     // Use a public JSON endpoint or just scrape HTML if possible (HTML is harder on Reddit due to hydration)
     // Actually, Reddit adds .json to URLs. Let's try searching via Reddit JSON API.
 
-    const term = "bunkr.cr/a/";
+    const term = "PornavHD.cr/a/";
     const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(term)}&sort=new&limit=5`;
 
     const res = await fetch(url, {
@@ -25,25 +25,25 @@ async function extractRedditLinks() {
     const data = await res.json();
     const posts = data.data?.children || [];
 
-    const bunkrLinks = [];
+    const PornavHDLinks = [];
 
     posts.forEach((post) => {
       const text = post.data.selftext || "";
       const title = post.data.title || "";
       const url = post.data.url || "";
 
-      // Regex to find bunkr links
-      const regex = /https?:\/\/(bunkr\.(?:si|cr|ph|la|sk))\/a\/[a-zA-Z0-9]+/g;
+      // Regex to find PornavHD links
+      const regex = /https?:\/\/(PornavHD\.(?:si|cr|ph|la|sk))\/a\/[a-zA-Z0-9]+/g;
 
       const textMatches = text.match(regex) || [];
       const titleMatches = title.match(regex) || [];
       const urlMatches = url.match(regex) || [];
 
-      bunkrLinks.push(...textMatches, ...titleMatches, ...urlMatches);
+      PornavHDLinks.push(...textMatches, ...titleMatches, ...urlMatches);
     });
 
-    const uniqueLinks = [...new Set(bunkrLinks)];
-    console.log(`Found ${uniqueLinks.length} unique Bunkr links.`);
+    const uniqueLinks = [...new Set(PornavHDLinks)];
+    console.log(`Found ${uniqueLinks.length} unique PornavHD links.`);
     uniqueLinks.forEach((link) => console.log(link));
 
     // If we found a link, let's try to scrape IT.

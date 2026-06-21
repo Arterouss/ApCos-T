@@ -1,12 +1,12 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-const BUNKR_BASE_URL = "https://bunkr.si";
+const PornavHD_BASE_URL = "https://PornavHD.si";
 
-async function testBunkrRobust() {
+async function testPornavHDRobust() {
   try {
-    console.log("Testing Bunkr Search with Robust Headers...");
-    const searchUrl = `${BUNKR_BASE_URL}/?search=test`;
+    console.log("Testing PornavHD Search with Robust Headers...");
+    const searchUrl = `${PornavHD_BASE_URL}/?search=test`;
 
     const headers = {
       "User-Agent":
@@ -52,4 +52,4 @@ async function testBunkrRobust() {
   }
 }
 
-testBunkrRobust();
+testPornavHDRobust();

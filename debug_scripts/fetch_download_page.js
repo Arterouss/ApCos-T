@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const URL = "https://get.bunkrr.su/file/51130424"; // The URL we thought was direct
+const URL = "https://get.PornavHDr.su/file/51130424"; // The URL we thought was direct
 
 async function run() {
   try {

@@ -2,11 +2,11 @@ import fetch from "node-fetch";
 
 // From previous logs:
 // Name: Fern (1).webp
-// Thumb: https://i-cheese.bunkr.ru/thumbs/aa1fd741-3228-4695-bd30-a9529558a279.png
-// Derived URL (Current logic): https://i-cheese.bunkr.ru/aa1fd741-3228-4695-bd30-a9529558a279.png
+// Thumb: https://i-cheese.PornavHD.ru/thumbs/aa1fd741-3228-4695-bd30-a9529558a279.png
+// Derived URL (Current logic): https://i-cheese.PornavHD.ru/aa1fd741-3228-4695-bd30-a9529558a279.png
 
 const BASE_ID = "aa1fd741-3228-4695-bd30-a9529558a279";
-const HOST = "https://i-cheese.bunkr.ru";
+const HOST = "https://i-cheese.PornavHD.ru";
 
 async function check(url) {
   try {
