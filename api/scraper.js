@@ -105,3 +105,35 @@ export const scrapePornavHDVideo = async (slug) => {
     await page.close();
   }
 };
+
+export const fetchWithStealth = async (url) => {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    console.log(`[Puppeteer Stealth Fetch] Navigating to ${url}`);
+    
+    // networkidle2 is crucial to wait for Cloudflare JS challenges to finish
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    // Quick delay just to be absolutely sure Cloudflare finished redirecting
+    await new Promise(r => setTimeout(r, 2000));
+    
+    const text = await page.evaluate(() => {
+      // If the page is JSON, Chrome usually wraps it in a PRE tag
+      const pre = document.querySelector('pre');
+      if (pre && document.body.childNodes.length === 1) {
+        return pre.innerText;
+      }
+      // Otherwise return full HTML
+      return document.documentElement.outerHTML;
+    });
+    
+    return text;
+  } catch (error) {
+    console.error("[Puppeteer Stealth Fetch Error]", error.message);
+    throw error;
+  } finally {
+    await page.close();
+  }
+};

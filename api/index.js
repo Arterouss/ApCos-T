@@ -224,6 +224,17 @@ const fetchWithFallback = async (
     lastError = e.message;
   }
 
+  // 5. Ultimate Fallback: Puppeteer Stealth
+  try {
+    console.log(`[Proxy] Stealth Fallback triggered for: ${targetUrl}`);
+    const { fetchWithStealth } = await import("./scraper.js");
+    const text = await fetchWithStealth(targetUrl);
+    if (text) return text;
+    lastError = `Stealth Fallback returned empty`;
+  } catch (e) {
+    lastError = `Stealth Fallback Error: ${e.message}`;
+  }
+
   throw new Error(`All proxies failed. Last error: ${lastError}`);
 };
 
@@ -965,20 +976,8 @@ app.get("/api/ehentai/search", async (req, res) => {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     };
 
-    let html = "";
-    let response = await fetch(url, { headers });
-    if (response.ok) {
-      html = await response.text();
-    }
-
-    // Fallback if blocked
-    if (!response.ok || html.includes("IP limit") || !html) {
-      console.warn("[EHentai] Direct fetch failed/blocked. Trying Proxy...");
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-      response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-      html = await response.text();
-    }
+    // Use ultimate fallback mechanism
+    let html = await fetchWithFallback(url, headers);
     const galleries = [];
 
     // Parse Table Rows
@@ -1039,19 +1038,7 @@ app.get("/api/ehentai/gallery/:id/:token", async (req, res) => {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     };
 
-    let html = "";
-    let response = await fetch(targetUrl, { headers });
-    if (response.ok) {
-      html = await response.text();
-    }
-
-    if (!response.ok || html.includes("IP limit") || !html) {
-      console.warn("[EHentai] Direct fetch failed. Trying Proxy...");
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-      response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error("Failed to fetch gallery");
-      html = await response.text();
-    }
+    let html = await fetchWithFallback(targetUrl, headers);
 
     // Extract Title (English or Japanese)
     const titleMatch = /<h1 id="gn">([^<]+)<\/h1>/.exec(html);
