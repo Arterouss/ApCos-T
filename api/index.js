@@ -6,9 +6,14 @@ import { Buffer } from "buffer";
 import axios from "axios";
 import https from "https";
 import { createHash } from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Bypass SSL verification to handle ISP (Indosat) blocking/hijacking
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -2387,11 +2392,17 @@ app.get("/api/cavporn/player", (req, res) => {
   res.send(playerHtml);
 });
 
-// Local dev: listen on PORT. Vercel uses export default below.
-if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
-    console.log(`Proxy server running at http://localhost:${PORT}`);
-  });
-}
+// Serve frontend files (for Render / Railway deployment)
+const distPath = path.join(__dirname, "../dist");
+app.use(express.static(distPath));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
+// Always listen (Render/Railway need this)
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
 
 export default app;
