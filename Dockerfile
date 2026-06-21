@@ -21,8 +21,8 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Remove Windows-specific lockfile if it causes issues and install dependencies
+RUN rm -f package-lock.json && npm install
 
 COPY . .
 
