@@ -4,16 +4,26 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 puppeteer.use(StealthPlugin());
 
 let browserInstance = null;
+let browserLaunchPromise = null;
 
 export const getBrowser = async () => {
-  if (!browserInstance) {
+  if (browserInstance) return browserInstance;
+  
+  if (!browserLaunchPromise) {
     console.log("[Puppeteer] Launching new browser instance...");
-    browserInstance = await puppeteer.launch({
+    browserLaunchPromise = puppeteer.launch({
       headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    }).then(browser => {
+      browserInstance = browser;
+      return browser;
+    }).catch(err => {
+      browserLaunchPromise = null;
+      throw err;
     });
   }
-  return browserInstance;
+  
+  return browserLaunchPromise;
 };
 
 export const scrapePornavHDSearch = async (query, pageNum) => {
