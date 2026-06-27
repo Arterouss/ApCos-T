@@ -83,7 +83,7 @@ const Home = ({ onOpenSidebar }) => {
             <Menu size={24} />
           </button>
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-400 to-fuchsia-400">
-            Kemono Discovery
+            Pawchive Discovery
           </h1>
           <div className="w-10 md:hidden"></div>{" "}
           {/* Spacer for center alignment on mobile */}

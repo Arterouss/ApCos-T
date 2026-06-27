@@ -24,7 +24,7 @@ const CreatorCard = ({ creator }) => {
             </span>
           </div>
           <a
-            href={`https://kemono.su/${creator.service}/user/${creator.id}`}
+            href={`https://pawchive.st/${creator.service}/user/${creator.id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-white transition-colors"

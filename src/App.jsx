@@ -6,8 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import EHentaiPage from "./pages/EHentaiPage";
-import EHentaiDetailPage from "./pages/EHentaiDetailPage";
+import Home from "./pages/Home";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
 import HanimeDetailPage from "./pages/HanimeDetailPage";
@@ -32,7 +31,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
       <Routes location={location} key={location.pathname}>
         <Route
           path="/"
-          element={<EHentaiPage onOpenSidebar={onOpenSidebar} />}
+          element={<Home onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/creator/:service/:id" element={<CreatorPosts />} />
 
@@ -66,7 +65,6 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           element={<CavPornPage onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/cavporn/:id/:slug" element={<CavPornDetailPage />} />
-        <Route path="/g/:id/:token" element={<EHentaiDetailPage />} />
         <Route
           path="/ai-tools"
           element={<AiToolsPage onOpenSidebar={onOpenSidebar} />}

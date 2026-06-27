@@ -50,14 +50,14 @@ const getHanimeV7Headers = () => {
 // Proxy endpoint for creators
 app.get("/api/creators", async (req, res) => {
   try {
-    console.log("Fetching creators from Kemono API...");
+    console.log("Fetching creators from Pawchive API...");
 
-    const response = await fetch("https://kemono.cr/api/v1/creators", {
+    const response = await fetch("https://pawchive.st/api/v1/creators", {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/css",
-        Referer: "https://kemono.cr/",
+        Accept: "application/json",
+        Referer: "https://pawchive.st/",
       },
     });
 
@@ -84,13 +84,13 @@ app.get("/api/posts/:service/:id", async (req, res) => {
     console.log(`Fetching posts for ${service}/${id}...`);
 
     const response = await fetch(
-      `https://kemono.cr/api/v1/${service}/user/${id}/posts`,
+      `https://pawchive.st/api/v1/${service}/user/${id}/posts`,
       {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept: "text/css",
-          Referer: "https://kemono.cr/",
+          Accept: "application/json",
+          Referer: "https://pawchive.st/",
         },
       },
     );
@@ -957,160 +957,7 @@ app.get("/api/r34/posts", async (req, res) => {
   }
 });
 
-// --- EHENTAI Integration follows...const EHENTAI_BASE_URL = "https://e-hentai.org";
 
-// Search Endpoint
-app.get("/api/ehentai/search", async (req, res) => {
-  try {
-    let { q, page, f_cats } = req.query;
-    page = parseInt(page) || 0; // EH uses page=0 for first page
-
-    let url = `${EHENTAI_BASE_URL}/?page=${page}`;
-    if (q) url += `&f_search=${encodeURIComponent(q)}`;
-    if (f_cats) url += `&f_cats=${f_cats}`;
-
-    console.log(`[EHentai] Scraping: ${url}`);
-
-    const headers = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    };
-
-    // Use ultimate fallback mechanism
-    let html = await fetchWithFallback(url, headers);
-    const galleries = [];
-
-    // Parse Table Rows
-    const trRegex = /<tr class="gtr\d+">([\s\S]*?)<\/tr>/gi;
-    let trMatch;
-    while ((trMatch = trRegex.exec(html)) !== null) {
-      const row = trMatch[1];
-
-      // Extract URL & ID ( /g/123/token/ )
-      const urlMatch = /href="https:\/\/e-hentai\.org\/g\/(\d+)\/(\w+)\/"/.exec(
-        row,
-      );
-      if (!urlMatch) continue;
-      const [fullUrl, id, token] = urlMatch;
-
-      // Extract Title
-      const titleMatch = /<div class="glink">([^<]+)<\/div>/.exec(row);
-      const title = titleMatch ? titleMatch[1] : "Untitled";
-
-      // Extract Thumb (src or data-src)
-      const thumbMatch = /<img[^>]+(?:src|data-src)=['"]([^'"]+)['"]/.exec(row);
-      const thumb = thumbMatch ? thumbMatch[1] : "";
-
-      // Extract Category
-      const catMatch = /<div class="cn">([^<]+)<\/div>/.exec(row);
-      const category = catMatch ? catMatch[1] : "Misc";
-
-      galleries.push({
-        id,
-        token,
-        title,
-        thumb,
-        category,
-        url: `https://e-hentai.org/g/${id}/${token}/`,
-      });
-    }
-
-    console.log(`[EHentai] Found ${galleries.length} items`);
-    res.json({ data: galleries, page });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Gallery Detail Endpoint
-app.get("/api/ehentai/gallery/:id/:token", async (req, res) => {
-  try {
-    const { id, token } = req.params;
-    const { p } = req.query; // Page number
-    const page = p || 0;
-
-    const targetUrl = `${EHENTAI_BASE_URL}/g/${id}/${token}/?p=${page}`;
-    console.log(`[EHentai] Scraping Gallery: ${targetUrl}`);
-
-    const headers = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    };
-
-    let html = await fetchWithFallback(targetUrl, headers);
-
-    // Extract Title (English or Japanese)
-    const titleMatch = /<h1 id="gn">([^<]+)<\/h1>/.exec(html);
-    const title = titleMatch ? titleMatch[1] : `Gallery ${id}`;
-
-    // Extract Tags
-    const tags = [];
-    const tagRegex = /<div class="gt"[^>]*>([^<]+)<\/div>/g;
-    let tMatch;
-    while ((tMatch = tagRegex.exec(html)) !== null) {
-      tags.push(tMatch[1]);
-    }
-
-    // Extract Images (Thumbnails + Reader Links)
-    const images = [];
-    // Regex matches the standard 'gdtm' (Mosaic) layout
-    const imgBlockRegex =
-      /<div class="gdtm"[^>]*>[\s\S]*?<a href="([^"]+)"[\s\S]*?background:transparent url\(([^)]+)\)/g;
-
-    let imgMatch;
-    while ((imgMatch = imgBlockRegex.exec(html)) !== null) {
-      const [_, readerUrl, thumbUrl] = imgMatch;
-      images.push({
-        readerUrl,
-        thumbUrl,
-        page: readerUrl.split("-").pop(),
-      });
-    }
-
-    // Standard meta info (Total pages?)
-    // td class="gdt2" contains e.g. "42 pages"
-    const lengthMatch = /<td class="gdt2">(\d+) pages<\/td>/.exec(html);
-    const totalPages = lengthMatch ? parseInt(lengthMatch[1]) : 0;
-
-    res.json({
-      id,
-      token,
-      title,
-      tags,
-      images,
-      page,
-      totalPages,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Reader Endpoint (Get Full Image)
-app.get("/api/ehentai/reader", async (req, res) => {
-  try {
-    const { url } = req.query;
-    if (!url) throw new Error("Missing url param");
-
-    console.log(`[EHentai] Scraping Reader: ${url}`);
-
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
-    const html = await response.text();
-
-    // Extract Image Src
-    // <img id="img" src="..." ... />
-    const imgMatch = /<img id="img" src="([^"]+)"/.exec(html);
-    if (!imgMatch) throw new Error("Image source not found");
-
-    res.json({ imageUrl: imgMatch[1] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ==========================================
 // COSPLAY TELE API

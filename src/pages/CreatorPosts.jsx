@@ -73,7 +73,7 @@ const CreatorPosts = () => {
                 <div className="bg-gray-900 relative">
                   {post.file && post.file.path ? (
                     <img
-                      src={`https://kemono.cr${post.file.path}`}
+                      src={`https://pawchive.st${post.file.path}`}
                       alt={post.title}
                       className="w-full h-auto object-contain max-h-[600px] mx-auto"
                       loading="lazy"
@@ -121,7 +121,7 @@ const CreatorPosts = () => {
                     </div>
 
                     <a
-                      href={`https://kemono.su/${service}/user/${id}/post/${post.id}`}
+                      href={`https://pawchive.st/${service}/user/${id}/post/${post.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium"
