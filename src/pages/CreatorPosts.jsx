@@ -12,6 +12,8 @@ import {
   FileText,
 } from "lucide-react";
 
+const MEDIA_BASE = "https://img.pawchive.st";
+
 const isVideo = (path = "") => {
   return /\.(mp4|webm|m4v|mov|avi|mkv)$/i.test(path);
 };
@@ -119,7 +121,7 @@ const CreatorPosts = () => {
                     {post.file && post.file.path ? (
                       isVideo(post.file.path) ? (
                         <video
-                          src={`https://pawchive.st${post.file.path}`}
+                          src={`${MEDIA_BASE}${post.file.path}`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           muted
                           loop
@@ -129,7 +131,7 @@ const CreatorPosts = () => {
                         />
                       ) : (
                         <img
-                          src={`https://pawchive.st${post.file.path}`}
+                          src={`${MEDIA_BASE}${post.file.path}`}
                           alt={post.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
@@ -297,7 +299,7 @@ const CreatorPosts = () => {
                       ) : (
                         <div className="space-y-6">
                           {getAllMedia(selectedPost).map((media, idx) => {
-                            const url = `https://pawchive.st${media.path}`;
+                            const url = `${MEDIA_BASE}${media.path}`;
                             const isVid = isVideo(media.path);
                             const isImg = isImage(media.path);
 
