@@ -110,6 +110,70 @@ app.get("/api/posts/:service/:id", async (req, res) => {
   }
 });
 
+// ==========================================
+// PAWCHIVE MEDIA PROXY
+// Directly proxy images/videos from img.pawchive.st
+// with correct Referer header to bypass hotlink protection
+// ==========================================
+app.get("/api/media/pawchive", async (req, res) => {
+  const { path: mediaPath } = req.query;
+  if (!mediaPath) return res.status(400).send("Missing path");
+
+  // Only allow paths that look like Pawchive hash paths (e.g. /ab/cd/abcd1234....jpg)
+  if (!/^\/[a-f0-9]{2}\/[a-f0-9]{2}\/[a-f0-9]+\.[a-z0-9]+$/i.test(mediaPath)) {
+    return res.status(400).send("Invalid path format");
+  }
+
+  const targetUrl = `https://img.pawchive.st${mediaPath}`;
+  console.log(`[Pawchive Media] Proxying: ${targetUrl}`);
+
+  try {
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://pawchive.st/",
+      "Origin": "https://pawchive.st",
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+
+    // Forward Range header for video seeking
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    const response = await fetch(targetUrl, {
+      headers,
+      agent: sslAgent,
+    });
+
+    if (!response.ok) {
+      console.warn(`[Pawchive Media] Failed ${response.status}: ${targetUrl}`);
+      return res.status(response.status).send(`Upstream error: ${response.status}`);
+    }
+
+    // Forward relevant headers
+    const contentType = response.headers.get("content-type");
+    const contentLength = response.headers.get("content-length");
+    const contentRange = response.headers.get("content-range");
+    const acceptRanges = response.headers.get("accept-ranges");
+
+    if (contentType) res.setHeader("Content-Type", contentType);
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+    if (contentRange) res.setHeader("Content-Range", contentRange);
+    if (acceptRanges) res.setHeader("Accept-Ranges", acceptRanges);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    if (response.status === 206) res.status(206);
+
+    response.body.pipe(res);
+  } catch (error) {
+    console.error("[Pawchive Media] Error:", error.message);
+    res.status(500).send(`Proxy error: ${error.message}`);
+  }
+});
+
+
 // --- PornavHD SCRAPER Integration ---
 const PornavHD_BASE_URL = "https://pornavhd.com"; // Changed from pornavhd.com to .si mirror
 const UAS = [
