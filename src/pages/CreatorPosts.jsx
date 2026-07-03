@@ -22,19 +22,19 @@ const isImage = (path = "") => {
   return /\.(jpg|jpeg|png|gif|webp|avif|bmp)$/i.test(path);
 };
 
-// Official direct CDN media url from Pawchive
-const getMediaUrl = (path, type = "file") => {
+// Official direct CDN media url from Pawchive (auto-routes video vs image)
+const getMediaUrl = (path, type = "auto") => {
   if (!path) return "";
-  if (type === "thumb") {
-    return `https://img.pawchive.st/thumbnail/data${path}`;
+  if (isVideo(path) && type !== "thumb") {
+    return `https://file.pawchive.st/data${path}`;
   }
-  return `https://file.pawchive.st/data${path}`;
+  return `https://img.pawchive.st/thumbnail/data${path}`;
 };
 
 // Fallback proxy url in case direct CDN is restricted by ISP/client
-const getProxyUrl = (path, type = "file") => {
+const getProxyUrl = (path) => {
   if (!path) return "";
-  return `/api/media/pawchive?path=${encodeURIComponent(path)}&type=${type}`;
+  return `/api/media/pawchive?path=${encodeURIComponent(path)}`;
 };
 
 const CreatorPosts = () => {
@@ -146,7 +146,7 @@ const CreatorPosts = () => {
                           onError={(e) => {
                             if (!e.target.dataset.fallback) {
                               e.target.dataset.fallback = "true";
-                              e.target.src = getProxyUrl(post.file.path, "file");
+                              e.target.src = getProxyUrl(post.file.path);
                             } else {
                               e.target.style.display = "none";
                               e.target.parentElement.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-red-950/40 to-neutral-950 gap-2"><svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='#f87171' stroke-width='2'><polygon points='23 7 16 12 23 17 23 7'/><rect x='1' y='5' width='15' height='14' rx='2' ry='2'/></svg><span style='font-size:11px;color:#f87171;'>Video Attached</span></div>`;
@@ -162,7 +162,7 @@ const CreatorPosts = () => {
                           onError={(e) => {
                             if (!e.target.dataset.fallback) {
                               e.target.dataset.fallback = "true";
-                              e.target.src = getProxyUrl(post.file.path, "thumb");
+                              e.target.src = getProxyUrl(post.file.path);
                             } else {
                               e.target.style.display = "none";
                               e.target.parentElement.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950/30 to-neutral-950 gap-2"><svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='#a78bfa' stroke-width='2'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/></svg><span style='font-size:11px;color:#a78bfa;'>Preview restricted</span></div>`;
@@ -363,7 +363,7 @@ const CreatorPosts = () => {
                                       onError={(e) => {
                                         if (!e.target.dataset.fallback) {
                                           e.target.dataset.fallback = "true";
-                                          e.target.src = getProxyUrl(media.path, "file");
+                                          e.target.src = getProxyUrl(media.path);
                                         }
                                       }}
                                     />
@@ -378,7 +378,7 @@ const CreatorPosts = () => {
                                       onError={(e) => {
                                         if (!e.target.dataset.fallback) {
                                           e.target.dataset.fallback = "true";
-                                          e.target.src = getProxyUrl(media.path, "file");
+                                          e.target.src = getProxyUrl(media.path);
                                         }
                                       }}
                                     />

@@ -124,10 +124,12 @@ app.get("/api/media/pawchive", async (req, res) => {
     return res.status(400).send("Invalid path format");
   }
 
-  const targetUrl = type === "thumb" 
-    ? `https://img.pawchive.st/thumbnail/data${mediaPath}`
-    : `https://file.pawchive.st/data${mediaPath}`;
-  console.log(`[Pawchive Media] Proxying (${type || 'file'}): ${targetUrl}`);
+  const isVid = /\.(mp4|webm|m4v|mov|avi|mkv)$/i.test(mediaPath);
+  let targetUrl = isVid
+    ? `https://file.pawchive.st/data${mediaPath}`
+    : `https://img.pawchive.st/thumbnail/data${mediaPath}`;
+  
+  console.log(`[Pawchive Media] Proxying (${isVid ? 'video' : 'image'}): ${targetUrl}`);
 
   try {
     const headers = {
@@ -138,18 +140,24 @@ app.get("/api/media/pawchive", async (req, res) => {
       "Accept-Language": "en-US,en;q=0.9",
     };
 
-    // Forward Range header for video seeking
     if (req.headers.range) {
       headers["Range"] = req.headers.range;
     }
 
-    const response = await fetch(targetUrl, {
+    let response = await fetch(targetUrl, {
       headers,
       agent: sslAgent,
     });
 
+    // If image thumbnail 404s, fallback to file.pawchive.st
+    if (!response.ok && !isVid) {
+      const fallbackUrl = `https://file.pawchive.st/data${mediaPath}`;
+      console.log(`[Pawchive Media] Upstream 404, falling back to: ${fallbackUrl}`);
+      response = await fetch(fallbackUrl, { headers, agent: sslAgent });
+    }
+
     if (!response.ok) {
-      console.warn(`[Pawchive Media] Failed ${response.status}: ${targetUrl}`);
+      console.warn(`[Pawchive Media] Failed ${response.status} for ${mediaPath}`);
       return res.status(response.status).send(`Upstream error: ${response.status}`);
     }
 
