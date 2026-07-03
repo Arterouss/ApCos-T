@@ -116,7 +116,7 @@ app.get("/api/posts/:service/:id", async (req, res) => {
 // with correct Referer header to bypass hotlink protection
 // ==========================================
 app.get("/api/media/pawchive", async (req, res) => {
-  const { path: mediaPath } = req.query;
+  const { path: mediaPath, type } = req.query;
   if (!mediaPath) return res.status(400).send("Missing path");
 
   // Only allow paths that look like Pawchive hash paths (e.g. /ab/cd/abcd1234....jpg)
@@ -124,8 +124,10 @@ app.get("/api/media/pawchive", async (req, res) => {
     return res.status(400).send("Invalid path format");
   }
 
-  const targetUrl = `https://img.pawchive.st${mediaPath}`;
-  console.log(`[Pawchive Media] Proxying: ${targetUrl}`);
+  const targetUrl = type === "thumb" 
+    ? `https://img.pawchive.st/thumbnail/data${mediaPath}`
+    : `https://file.pawchive.st/data${mediaPath}`;
+  console.log(`[Pawchive Media] Proxying (${type || 'file'}): ${targetUrl}`);
 
   try {
     const headers = {

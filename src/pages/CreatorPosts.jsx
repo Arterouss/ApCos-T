@@ -9,6 +9,7 @@ import {
   Video,
   Image as ImageIcon,
   FileText,
+  Download,
 } from "lucide-react";
 
 
@@ -21,10 +22,19 @@ const isImage = (path = "") => {
   return /\.(jpg|jpeg|png|gif|webp|avif|bmp)$/i.test(path);
 };
 
-// Proxy image/video through our dedicated Pawchive media endpoint
-const getMediaUrl = (path) => {
+// Official direct CDN media url from Pawchive
+const getMediaUrl = (path, type = "file") => {
   if (!path) return "";
-  return `/api/media/pawchive?path=${encodeURIComponent(path)}`;
+  if (type === "thumb") {
+    return `https://img.pawchive.st/thumbnail/data${path}`;
+  }
+  return `https://file.pawchive.st/data${path}`;
+};
+
+// Fallback proxy url in case direct CDN is restricted by ISP/client
+const getProxyUrl = (path, type = "file") => {
+  if (!path) return "";
+  return `/api/media/pawchive?path=${encodeURIComponent(path)}&type=${type}`;
 };
 
 const CreatorPosts = () => {
@@ -125,19 +135,38 @@ const CreatorPosts = () => {
                   <div className="bg-neutral-950 relative aspect-video flex items-center justify-center overflow-hidden">
                     {post.file && post.file.path ? (
                       isVideo(post.file.path) ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-red-950/40 to-neutral-950 gap-2">
-                          <Video size={32} className="text-red-400" />
-                          <span className="text-xs text-red-300 font-medium">Video Attached</span>
-                        </div>
+                        <video
+                          src={getMediaUrl(post.file.path, "file")}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          muted
+                          loop
+                          playsInline
+                          onMouseOver={(e) => e.target.play().catch(() => {})}
+                          onMouseOut={(e) => e.target.pause()}
+                          onError={(e) => {
+                            if (!e.target.dataset.fallback) {
+                              e.target.dataset.fallback = "true";
+                              e.target.src = getProxyUrl(post.file.path, "file");
+                            } else {
+                              e.target.style.display = "none";
+                              e.target.parentElement.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-red-950/40 to-neutral-950 gap-2"><svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='#f87171' stroke-width='2'><polygon points='23 7 16 12 23 17 23 7'/><rect x='1' y='5' width='15' height='14' rx='2' ry='2'/></svg><span style='font-size:11px;color:#f87171;'>Video Attached</span></div>`;
+                            }
+                          }}
+                        />
                       ) : (
                         <img
-                          src={getMediaUrl(post.file.path)}
+                          src={getMediaUrl(post.file.path, "thumb")}
                           alt={post.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                           onError={(e) => {
-                            e.target.style.display = "none";
-                            e.target.parentElement.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950/30 to-neutral-950 gap-2"><svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='#a78bfa' stroke-width='2'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/></svg><span style='font-size:11px;color:#a78bfa;'>Preview restricted</span></div>`;
+                            if (!e.target.dataset.fallback) {
+                              e.target.dataset.fallback = "true";
+                              e.target.src = getProxyUrl(post.file.path, "thumb");
+                            } else {
+                              e.target.style.display = "none";
+                              e.target.parentElement.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950/30 to-neutral-950 gap-2"><svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='#a78bfa' stroke-width='2'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/></svg><span style='font-size:11px;color:#a78bfa;'>Preview restricted</span></div>`;
+                            }
                           }}
                         />
                       )
@@ -300,58 +329,98 @@ const CreatorPosts = () => {
                           No media files attached to this post.
                         </div>
                       ) : (
-                        <div>
+                        <div className="space-y-6">
                           {/* Open on Pawchive banner */}
                           <a
                             href={`https://pawchive.st/${service}/user/${id}/post/${selectedPost.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600/30 hover:to-indigo-600/30 border border-purple-500/30 hover:border-purple-400/50 text-purple-300 hover:text-white font-semibold py-3 px-4 rounded-xl transition-all mb-4 text-sm"
+                            className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600/30 hover:to-indigo-600/30 border border-purple-500/30 hover:border-purple-400/50 text-purple-300 hover:text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md"
                           >
                             <ExternalLink size={16} />
-                            Lihat {getAllMedia(selectedPost).length} file di Pawchive.st
+                            Lihat halaman asli post di Pawchive.st
                           </a>
 
-                          {/* File list */}
-                          <div className="space-y-2">
-                            {getAllMedia(selectedPost).map((media, idx) => {
-                              const pawchiveUrl = `https://pawchive.st/${service}/user/${id}/post/${selectedPost.id}`;
-                              const isVid = isVideo(media.path);
-                              const isImg = isImage(media.path);
-                              const ext = media.path.split('.').pop().toUpperCase();
-                              const fname = media.name || media.path.split('/').pop() || `Attachment #${idx + 1}`;
+                          {/* Media Items */}
+                          {getAllMedia(selectedPost).map((media, idx) => {
+                            const url = getMediaUrl(media.path, "file");
+                            const isVid = isVideo(media.path);
+                            const isImg = isImage(media.path);
+                            const fname = media.name || media.path.split("/").pop() || `Attachment #${idx + 1}`;
 
-                              return (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-3 bg-neutral-950 p-3 rounded-lg border border-white/5 hover:border-white/10 group"
-                                >
-                                  {/* Icon */}
-                                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                    isVid ? 'bg-red-900/40 text-red-400' : isImg ? 'bg-purple-900/40 text-purple-400' : 'bg-gray-900/40 text-gray-400'
-                                  }`}>
-                                    {isVid ? <Video size={16} /> : isImg ? <ImageIcon size={16} /> : <FileText size={16} />}
+                            return (
+                              <div
+                                key={idx}
+                                className="bg-neutral-950 p-4 rounded-xl border border-white/10 flex flex-col items-center group shadow-xl"
+                              >
+                                {isVid ? (
+                                  <div className="w-full">
+                                    <video
+                                      src={url}
+                                      controls
+                                      className="w-full max-h-[75vh] rounded-lg bg-black mx-auto shadow-lg"
+                                      playsInline
+                                      onError={(e) => {
+                                        if (!e.target.dataset.fallback) {
+                                          e.target.dataset.fallback = "true";
+                                          e.target.src = getProxyUrl(media.path, "file");
+                                        }
+                                      }}
+                                    />
                                   </div>
-
-                                  {/* File info */}
-                                  <div className="flex-grow min-w-0">
-                                    <p className="text-sm text-white font-medium truncate">{fname}</p>
-                                    <p className="text-xs text-gray-500">{ext} file</p>
+                                ) : isImg ? (
+                                  <div className="w-full flex justify-center bg-black/40 rounded-lg p-2">
+                                    <img
+                                      src={url}
+                                      alt={fname}
+                                      className="max-h-[75vh] w-auto object-contain rounded-lg shadow-lg"
+                                      loading="lazy"
+                                      onError={(e) => {
+                                        if (!e.target.dataset.fallback) {
+                                          e.target.dataset.fallback = "true";
+                                          e.target.src = getProxyUrl(media.path, "file");
+                                        }
+                                      }}
+                                    />
                                   </div>
+                                ) : (
+                                  <div className="w-full py-8 px-4 flex flex-col items-center justify-center gap-3 text-center bg-neutral-900/50 rounded-lg">
+                                    <FileText size={48} className="text-purple-400" />
+                                    <div>
+                                      <p className="font-semibold text-white text-sm break-all">{fname}</p>
+                                      <p className="text-xs text-gray-500 mt-0.5">Archive / Document File</p>
+                                    </div>
+                                  </div>
+                                )}
 
-                                  {/* Open link */}
-                                  <a
-                                    href={pawchiveUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-shrink-0 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors font-medium"
-                                  >
-                                    <ExternalLink size={12} /> Open
-                                  </a>
+                                {/* File Bar / Download & Open Link */}
+                                <div className="w-full flex flex-wrap justify-between items-center mt-3 pt-3 border-t border-white/5 gap-2 px-1">
+                                  <span className="text-xs text-gray-400 font-mono truncate max-w-[60%]" title={fname}>
+                                    {fname}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <a
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      download
+                                      className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors font-medium shadow-sm"
+                                    >
+                                      <Download size={14} /> Download
+                                    </a>
+                                    <a
+                                      href={`https://pawchive.st/${service}/user/${id}/post/${selectedPost.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="bg-neutral-800 hover:bg-neutral-700 text-gray-300 border border-white/10 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors font-medium"
+                                    >
+                                      <ExternalLink size={14} /> Pawchive
+                                    </a>
+                                  </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
