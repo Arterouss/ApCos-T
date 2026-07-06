@@ -8,6 +8,14 @@ import https from "https";
 import { createHash } from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
+import dns from "dns";
+
+try {
+  dns.setServers(["1.1.1.1", "8.8.8.8", "1.0.0.1", "8.8.4.4"]);
+  console.log("[Backend DNS] Custom DNS resolvers (DoH) enabled to bypass ISP blocking.");
+} catch (e) {
+  console.warn("[Backend DNS] Could not set custom DNS:", e.message);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1509,49 +1517,135 @@ app.get("/api/oreno3d/stream", async (req, res) => {
 });
 
 // ==========================================
-// HANIME.TV ROUTES
 // ==========================================
+// JAV.GURU ROUTES (REPLACING HANIME.TV)
+// ==========================================
+
+async function resolveJavGuruSearcho(searchoUrl, referer) {
+  try {
+    const res = await fetch(searchoUrl, {
+      headers: { "User-Agent": getRandomUA(), "Referer": referer || "https://jav.guru/" }
+    });
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    
+    let cid = "", rtype = "x", keys = [];
+    $("script").each((i, el) => {
+      const text = $(el).html() || "";
+      if (text.includes("window.cfg")) {
+        const cidM = text.match(/cid:\s*'([^']+)'/);
+        if (cidM) cid = cidM[1];
+        const rtypeM = text.match(/rtype:\s*'([^']+)'/);
+        if (rtypeM) rtype = rtypeM[1];
+        const keysM = text.match(/keys:\s*\[([^\]]+)\]/);
+        if (keysM) {
+          keys = keysM[1].split(",").map(k => k.trim().replace(/['"]/g, ""));
+        }
+      }
+    });
+
+    if (!cid || keys.length === 0) return null;
+    const cEl = $("#" + cid);
+    if (cEl.length === 0) return null;
+
+    const p1 = cEl.attr(keys[0]) || "";
+    const p2 = cEl.attr(keys[1]) || "";
+    const p3 = cEl.attr(keys[2]) || "";
+    const fullToken = p1 + p2 + p3;
+    if (!fullToken) return null;
+
+    const revToken = fullToken.split("").reverse().join("");
+    const realSrc = `https://jav.guru/searcho/?${rtype}r=${revToken}`;
+
+    const rRes = await fetch(realSrc, {
+      redirect: "manual",
+      headers: { "User-Agent": getRandomUA(), "Referer": searchoUrl }
+    });
+    return rRes.headers.get("location") || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 // Trending/Latest
 app.get("/api/hanime/trending", async (req, res) => {
-  const { time = "month", page = 0 } = req.query;
-  const url = `${HANIME_API}/browse/trending?time=${time}&page=${page}`;
+  const { page = 0 } = req.query;
+  const pageNum = parseInt(page) || 0;
+  const url = pageNum === 0 ? "https://jav.guru/" : `https://jav.guru/page/${pageNum + 1}/`;
   
   try {
-    // Use fetchWithFallback to bypass ISP block on API metadata
-    const jsonStr = await fetchWithFallback(url, { "User-Agent": getRandomUA() });
-    res.json(JSON.parse(jsonStr));
+    const response = await fetch(url, {
+      headers: { "User-Agent": getRandomUA() }
+    });
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const videos = [];
+    
+    $(".imgg, article, .post").each((i, el) => {
+      const a = $(el).find("a").first();
+      const img = $(el).find("img").first();
+      const title = a.attr("title") || img.attr("alt") || $(el).text().trim();
+      const href = a.attr("href");
+      const src = img.attr("src") || img.attr("data-src") || img.attr("data-lazy-src");
+      if (title && href && href.includes("jav.guru") && !videos.some(v => v.href === href)) {
+        const slug = Buffer.from(href).toString("base64url");
+        videos.push({
+          id: slug,
+          slug: slug,
+          name: title,
+          poster_url: src,
+          cover_url: src,
+          views: 0,
+          href
+        });
+      }
+    });
+    
+    res.json({ hits: videos, hentai_videos: videos, videos: videos, page: pageNum });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[JavGuru Trending Error]", error);
+    res.status(500).json({ error: error.message, hentai_videos: [], hits: [] });
   }
 });
 
 // Search
 app.get("/api/hanime/search", async (req, res) => {
-  const { q, page = 0 } = req.query;
+  const { q = "", page = 0 } = req.query;
+  const pageNum = parseInt(page) || 0;
+  const url = `https://jav.guru/?s=${encodeURIComponent(q)}&page=${pageNum + 1}`;
   
   try {
-    const response = await fetch(HANIME_SEARCH_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": getRandomUA()
-      },
-      body: JSON.stringify({
-        search_text: q,
-        tags: [],
-        brands: [],
-        blacklist: [],
-        order_by: "views",
-        ordering: "desc",
-        page: parseInt(page)
-      })
+    const response = await fetch(url, {
+      headers: { "User-Agent": getRandomUA() }
+    });
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const videos = [];
+    
+    $(".imgg, article, .post, .inside-article").each((i, el) => {
+      const a = $(el).find("a").first();
+      const img = $(el).find("img").first();
+      const title = a.attr("title") || img.attr("alt") || $(el).find("h2, h3").text().trim();
+      const href = a.attr("href");
+      const src = img.attr("src") || img.attr("data-src") || img.attr("data-lazy-src");
+      if (title && href && href.includes("jav.guru") && !videos.some(v => v.href === href)) {
+        const slug = Buffer.from(href).toString("base64url");
+        videos.push({
+          id: slug,
+          slug: slug,
+          name: title,
+          poster_url: src,
+          cover_url: src,
+          views: 0,
+          href
+        });
+      }
     });
     
-    const data = await response.json();
-    res.json(data);
+    res.json({ hits: videos, hentai_videos: videos, videos: videos, page: pageNum });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[JavGuru Search Error]", error);
+    res.status(500).json({ error: error.message, hentai_videos: [], hits: [] });
   }
 });
 
@@ -1561,39 +1655,79 @@ app.get("/api/hanime/video", async (req, res) => {
   if (!id) return res.status(400).json({ error: "Missing ID" });
 
   try {
-    // Phase 1: Get basic metadata from v8 API
-    const v8Url = `${HANIME_API}/video?id=${id}`;
-    console.log(`[Hanime] Fetching Metadata: ${v8Url}`);
-    const v8JsonStr = await fetchWithFallback(v8Url, { "User-Agent": getRandomUA() });
-    const v8Data = JSON.parse(v8JsonStr);
-
-    // Phase 2: Get the manifest from rapi/v7 (more reliable for streams)
-    const slug = v8Data.hentai_video?.slug || id;
-    const v7Url = `https://hanime.tv/rapi/v7/videos_manifests/${slug}`;
+    const url = id.startsWith("http") ? id : Buffer.from(id, "base64url").toString("utf8");
+    console.log(`[JavGuru] Fetching Detail: ${url}`);
     
-    console.log(`[Hanime] Fetching Manifest: ${v7Url}`);
-    // Note: v7 manifest needs special headers, but fetchWithFallback might strip them
-    // Let's try direct first since we have SSL Bypass, but keep proxy as fallback
-    let v7Data;
-    try {
-      const v7Res = await fetchWithTimeout(v7Url, { headers: getHanimeV7Headers() });
-      if (v7Res.ok) v7Data = await v7Res.json();
-    } catch (e) {
-      console.warn("[Hanime] V7 Direct failed, trying proxy (headers will be limited)...");
-      // If direct fails, we use proxy, but it might fail because of signature mismatch 
-      // if the proxy doesn't pass headers. However, some proxies do.
-      const v7JsonStr = await fetchWithFallback(v7Url, getHanimeV7Headers());
-      v7Data = JSON.parse(v7JsonStr);
+    const response = await fetch(url, {
+      headers: { "User-Agent": getRandomUA() }
+    });
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    
+    const title = $("h1").first().text().trim() || $("title").text().trim();
+    const cover = $(".large-screenshot img").attr("src") || $(".imgg img").attr("src") || "";
+    
+    const $desc = $(".entry-content, .inside-article").clone();
+    $desc.find("script, iframe, .wp-btn-iframe, .sharedaddy, .similars").remove();
+    const description = $desc.html() || "";
+
+    const scriptContent = $("#wp-btn-iframe-js-extra").html() || "";
+    const regex = /var\s+([a-zA-Z0-9_]+)\s*=\s*(\{.*?\});/g;
+    let match;
+    const serverTasks = [];
+    
+    while ((match = regex.exec(scriptContent)) !== null) {
+      try {
+        const obj = JSON.parse(match[2]);
+        if (obj && obj.iframe_url) {
+          const decodedUrl = Buffer.from(obj.iframe_url, "base64").toString("utf8");
+          serverTasks.push(
+            resolveJavGuruSearcho(decodedUrl, url).then(realUrl => {
+              if (realUrl) {
+                return {
+                  name: obj.btn_title || "Server",
+                  url: realUrl,
+                  quality: "HD",
+                  isIframe: true
+                };
+              }
+              return null;
+            })
+          );
+        }
+      } catch (e) {}
     }
 
-    // Merge v7 manifest into v8 data
-    if (v7Data && !v8Data.videos_manifest) {
-      v8Data.videos_manifest = v7Data;
+    const resolvedServers = (await Promise.all(serverTasks)).filter(Boolean);
+    const servers = resolvedServers.map((s, idx) => ({
+      name: `Server ${idx + 1} (${tryParseHost(s.url)})`,
+      streams: [{
+        url: s.url,
+        height: 1080,
+        quality: `Server ${idx + 1} (${tryParseHost(s.url)})`,
+        referer: "https://jav.guru/"
+      }]
+    }));
+
+    function tryParseHost(u) {
+      try { return new URL(u).hostname.replace("www.", ""); } catch { return "Stream"; }
     }
 
-    res.json(v8Data);
+    res.json({
+      hentai_video: {
+        id: id,
+        name: title,
+        description: description,
+        poster_url: cover,
+        cover_url: cover,
+        released_at: new Date().toISOString()
+      },
+      videos_manifest: {
+        servers: servers
+      }
+    });
   } catch (error) {
-    console.error("[Hanime Detail Error]", error.message);
+    console.error("[JavGuru Detail Error]", error.message);
     res.status(500).json({ error: error.message });
   }
 });

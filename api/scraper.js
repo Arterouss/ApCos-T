@@ -1,5 +1,13 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import dns from 'dns';
+
+try {
+  dns.setServers(["1.1.1.1", "8.8.8.8", "1.0.0.1", "8.8.4.4"]);
+  console.log("[Scraper DNS] Custom DNS resolvers (DoH) enabled.");
+} catch (e) {
+  console.warn("[Scraper DNS] Could not set custom DNS:", e.message);
+}
 
 puppeteer.use(StealthPlugin());
 
@@ -10,10 +18,19 @@ export const getBrowser = async () => {
   if (browserInstance) return browserInstance;
   
   if (!browserLaunchPromise) {
-    console.log("[Puppeteer] Launching new browser instance...");
+    console.log("[Puppeteer] Launching new browser instance with DoH & anti-block...");
     browserLaunchPromise = puppeteer.launch({
       headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--enable-features=DnsOverHttps',
+        '--dns-over-https-mode=secure',
+        '--dns-over-https-templates=https://chrome.cloudflare-dns.com/dns-query',
+        '--ignore-certificate-errors',
+        '--ignore-certificate-errors-spki-list'
+      ]
     }).then(browser => {
       browserInstance = browser;
       return browser;

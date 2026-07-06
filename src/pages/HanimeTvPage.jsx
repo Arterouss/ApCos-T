@@ -85,13 +85,13 @@ export default function HanimeTvPage({ onOpenSidebar }) {
           <div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-red-500 to-rose-600">
-                Hanime.tv
+                Jav.Guru
               </span>
             </h1>
             <p className="text-gray-400 text-sm max-w-lg">
               {debouncedQuery
                 ? `Search results for "${debouncedQuery}"`
-                : "Explore trending hentai anime videos."}
+                : "Explore latest Japanese Adult Videos from Jav.Guru."}
             </p>
           </div>
 
