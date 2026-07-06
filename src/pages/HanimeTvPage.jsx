@@ -8,7 +8,6 @@ import GlassCard from "../components/GlassCard";
 export default function HanimeTvPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -22,10 +21,8 @@ export default function HanimeTvPage({ onOpenSidebar }) {
   }, [searchQuery]);
 
   const fetchData = React.useCallback(
-    async (pageNum, isLoadMore = false) => {
-      if (isLoadMore) setLoadingMore(true);
-      else setLoading(true);
-
+    async (pageNum) => {
+      setLoading(true);
       try {
         let results;
         if (debouncedQuery) {
@@ -35,26 +32,16 @@ export default function HanimeTvPage({ onOpenSidebar }) {
         }
 
         let newHits = [];
-        // Hanime API often wraps videos inside hentai_videos array
         if (results && results.hentai_videos) newHits = results.hentai_videos;
-        else if (results && results.videos) newHits = results.videos; // fallback
+        else if (results && results.videos) newHits = results.videos;
         else if (Array.isArray(results)) newHits = results;
 
-        if (isLoadMore) {
-          setData((prev) => {
-            const existingIds = new Set(prev.map((p) => p.id));
-            const uniqueNew = newHits.filter((h) => !existingIds.has(h.id));
-            return [...prev, ...uniqueNew];
-          });
-        } else {
-          setData(newHits);
-        }
+        setData(newHits);
       } catch (error) {
         console.error("Failed to load hanime data", error);
-        if (!isLoadMore) setData([]);
+        setData([]);
       } finally {
-        if (isLoadMore) setLoadingMore(false);
-        else setLoading(false);
+        setLoading(false);
       }
     },
     [debouncedQuery],
@@ -62,13 +49,24 @@ export default function HanimeTvPage({ onOpenSidebar }) {
 
   useEffect(() => {
     setPage(0);
-    fetchData(0, false);
+    fetchData(0);
   }, [debouncedQuery, fetchData]);
 
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchData(nextPage, true);
+  const handlePageChange = (newPage) => {
+    if (newPage < 0 || newPage === page || loading) return;
+    setPage(newPage);
+    fetchData(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const getPageNumbers = () => {
+    const totalPagesToShow = 5;
+    let start = Math.max(0, page - Math.floor(totalPagesToShow / 2));
+    const pages = [];
+    for (let i = 0; i < totalPagesToShow; i++) {
+      pages.push(start + i);
+    }
+    return pages;
   };
 
   return (
@@ -132,16 +130,36 @@ export default function HanimeTvPage({ onOpenSidebar }) {
             </div>
 
             {data.length > 0 && (
-              <div className="mt-20 text-center pb-20">
+              <div className="mt-16 flex justify-center items-center gap-2 pb-20 flex-wrap">
                 <button
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="group relative px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full font-semibold transition-all disabled:opacity-50 text-white min-w-[200px] overflow-hidden"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 0 || loading}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none text-white text-sm shadow-md"
                 >
-                  <span className="relative z-10 group-hover:text-red-300 transition-colors">
-                    {loadingMore ? "Loading..." : "Load More"}
-                  </span>
-                  <div className="absolute inset-0 bg-red-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  Prev
+                </button>
+
+                {getPageNumbers().map((pNum) => (
+                  <button
+                    key={pNum}
+                    onClick={() => handlePageChange(pNum)}
+                    disabled={loading}
+                    className={`w-10 h-10 rounded-xl font-bold text-sm transition-all flex items-center justify-center border ${
+                      page === pNum
+                        ? "bg-gradient-to-r from-orange-500 to-rose-600 text-white border-transparent shadow-lg shadow-rose-500/30 scale-105"
+                        : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20"
+                    }`}
+                  >
+                    {pNum + 1}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={loading || data.length < 12}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none text-white text-sm shadow-md"
+                >
+                  Next
                 </button>
               </div>
             )}

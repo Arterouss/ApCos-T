@@ -103,9 +103,9 @@ export default function HanimeDetailPage() {
             </div>
           ) : (
             <iframe
-              src={activeUrl}
+              src={activeUrl && activeUrl.startsWith("http") && !activeUrl.includes(".mp4") && !activeUrl.includes(".m3u8") ? `/api/embed?url=${encodeURIComponent(activeUrl)}&referer=https://pornavhd.com/` : activeUrl}
               title={video.name}
-              className="w-full h-full"
+              className="w-full h-full border-0"
               frameBorder="0"
               allowFullScreen
               scrolling="no"

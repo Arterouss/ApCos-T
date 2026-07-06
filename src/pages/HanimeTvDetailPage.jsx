@@ -28,6 +28,7 @@ function VideoPlayer({ videoUrl, referer, quality }) {
           className="w-full h-full border-0"
           allowFullScreen
           allow="autoplay; fullscreen"
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
         />
       </div>
     );
