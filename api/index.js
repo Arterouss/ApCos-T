@@ -1612,7 +1612,9 @@ app.get("/api/hanime/trending", async (req, res) => {
 app.get("/api/hanime/search", async (req, res) => {
   const { q = "", page = 0 } = req.query;
   const pageNum = parseInt(page) || 0;
-  const url = `https://jav.guru/?s=${encodeURIComponent(q)}&page=${pageNum + 1}`;
+  const url = pageNum === 0
+    ? `https://jav.guru/?s=${encodeURIComponent(q)}`
+    : `https://jav.guru/page/${pageNum + 1}/?s=${encodeURIComponent(q)}`;
   
   try {
     const response = await fetch(url, {
@@ -1745,38 +1747,14 @@ app.get("/api/embed", async (req, res) => {
       "Referer": refHeader,
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
     });
-    const adKillerScript = `
-      <script>
-        window.open = function() { console.log('[AdBlock] Blocked window.open'); return null; };
-        document.addEventListener('click', function(e) {
-          var t = e.target;
-          while (t && t !== document) {
-            if (t.tagName === 'A' && (t.getAttribute('target') === '_blank' || (t.getAttribute('href') && !t.getAttribute('href').startsWith('#')))) {
-              var h = t.getAttribute('href') || '';
-              if (!h.includes(location.hostname) && !h.includes('.m3u8') && !h.includes('.mp4') && !h.includes('javascript:')) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[AdBlock] Blocked ad click:', h);
-                return false;
-              }
-            }
-            t = t.parentNode;
-          }
-        }, true);
-        window.addEventListener('DOMContentLoaded', function() {
-          var elms = document.querySelectorAll('div[style*="z-index: 2147483647"], div[class*="overlay"], a[target="_blank"]');
-          elms.forEach(function(el) { if (el.style && (el.style.position === 'absolute' || el.style.position === 'fixed')) el.remove(); });
-        });
-      </script>
-    `;
-    const injectedTags = `<base href="${targetUrl.origin}/" />\n  ${adKillerScript}`;
+    const baseTag = `<base href="${targetUrl.origin}/" />`;
     let modHtml = html;
     if (modHtml.includes("<head>")) {
-      modHtml = modHtml.replace("<head>", `<head>\n  ${injectedTags}`);
+      modHtml = modHtml.replace("<head>", `<head>\n  ${baseTag}`);
     } else if (modHtml.includes("<HEAD>")) {
-      modHtml = modHtml.replace("<HEAD>", `<HEAD>\n  ${injectedTags}`);
+      modHtml = modHtml.replace("<HEAD>", `<HEAD>\n  ${baseTag}`);
     } else {
-      modHtml = `${injectedTags}\n${modHtml}`;
+      modHtml = `${baseTag}\n${modHtml}`;
     }
 
     res.removeHeader("x-frame-options");

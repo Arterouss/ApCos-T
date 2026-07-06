@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getHanimeTrending, getHanimeSearch } from "../services/hanimeTvService";
-import { Menu, Play } from "lucide-react";
+import { Menu, Play, Tag } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 import GlassCard from "../components/GlassCard";
+
+const POPULAR_TAGS = [
+  "Uncensored", "Creampie", "MILF", "Schoolgirl", "Maid", "Incest",
+  "Anal", "Big Tits", "Cosplay", "Threesome", "Ahegao", "NTR",
+  "Tentacles", "Lesbian", "Blowjob", "Masturbation", "Amateur", "Mature"
+];
 
 export default function HanimeTvPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
@@ -99,6 +105,36 @@ export default function HanimeTvPage({ onOpenSidebar }) {
             </div>
           </div>
         </header>
+
+        {/* Popular Tags Menu */}
+        <div className="mb-8 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex items-center gap-2 min-w-max">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1 mr-2">
+              <Tag size={13} className="text-orange-400" /> Tags:
+            </span>
+            {POPULAR_TAGS.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => {
+                  if (searchQuery.toLowerCase() === tag.toLowerCase()) {
+                    setSearchQuery("");
+                    setPage(0);
+                  } else {
+                    setSearchQuery(tag);
+                    setPage(0);
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1.5 border ${
+                  searchQuery.toLowerCase() === tag.toLowerCase()
+                    ? "bg-gradient-to-r from-orange-500 to-red-600 text-white border-transparent shadow-lg shadow-red-500/20 scale-105"
+                    : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">

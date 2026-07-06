@@ -103,13 +103,12 @@ export default function HanimeDetailPage() {
             </div>
           ) : (
             <iframe
-              src={activeUrl && activeUrl.startsWith("http") && !activeUrl.includes(".mp4") && !activeUrl.includes(".m3u8") ? `/api/embed?url=${encodeURIComponent(activeUrl)}&referer=https://pornavhd.com/` : activeUrl}
+              src={activeUrl}
               title={video.name}
-              className="w-full h-full border-0"
+              className="w-full h-full"
               frameBorder="0"
               allowFullScreen
               scrolling="no"
-              sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
             />
           )
         ) : (
