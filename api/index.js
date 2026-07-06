@@ -1732,6 +1732,42 @@ app.get("/api/hanime/video", async (req, res) => {
   }
 });
 
+// Proxy Embed untuk mengatasi "Video embed restricted for this domain"
+app.get("/api/embed", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing URL");
+
+  try {
+    const targetUrl = new URL(url);
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": getRandomUA(),
+        "Referer": "https://jav.guru/",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      }
+    });
+
+    const html = await response.text();
+    const baseTag = `<base href="${targetUrl.origin}/" />`;
+    let modHtml = html;
+    if (modHtml.includes("<head>")) {
+      modHtml = modHtml.replace("<head>", `<head>\n  ${baseTag}`);
+    } else if (modHtml.includes("<HEAD>")) {
+      modHtml = modHtml.replace("<HEAD>", `<HEAD>\n  ${baseTag}`);
+    } else {
+      modHtml = `${baseTag}\n${modHtml}`;
+    }
+
+    res.removeHeader("x-frame-options");
+    res.removeHeader("content-security-policy");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(modHtml);
+  } catch (error) {
+    console.error("[Embed Proxy Error]", error.message);
+    res.status(500).send(`Error loading embed: ${error.message}`);
+  }
+});
+
 // ==========================================
 // CAVPORN SCRAPER (cav103.com)
 // ==========================================

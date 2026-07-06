@@ -18,10 +18,13 @@ import {
 function VideoPlayer({ videoUrl, referer, quality }) {
   const isIframe = videoUrl && !videoUrl.includes(".m3u8") && !videoUrl.includes(".mp4");
   if (isIframe) {
+    const embedProxyUrl = videoUrl.startsWith("http")
+      ? `/api/embed?url=${encodeURIComponent(videoUrl)}`
+      : videoUrl;
     return (
       <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10">
         <iframe
-          src={videoUrl}
+          src={embedProxyUrl}
           className="w-full h-full border-0"
           allowFullScreen
           allow="autoplay; fullscreen"
@@ -229,7 +232,19 @@ export default function HanimeTvDetailPage() {
               onClick={handlePlay}
             >
               {(data.poster_url || data.cover_url) && (
-                <img src={data.poster_url || data.cover_url} alt={data.name} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
+                <img
+                  src={data.poster_url || data.cover_url}
+                  alt={data.name}
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-300"
+                  onError={(e) => {
+                    const u = data.poster_url || data.cover_url;
+                    if (!e.target.dataset.proxied && u && u.startsWith("http")) {
+                      e.target.dataset.proxied = "true";
+                      e.target.src = `/api/proxy?url=${encodeURIComponent(u)}&referer=https://jav.guru/`;
+                    }
+                  }}
+                />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute inset-0 flex items-center justify-center">
@@ -261,7 +276,21 @@ export default function HanimeTvDetailPage() {
                 <VideoPlayer key={activeQIdx} videoUrl={currentStream.url} referer={currentStream.referer} quality={currentStream.quality} />
               ) : (
                 <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-neutral-900 flex flex-col items-center justify-center gap-4 relative">
-                  {(data.poster_url || data.cover_url) && <img src={data.poster_url || data.cover_url} alt={data.name} className="absolute inset-0 w-full h-full object-cover opacity-20" />}
+                  {(data.poster_url || data.cover_url) && (
+                    <img
+                      src={data.poster_url || data.cover_url}
+                      alt={data.name}
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 w-full h-full object-cover opacity-20"
+                      onError={(e) => {
+                        const u = data.poster_url || data.cover_url;
+                        if (!e.target.dataset.proxied && u && u.startsWith("http")) {
+                          e.target.dataset.proxied = "true";
+                          e.target.src = `/api/proxy?url=${encodeURIComponent(u)}&referer=https://jav.guru/`;
+                        }
+                      }}
+                    />
+                  )}
                   <div className="relative z-10 text-center px-6">
                     <AlertTriangle size={36} className="mx-auto mb-3 text-amber-400" />
                     <p className="text-gray-400 text-sm mb-4">Stream unavailable.</p>

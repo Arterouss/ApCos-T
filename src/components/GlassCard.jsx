@@ -34,16 +34,22 @@ const GlassCard = ({
           <img
             src={thumb}
             alt={title}
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-in-out"
             loading="lazy"
             onError={(e) => {
-              e.target.style.display = "none";
-              e.target.parentElement.classList.add(
-                "flex",
-                "items-center",
-                "justify-center",
-                "bg-neutral-900",
-              );
+              if (!e.target.dataset.proxied && thumb.startsWith("http")) {
+                e.target.dataset.proxied = "true";
+                e.target.src = `/api/proxy?url=${encodeURIComponent(thumb)}&referer=https://jav.guru/`;
+              } else {
+                e.target.style.display = "none";
+                e.target.parentElement.classList.add(
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "bg-neutral-900"
+                );
+              }
             }}
           />
         ) : (
@@ -55,7 +61,7 @@ const GlassCard = ({
 
         {/* Hover Overlay with Info */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-          <p className="text-xs text-gray-300 line-clamp-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
+          <p className="text-xs text-gray-300 line-clamp-3 mb-10 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
             {title}
           </p>
         </div>
@@ -68,10 +74,10 @@ const GlassCard = ({
         )}
       </Link>
 
-      {/* Content for non-hover state (or always visible if mobile) */}
-      <div className="p-3 bg-neutral-900/80 backdrop-blur-sm border-t border-white/5 absolute bottom-0 w-full transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+      {/* Content always visible for clean aesthetics */}
+      <div className="p-3 bg-neutral-900/90 backdrop-blur-sm border-t border-white/5 absolute bottom-0 w-full transition-all duration-300">
         <h3
-          className="text-sm font-medium text-gray-100 line-clamp-1"
+          className="text-sm font-medium text-gray-100 line-clamp-2"
           title={title}
         >
           {title}
