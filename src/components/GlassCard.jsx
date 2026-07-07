@@ -27,15 +27,15 @@ const GlassCard = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="group relative rounded-xl overflow-hidden glass-panel hover:border-violet-500/30 transition-all duration-300"
+      className="group flex flex-col rounded-xl overflow-hidden glass-panel hover:border-violet-500/40 transition-all duration-300 bg-neutral-900/40 hover:shadow-xl hover:shadow-violet-500/10"
     >
-      <Link to={to} className="block relative aspect-[2/3] overflow-hidden">
+      <Link to={to} className="block relative aspect-[2/3] overflow-hidden w-full bg-neutral-900">
         {thumb ? (
           <img
             src={thumb}
             alt={title}
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-in-out"
+            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 ease-in-out"
             loading="lazy"
             onError={(e) => {
               if (!e.target.dataset.proxied && thumb.startsWith("http")) {
@@ -60,30 +60,30 @@ const GlassCard = ({
         )}
 
         {/* Hover Overlay with Info */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-          <p className="text-xs text-gray-300 line-clamp-3 mb-10 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+          <p className="text-[11px] text-gray-200 line-clamp-3 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
             {title}
           </p>
         </div>
 
         {/* Category Badge */}
         {category && (
-          <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-bold bg-black/60 backdrop-blur-md text-white border border-white/10 shadow-sm z-10">
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-black/70 backdrop-blur-md text-white border border-white/10 shadow-sm z-10 max-w-[85%] truncate">
             {category}
           </div>
         )}
       </Link>
 
       {/* Content always visible for clean aesthetics */}
-      <div className="p-3 bg-neutral-900/90 backdrop-blur-sm border-t border-white/5 absolute bottom-0 w-full transition-all duration-300">
+      <div className="p-2.5 sm:p-3 bg-neutral-900/80 backdrop-blur-sm border-t border-white/5 flex-1 flex flex-col justify-between">
         <h3
-          className="text-sm font-medium text-gray-100 line-clamp-2"
+          className="text-xs sm:text-sm font-semibold text-gray-100 line-clamp-2 leading-snug group-hover:text-violet-300 transition-colors"
           title={title}
         >
           {title}
         </h3>
         {subtitle && (
-          <p className="text-[10px] text-gray-400 mt-0.5">{subtitle}</p>
+          <p className="text-[10px] text-gray-400 mt-1 truncate">{subtitle}</p>
         )}
       </div>
     </motion.div>

@@ -31,14 +31,7 @@ export default function Rule34Page({ onOpenSidebar }) {
   };
 
   return (
-    <div className="min-h-screen text-white pt-20 px-4 md:px-8 pb-20">
-      <button
-        onClick={onOpenSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg hover:bg-white/10 transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-
+    <div className="min-h-screen text-white pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 pb-20">
       {/* Media Viewer Modal */}
       {selectedPost && (
         <MediaViewer
@@ -49,11 +42,11 @@ export default function Rule34Page({ onOpenSidebar }) {
       )}
 
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-white mb-3">
+      <div className="max-w-7xl mx-auto mb-6 md:mb-10">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-white mb-2 sm:mb-3">
           Rule34
         </h1>
-        <p className="text-gray-400 text-sm md:text-base font-light mb-8 max-w-2xl">
+        <p className="text-gray-400 text-xs sm:text-sm md:text-base font-light mb-6 md:mb-8 max-w-2xl">
           Discover a vast collection of community-curated artwork and
           animations.
         </p>
@@ -66,7 +59,7 @@ export default function Rule34Page({ onOpenSidebar }) {
       </div>
 
       {/* Gallery Grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+      <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
         {posts.map((post) => (
           <PostCard key={post.id} post={post} onClick={setSelectedPost} />
         ))}

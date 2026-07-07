@@ -76,23 +76,16 @@ export default function HanimeTvPage({ onOpenSidebar }) {
   };
 
   return (
-    <div className="min-h-screen text-white pb-20 pt-24 px-4 md:px-8 bg-neutral-950/50">
-      <button
-        onClick={onOpenSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg hover:bg-white/10 transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-
+    <div className="min-h-screen text-white pb-20 pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 bg-neutral-950/50">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-10 text-center md:text-left flex flex-col md:flex-row justify-between items-end gap-6 border-b border-white/5 pb-6">
+        <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-stretch md:items-end gap-4 md:gap-6 border-b border-white/10 pb-6 text-left">
           <div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-red-500 to-rose-600">
                 Jav.Guru
               </span>
             </h1>
-            <p className="text-gray-400 text-sm max-w-lg">
+            <p className="text-gray-400 text-xs sm:text-sm max-w-lg">
               {debouncedQuery
                 ? `Search results for "${debouncedQuery}"`
                 : "Explore latest Japanese Adult Videos from Jav.Guru."}
@@ -107,9 +100,9 @@ export default function HanimeTvPage({ onOpenSidebar }) {
         </header>
 
         {/* Popular Tags Menu */}
-        <div className="mb-8 overflow-x-auto pb-2 scrollbar-none">
-          <div className="flex items-center gap-2 min-w-max">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1 mr-2">
+        <div className="mb-6 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1 mr-1.5">
               <Tag size={13} className="text-orange-400" /> Tags:
             </span>
             {POPULAR_TAGS.map((tag) => (
@@ -124,7 +117,7 @@ export default function HanimeTvPage({ onOpenSidebar }) {
                     setPage(0);
                   }
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1.5 border ${
+                className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1 border ${
                   searchQuery.toLowerCase() === tag.toLowerCase()
                     ? "bg-gradient-to-r from-orange-500 to-red-600 text-white border-transparent shadow-lg shadow-red-500/20 scale-105"
                     : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20"
@@ -137,7 +130,7 @@ export default function HanimeTvPage({ onOpenSidebar }) {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
             {[...Array(10)].map((_, i) => (
               <div key={i} className="animate-pulse flex flex-col gap-3">
                 <div className="bg-white/5 aspect-[16/9] rounded-xl w-full" />
@@ -148,7 +141,7 @@ export default function HanimeTvPage({ onOpenSidebar }) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
               {data.map((item, idx) => (
                 <GlassCard
                   key={`${item.id}-${idx}`}

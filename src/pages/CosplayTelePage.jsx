@@ -70,32 +70,25 @@ export default function CosplayTelePage({ onOpenSidebar }) {
   };
 
   return (
-    <div className="min-h-screen text-white pb-20 pt-20 px-4 md:px-8 bg-neutral-950">
-      <button
-        onClick={onOpenSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg hover:bg-white/10 transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-
+    <div className="min-h-screen text-white pb-20 pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 bg-neutral-950">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 text-center md:text-left">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-rose-600 bg-clip-text text-transparent">
+        <header className="mb-6 md:mb-8 text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-500 to-rose-600 bg-clip-text text-transparent">
             CosplayTele Gallery
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-gray-400 text-xs sm:text-sm mt-1">
             {debouncedQuery
               ? `Results for "${debouncedQuery}"`
               : "Latest Cosplay Packs & Sets"}
           </p>
         </header>
 
-        <div className="mb-8 max-w-2xl">
+        <div className="mb-6 md:mb-8 max-w-2xl">
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="animate-pulse">
                 <div className="bg-gray-800 aspect-[2/3] rounded-xl mb-3"></div>
@@ -104,18 +97,18 @@ export default function CosplayTelePage({ onOpenSidebar }) {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {data.map((item) => (
               <Link
                 key={item.slug}
                 to={`/cosplay/${item.slug}`}
-                className="group relative block overflow-hidden rounded-xl bg-gray-900 border border-white/5 hover:border-pink-500/50 transition-all duration-300"
+                className="group relative flex flex-col overflow-hidden rounded-xl bg-gray-900 border border-white/5 hover:border-pink-500/50 transition-all duration-300"
               >
-                <div className="aspect-[2/3] overflow-hidden relative">
+                <div className="aspect-[2/3] overflow-hidden relative w-full">
                   <img
                     src={item.thumbnail}
                     alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
@@ -128,8 +121,8 @@ export default function CosplayTelePage({ onOpenSidebar }) {
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <h3 className="font-medium text-sm md:text-base line-clamp-2 group-hover:text-pink-400 transition-colors">
+                <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
+                  <h3 className="font-medium text-xs sm:text-sm line-clamp-2 group-hover:text-pink-400 transition-colors leading-snug">
                     {item.title}
                   </h3>
                 </div>

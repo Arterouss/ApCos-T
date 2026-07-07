@@ -140,22 +140,14 @@ export default function Oreno3dPage({ onOpenSidebar }) {
   };
 
   return (
-    <div ref={topRef} className="min-h-screen text-white pb-20 pt-20 px-4 md:px-8 bg-neutral-950">
-      {/* Mobile menu button */}
-      <button
-        onClick={onOpenSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg hover:bg-white/10 transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-
+    <div ref={topRef} className="min-h-screen text-white pb-20 pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 bg-neutral-950">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-6 text-center md:text-left">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent flex items-center justify-center md:justify-start gap-2">
-            <Box size={32} className="text-cyan-500" /> Iwara TV Gallery
+        <header className="mb-6 text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent flex items-center justify-start gap-2">
+            <Box size={28} className="text-cyan-500" /> Iwara TV Gallery
           </h1>
-          <p className="text-gray-400 mt-1 text-sm">
+          <p className="text-gray-400 mt-1 text-xs sm:text-sm">
             {debouncedQuery
               ? `Search results for "${debouncedQuery}"`
               : SORT_TABS.find((t) => t.key === activeSort)?.label ?? "3D Animations"}
@@ -199,7 +191,7 @@ export default function Oreno3dPage({ onOpenSidebar }) {
         ) : data.length === 0 ? (
           <div className="text-center py-20 text-gray-500">No posts found.</div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
             {data.map((item) => (
               <Link
                 key={item.id || item.slug}

@@ -6,6 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
+import { Menu } from "lucide-react";
 import Home from "./pages/Home";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
@@ -95,7 +96,27 @@ function App() {
             onClose={() => setIsSidebarOpen(false)}
           />
 
-          <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300">
+          <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-hidden">
+            {/* Global Sticky Top Header for Mobile */}
+            <div className="md:hidden sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50">
+              <button
+                onClick={onOpenSidebar}
+                className="p-2.5 bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-xl text-white transition-all flex items-center justify-center"
+                aria-label="Open Menu"
+              >
+                <Menu size={22} className="text-orange-400" />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-lg bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-red-500 to-rose-600 tracking-tight">
+                  ApiCos
+                </span>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                  PRO
+                </span>
+              </div>
+              <div className="w-10" /> {/* Spacer */}
+            </div>
+
             <AnimatedRoutes onOpenSidebar={onOpenSidebar} />
           </main>
         </div>

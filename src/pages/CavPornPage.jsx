@@ -112,20 +112,13 @@ export default function CavPornPage({ onOpenSidebar }) {
   };
 
   return (
-    <div className="min-h-screen text-white pb-20 pt-20 px-4 md:px-8 bg-neutral-950">
-      <button
-        onClick={onOpenSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg hover:bg-white/10 transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-
+    <div className="min-h-screen text-white pb-20 pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 bg-neutral-950">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 text-center md:text-left">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent flex items-center justify-center md:justify-start gap-2">
-            <Play size={32} className="text-red-500" /> CavPorn
+        <header className="mb-6 md:mb-8 text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent flex items-center justify-start gap-2">
+            <Play size={28} className="text-red-500" /> CavPorn
           </h1>
-          <p className="text-gray-400 mt-1">{getSubtitle()}</p>
+          <p className="text-gray-400 mt-1 text-xs sm:text-sm">{getSubtitle()}</p>
         </header>
 
         {/* Search Bar */}
@@ -134,80 +127,80 @@ export default function CavPornPage({ onOpenSidebar }) {
         </div>
 
         {/* Filter Controls */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
           <button
             onClick={() => {
               setShowCategories(!showCategories);
               setShowTags(false);
             }}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all border flex items-center gap-2 ${
-              showCategories
-                ? "bg-red-600 text-white border-red-500"
-                : "bg-white/5 text-gray-400 hover:text-white border-white/10 hover:border-red-500/30"
+            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+              showCategories || activeCategory
+                ? "bg-red-500 text-white shadow-lg shadow-red-500/20"
+                : "bg-white/5 text-gray-300 hover:bg-white/10"
             }`}
           >
-            <Grid size={16} /> Categories
+            <Filter size={16} />
+            {activeCategory ? activeCategory.name : "Categories"}
           </button>
+
           <button
             onClick={() => {
               setShowTags(!showTags);
               setShowCategories(false);
             }}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all border flex items-center gap-2 ${
+            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
               showTags
-                ? "bg-red-600 text-white border-red-500"
-                : "bg-white/5 text-gray-400 hover:text-white border-white/10 hover:border-red-500/30"
+                ? "bg-red-500 text-white shadow-lg shadow-red-500/20"
+                : "bg-white/5 text-gray-300 hover:bg-white/10"
             }`}
           >
-            <Tag size={16} /> Tags
+            <Tag size={16} />
+            Tags
           </button>
 
           {activeCategory && (
             <button
-              onClick={handleClearFilter}
-              className="px-4 py-2 rounded-full text-sm font-medium bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600/40 transition-all flex items-center gap-1"
+              onClick={() => handleCategorySelect(null)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all border border-red-500/30"
             >
-              ✕ {activeCategory.name}
+              Clear Category ✕
             </button>
           )}
         </div>
 
-        {/* Categories Dropdown */}
-        {showCategories && categories.length > 0 && (
-          <div className="mb-8 p-4 bg-white/5 border border-white/10 rounded-2xl">
+        {/* Categories Drawer */}
+        {showCategories && (
+          <div className="mb-8 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl animate-fade-in">
             <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">
-              Categories
+              Select Category
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {categories.map((cat) => (
                 <button
-                  key={cat.hash}
-                  onClick={() => handleCategoryClick(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-all border ${
+                  key={cat.id || cat.hash}
+                  onClick={() => handleCategorySelect(cat)}
+                  className={`p-2.5 rounded-xl text-left transition-all ${
                     activeCategory?.hash === cat.hash
-                      ? "bg-red-600 text-white border-red-500"
-                      : "bg-white/5 text-gray-300 hover:text-white border-white/5 hover:border-red-500/30 hover:bg-white/10"
+                      ? "bg-red-500 text-white font-medium"
+                      : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  {cat.name}
-                  {cat.count !== "0" && (
-                    <span className="ml-1 text-xs opacity-60">
-                      ({cat.count})
-                    </span>
-                  )}
+                  <div className="text-xs font-semibold line-clamp-1">
+                    {cat.name}
+                  </div>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Tags Dropdown */}
-        {showTags && tags.length > 0 && (
-          <div className="mb-8 p-4 bg-white/5 border border-white/10 rounded-2xl">
+        {/* Tags Drawer */}
+        {showTags && (
+          <div className="mb-8 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl animate-fade-in">
             <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">
               Popular Tags
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {tags.map((tag) => (
                 <button
                   key={tag.hash}
@@ -215,7 +208,7 @@ export default function CavPornPage({ onOpenSidebar }) {
                     setSearchQuery(tag.name);
                     setShowTags(false);
                   }}
-                  className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-gray-300 hover:text-white border border-white/5 hover:border-red-500/30 hover:bg-white/10 transition-all"
+                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm bg-white/5 text-gray-300 hover:text-white border border-white/5 hover:border-red-500/30 hover:bg-white/10 transition-all"
                 >
                   {tag.name}
                 </button>
@@ -226,17 +219,17 @@ export default function CavPornPage({ onOpenSidebar }) {
 
         {/* Video Grid */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
             {[...Array(10)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="bg-gray-800 aspect-video rounded-xl mb-3"></div>
-                <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                <div className="bg-white/5 aspect-video rounded-xl mb-3"></div>
+                <div className="h-4 bg-white/5 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-white/5 rounded w-1/2"></div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
             {data.map((item) => (
               <Link
                 key={item.id}
