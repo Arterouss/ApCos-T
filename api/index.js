@@ -1381,27 +1381,87 @@ app.get("/api/oreno3d/debug", async (req, res) => {
   res.json(results);
 });
 
+// ── Helper: Scrape Oreno3d HTML ─────────────────────────────────
+const scrapeOreno3dHtml = async (targetUrl) => {
+  try {
+    const r = await axios.get(targetUrl, {
+      httpsAgent: sslAgent,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      },
+      timeout: 10000
+    });
+    return cheerio.load(r.data);
+  } catch (e) {
+    console.warn(`[Oreno3d] Direct fetch failed for ${targetUrl}: ${e.message}. Trying proxy...`);
+    const proxied = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
+    const r = await axios.get(proxied, { timeout: 12000 });
+    return cheerio.load(r.data);
+  }
+};
+
 // ── Gallery (latest/sort) ─────────────────────────────────────────
 app.get("/api/oreno3d/latest", async (req, res) => {
-  const page = Math.max(0, Number(req.query.page || 1) - 1);
-  const sort = IWARA_SORT[req.query.sort] || "date";
+  const page = Math.max(1, Number(req.query.page || 1));
+  const sort = req.query.sort || "latest";
 
   try {
-    // Try ecchi first, fall back to no-rating filter
-    let data = null;
-    for (const rating of ["ecchi", ""]) {
-      const qs = rating ? `&rating=${rating}` : "";
-      try {
-        data = await iwaraFetch(`${IWARA_API}/videos?page=${page}&limit=32&sort=${sort}${qs}`);
-        if (data?.results?.length > 0) break;
-      } catch(e) { /* try next */ }
+    let url = page === 1 ? "https://oreno3d.com/" : `https://oreno3d.com/?page=${page}`;
+    if (sort === "popular" || sort === "ranking") {
+      url = page === 1 ? "https://oreno3d.com/ranking" : `https://oreno3d.com/ranking?page=${page}`;
     }
-    if (!data?.results) throw new Error("No results from Iwara");
-    const videos = data.results.map(normalizeIwaraVideo);
-    console.log(`[Iwara] Got ${videos.length} videos`);
+
+    const $ = await scrapeOreno3dHtml(url);
+    const videos = [];
+    const seenIds = new Set();
+
+    $("article, .box.pop_separate").each((i, el) => {
+      let link = $(el).find("a").first().attr("href") || $(el).attr("href") || "";
+      if (!link.includes("/movies/")) return;
+      
+      const idMatch = link.match(/\/movies\/(\d+)/);
+      if (!idMatch) return;
+      const id = idMatch[1];
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+
+      const title = $(el).find("h2, h3, .title, [class*='title']").text().trim() || 
+                    $(el).find("img").attr("alt")?.trim() || "Untitled Video";
+      
+      let thumb = $(el).find("img").attr("src") || $(el).find("img").attr("data-src") || "";
+      if (thumb && !thumb.startsWith("http")) {
+        thumb = "https://oreno3d.com" + thumb;
+      }
+      if (thumb.includes("thumbnails_small")) {
+        thumb = thumb.replace("thumbnails_small", "thumbnails");
+      }
+
+      const proxiedThumb = thumb ? `/api/proxy/image?url=${encodeURIComponent(thumb)}&referer=${encodeURIComponent("https://oreno3d.com/")}` : null;
+
+      videos.push({
+        id: id,
+        slug: id,
+        iwaraId: id,
+        iwaraSlug: id,
+        title: title,
+        thumbnail: proxiedThumb,
+        views: 0,
+        likes: 0,
+        author: "Iwara Creator",
+        date: "",
+        tags: [],
+        rating: "all",
+        externalVideoUrl: link.startsWith("http") ? link : `https://oreno3d.com${link}`,
+        originalUrl: link.startsWith("http") ? link : `https://oreno3d.com${link}`,
+        iwaraVideoId: id
+      });
+    });
+
+    console.log(`[Oreno3d] Got ${videos.length} videos for page=${page}, sort=${sort}`);
     res.json(videos);
   } catch (err) {
-    console.error("[Iwara] Latest error:", err.message);
+    console.error("[Oreno3d] Latest error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1411,83 +1471,160 @@ app.get("/api/oreno3d/latest", async (req, res) => {
 app.get("/api/oreno3d/search", async (req, res) => {
   const { q, page = 1 } = req.query;
   if (!q) return res.status(400).json({ error: "Query required" });
-  const iwaraPage = Math.max(0, Number(page) - 1);
+  
   try {
-    const data = await iwaraFetch(`${IWARA_API}/videos?page=${iwaraPage}&limit=32&sort=date&search=${encodeURIComponent(q)}`);
-    const videos = (data?.results || []).map(normalizeIwaraVideo);
-    console.log(`[Iwara] Search "${q}": ${videos.length} results`);
+    const url = `https://oreno3d.com/search?keyword=${encodeURIComponent(q)}${page > 1 ? `&page=${page}` : ""}`;
+    const $ = await scrapeOreno3dHtml(url);
+    const videos = [];
+    const seenIds = new Set();
+
+    $("article, .box.pop_separate").each((i, el) => {
+      let link = $(el).find("a").first().attr("href") || $(el).attr("href") || "";
+      if (!link.includes("/movies/")) return;
+      
+      const idMatch = link.match(/\/movies\/(\d+)/);
+      if (!idMatch) return;
+      const id = idMatch[1];
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+
+      const title = $(el).find("h2, h3, .title, [class*='title']").text().trim() || 
+                    $(el).find("img").attr("alt")?.trim() || "Untitled";
+      
+      let thumb = $(el).find("img").attr("src") || $(el).find("img").attr("data-src") || "";
+      if (thumb && !thumb.startsWith("http")) thumb = "https://oreno3d.com" + thumb;
+      if (thumb.includes("thumbnails_small")) thumb = thumb.replace("thumbnails_small", "thumbnails");
+
+      const proxiedThumb = thumb ? `/api/proxy/image?url=${encodeURIComponent(thumb)}&referer=${encodeURIComponent("https://oreno3d.com/")}` : null;
+
+      videos.push({
+        id: id,
+        slug: id,
+        iwaraId: id,
+        iwaraSlug: id,
+        title: title,
+        thumbnail: proxiedThumb,
+        views: 0,
+        likes: 0,
+        author: "",
+        date: "",
+        tags: [],
+        rating: "all",
+        externalVideoUrl: link.startsWith("http") ? link : `https://oreno3d.com${link}`,
+        originalUrl: link.startsWith("http") ? link : `https://oreno3d.com${link}`,
+        iwaraVideoId: id
+      });
+    });
+
+    console.log(`[Oreno3d] Search "${q}": ${videos.length} results`);
     res.json(videos);
   } catch (err) {
-    console.error("[Iwara] Search error:", err.message);
+    console.error("[Oreno3d] Search error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── Detail (metadata from Iwara API) ─────────────────────────────
+// ── Detail (from Oreno3d page HTML) ─────────────────────────────
 app.get("/api/oreno3d/detail", async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
+  
   try {
-    const v = await iwaraFetch(`${IWARA_API}/video/${id}`);
-    if (!v || !v.id) return res.status(404).json({ error: "Video not found" });
-    const normalized = normalizeIwaraVideo(v);
-    res.json({ ...normalized, iwaraVideoId: v.id });
+    const url = `https://oreno3d.com/movies/${id}`;
+    const $ = await scrapeOreno3dHtml(url);
+
+    const title = $("h1").text().trim() || $("title").text().split("｜")[0].trim() || "Untitled";
+    
+    const tags = [];
+    $(".video-tag-btn .tag-text, .tag-btn .tag-text").each((i, el) => {
+      const t = $(el).text().trim();
+      if (t && !tags.includes(t)) tags.push(t);
+    });
+
+    const authorComment = $(".video-information-comment").text().trim();
+    const author = $(".video-h2-authors").text().replace("作者コメント：", "").trim() || "Iwara Creator";
+
+    let iwaraVideoId = id;
+    $("a").each((i, el) => {
+      const href = $(el).attr("href") || "";
+      if (href.includes("iwara.tv/video/")) {
+        const parts = href.split("iwara.tv/video/")[1]?.split("/");
+        if (parts && parts[0]) iwaraVideoId = parts[0];
+      }
+    });
+
+    let thumb = $(".video-player").attr("poster") || $('meta[property="og:image"]').attr("content") || "";
+    const proxiedThumb = thumb ? `/api/proxy/image?url=${encodeURIComponent(thumb)}&referer=${encodeURIComponent("https://oreno3d.com/")}` : null;
+
+    res.json({
+      id: id,
+      slug: id,
+      iwaraId: iwaraVideoId,
+      iwaraSlug: iwaraVideoId,
+      title: title,
+      thumbnail: proxiedThumb,
+      views: 0,
+      likes: 0,
+      author: author,
+      authorComment: authorComment,
+      date: "",
+      tags: tags,
+      rating: "all",
+      externalVideoUrl: url,
+      originalUrl: `https://www.iwara.tv/video/${iwaraVideoId}`,
+      iwaraVideoId: iwaraVideoId
+    });
   } catch (err) {
-    console.error("[Iwara] Detail error:", err.message);
+    console.error("[Oreno3d] Detail error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── Stream (signed video URLs from Iwara) ─────────────────────────
+// ── Stream (signed video URLs from Iwara or Oreno3d fallback) ────
 app.get("/api/oreno3d/stream", async (req, res) => {
   const { iwaraId } = req.query;
   if (!iwaraId) return res.status(400).json({ error: "iwaraId required" });
+  
   try {
     console.log(`[Iwara Stream] Fetching for: ${iwaraId}`);
-    // Step 1: Get video info (fileUrl)
-    const info = await iwaraFetch(`${IWARA_API}/video/${iwaraId}`);
+    // Step 1: Get video info (fileUrl) via direct or proxy
+    let info = null;
+    try {
+      info = await iwaraFetch(`${IWARA_API}/video/${iwaraId}`);
+    } catch (e) {
+      console.warn("[Iwara Stream] iwaraFetch failed, returning empty sources so client-side can fallback");
+      return res.json({ rawVideoUrls: [] });
+    }
+
     const fileUrl = info?.fileUrl;
     if (!fileUrl) return res.json({ rawVideoUrls: [] });
 
     // Step 2: Compute X-Version header (sha1 signature) and fetch sources
-    const fileKey = fileUrl.split("/")[6] || "";
+    const fileId = info.file?.id || "";
+    const fullUrl = fileUrl.startsWith("//") ? "https:" + fileUrl : fileUrl;
+    const parsedUrl = new URL(fullUrl);
+    const expires = parsedUrl.searchParams.get("expires") || "";
+    
     const xVersion = createHash("sha1")
-      .update(`${fileKey}_5nFp9kmbNnHdAFhaqMvt`)
+      .update(`${fileId}_${expires}_5nFp9kmbNnHdAFhaqMvt`)
       .digest("hex");
 
     let sourcesData = null;
     const streamHeaders = { "X-Version": xVersion, "User-Agent": "Mozilla/5.0" };
     let debugInfo = [];
     
-    // Try direct first (files CDN usually doesn't block Vercel)
     try {
-      debugInfo.push(`Trying direct: https:${fileUrl}`);
-      const res = await axios.get(`https:${fileUrl}`, { headers: streamHeaders, timeout: 7000 });
-      sourcesData = res.data;
-      debugInfo.push(`Direct success: ${Array.isArray(sourcesData) ? sourcesData.length : "object"}`);
+      debugInfo.push(`Trying direct: ${fullUrl}`);
+      const r = await axios.get(fullUrl, { headers: streamHeaders, timeout: 8000 });
+      sourcesData = r.data;
     } catch (e) {
-      debugInfo.push(`Direct failed: ${e.message} (Status: ${e.response?.status})`);
-      // Fallback to corsproxy
+      debugInfo.push(`Direct failed: ${e.message}`);
       try {
-        const proxied = `https://corsproxy.io/?${encodeURIComponent("https:" + fileUrl)}`;
-        debugInfo.push(`Trying corsproxy: ${proxied}`);
-        const res = await axios.get(proxied, { headers: streamHeaders, timeout: 8000 });
-        sourcesData = res.data;
-        debugInfo.push(`corsproxy success: ${Array.isArray(sourcesData) ? sourcesData.length : "object"}`);
+        const proxied = `https://corsproxy.io/?${encodeURIComponent(fullUrl)}`;
+        const r = await axios.get(proxied, { headers: streamHeaders, timeout: 8000 });
+        sourcesData = r.data;
       } catch (err2) {
-        debugInfo.push(`corsproxy failed: ${err2.message} (Status: ${err2.response?.status})`);
-        
-        // Try allorigins just in case it doesn't need X-Version (unlikely)
-        try {
-          const proxied2 = `https://api.allorigins.win/raw?url=${encodeURIComponent("https:" + fileUrl)}`;
-          debugInfo.push(`Trying allorigins: ${proxied2}`);
-          const res = await axios.get(proxied2, { headers: streamHeaders, timeout: 8000 });
-          sourcesData = res.data;
-          debugInfo.push(`allorigins success: ${Array.isArray(sourcesData) ? sourcesData.length : "object"}`);
-        } catch (err3) {
-          debugInfo.push(`allorigins failed: ${err3.message} (Status: ${err3.response?.status})`);
-          throw new Error("All stream fetch attempts failed. Debug: " + debugInfo.join(" | "));
-        }
+        debugInfo.push(`corsproxy failed: ${err2.message}`);
       }
     }
 
@@ -1511,7 +1648,6 @@ app.get("/api/oreno3d/stream", async (req, res) => {
     res.json({ rawVideoUrls, debug: debugInfo });
   } catch (err) {
     console.error("[Iwara Stream] Error:", err.message);
-    // Return 200 with error field so frontend can log it instead of just 500 crash
     res.status(200).json({ error: err.message, rawVideoUrls: [] });
   }
 });

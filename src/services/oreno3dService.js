@@ -45,20 +45,45 @@ async function sha1(str) {
 }
 
 // Fetch stream purely from frontend to bypass Vercel's backend IP block
+// Fetch stream with multi-layer fallback (backend first, then frontend proxies)
 export const getOreno3dStream = async (iwaraId) => {
   try {
-    // 1. Fetch video info to get fileUrl - using allorigins for metadata (metadata usually doesn't need custom headers)
+    // 1. Try our backend first (since backend now has DoH & multi-proxy logic)
+    try {
+      const backendRes = await fetch(`${API_URL}/stream?iwaraId=${iwaraId}`);
+      if (backendRes.ok) {
+        const data = await backendRes.json();
+        if (data && data.rawVideoUrls && data.rawVideoUrls.length > 0) {
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn("Backend stream fetch failed, trying frontend fallback...", e);
+    }
+
+    // 2. Fallback: Fetch video info to get fileUrl using corsproxy / allorigins
     const infoUrl = `https://api.iwara.tv/video/${iwaraId}`;
-    const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(infoUrl)}`;
-    
-    let res = await fetch(allOriginsUrl);
-    if (!res.ok) throw new Error("Could not fetch video info via allorigins");
-    const info = await res.json();
+    let info = null;
+
+    try {
+      const corsproxyUrl = `https://corsproxy.io/?${encodeURIComponent(infoUrl)}`;
+      const res = await fetch(corsproxyUrl);
+      if (res.ok) info = await res.json();
+    } catch (e) {
+      console.warn("corsproxy info fetch failed:", e);
+    }
+
+    if (!info) {
+      const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(infoUrl)}`;
+      const res = await fetch(allOriginsUrl);
+      if (!res.ok) throw new Error("Could not fetch video info via proxies");
+      info = await res.json();
+    }
     
     const fileUrl = info.fileUrl;
     if (!fileUrl) throw new Error("No fileUrl found in video info");
 
-    // 2. Compute X-Version signature using file.id and expires
+    // 3. Compute X-Version signature
     const fileId = info.file?.id || "";
     const fullUrl = fileUrl.startsWith("//") ? "https:" + fileUrl : fileUrl;
     const parsedUrl = new URL(fullUrl);
@@ -66,17 +91,28 @@ export const getOreno3dStream = async (iwaraId) => {
     
     const xVersion = await sha1(`${fileId}_${expires}_5nFp9kmbNnHdAFhaqMvt`);
 
-    // 3. Fetch sources using our own /api/proxy (which we've updated to forward X-Version)
-    // This bypasses CORS and keeps the headers intact
+    // 4. Fetch sources using local proxy or corsproxy
+    let sourcesData = null;
     const sourcesUrl = `https:${fileUrl}`;
-    const localProxyUrl = `/api/proxy?url=${encodeURIComponent(sourcesUrl)}`;
     
-    res = await fetch(localProxyUrl, {
-      headers: { "X-Version": xVersion },
-    });
-    
-    if (!res.ok) throw new Error("Could not fetch stream sources via local proxy");
-    const sourcesData = await res.json();
+    try {
+      const localProxyUrl = `/api/proxy?url=${encodeURIComponent(sourcesUrl)}`;
+      const res = await fetch(localProxyUrl, {
+        headers: { "X-Version": xVersion },
+      });
+      if (res.ok) sourcesData = await res.json();
+    } catch (e) {
+      console.warn("Local proxy fetch failed, trying corsproxy...");
+    }
+
+    if (!sourcesData) {
+      const corsproxySourcesUrl = `https://corsproxy.io/?${encodeURIComponent(sourcesUrl)}`;
+      const res = await fetch(corsproxySourcesUrl, {
+        headers: { "X-Version": xVersion },
+      });
+      if (!res.ok) throw new Error("Could not fetch stream sources via corsproxy");
+      sourcesData = await res.json();
+    }
 
     const rawVideoUrls = [];
     if (Array.isArray(sourcesData)) {
@@ -94,9 +130,10 @@ export const getOreno3dStream = async (iwaraId) => {
         }
       }
     }
-    return { rawVideoUrls, debug: ["Frontend proxy fetch success"] };
+    return { rawVideoUrls, debug: ["Frontend multi-proxy fetch success"] };
   } catch (error) {
     console.error("Stream Service Error:", error);
     return { rawVideoUrls: [], error: error.message };
   }
 };
+
