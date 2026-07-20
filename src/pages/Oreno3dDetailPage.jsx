@@ -10,9 +10,10 @@ import {
   Eye,
   Heart,
   Calendar,
-  User,
   Tag,
   Loader,
+  Download,
+  User,
 } from "lucide-react";
 
 // ── HLS / MP4 Player ────────────────────────────────────────────────
@@ -82,21 +83,42 @@ function VideoPlayer({ videoUrl, referer, quality }) {
   }, [videoUrl, referer, proxyUrl]);
 
   return (
-    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-cyan-500/10">
+    <div className="relative aspect-video bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-cyan-500/10">
       <video ref={videoRef} controls autoPlay playsInline className="w-full h-full object-contain" />
       {isLoading && !playerError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 pointer-events-none">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">{quality} loading…</p>
-          </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto p-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500 mb-3" />
+          <p className="text-gray-300 text-sm font-medium mb-1">Memuat stream ({quality})...</p>
+          <p className="text-gray-500 text-xs text-center max-w-xs">Jika Iwara sibuk / memblokir proxy, silakan putar melalui link di bawah.</p>
         </div>
       )}
       {playerError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-          <div className="text-center p-4">
-            <AlertTriangle className="mx-auto mb-2 text-red-400" size={32} />
-            <p className="text-gray-300 text-sm">{playerError}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950/95 p-6 text-center z-20">
+          <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center mb-3">
+            <AlertTriangle className="text-red-400" size={24} />
+          </div>
+          <h4 className="text-base font-bold text-white mb-1">Gagal Memutar Video MP4</h4>
+          <p className="text-gray-400 text-xs mb-5 max-w-md">
+            Server CDN Iwara menolak pemutaran di dalam pemutar web (proteksi Cloudflare/token kedaluwarsa).
+          </p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/20 hover:scale-105"
+            >
+              <Download size={14} /> Download MP4 Langsung
+            </a>
+            <a
+              href={`https://www.iwara.tv/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-xs transition-all shadow-lg shadow-cyan-500/20 hover:scale-105"
+            >
+              <Play size={14} className="fill-black" /> Buka di Iwara TV
+            </a>
           </div>
         </div>
       )}
@@ -245,42 +267,88 @@ export default function Oreno3dDetailPage() {
           ) : (
             /* Player */
             <div>
-              {/* Quality tabs */}
-              {streams.length > 1 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {streams.map((s, idx) => (
-                    <button key={idx} onClick={() => setActiveQIdx(idx)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border
-                        ${activeQIdx === idx
-                          ? "bg-cyan-500 text-black border-cyan-500"
-                          : "bg-white/5 border-white/10 text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/40"}`}>
-                      {s.quality}
-                    </button>
-                  ))}
+              {/* Quality tabs and Download action */}
+              {streams.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <div className="flex flex-wrap gap-2">
+                    {streams.map((s, idx) => (
+                      <button key={idx} onClick={() => setActiveQIdx(idx)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border
+                          ${activeQIdx === idx
+                            ? "bg-cyan-500 text-black border-cyan-500"
+                            : "bg-white/5 border-white/10 text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/40"}`}>
+                        {s.quality}
+                      </button>
+                    ))}
+                  </div>
+                  {currentStream && (
+                    <a
+                      href={currentStream.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={`${data.title || "video"}.mp4`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-bold rounded-lg text-xs transition-all shadow-lg shadow-emerald-500/20 hover:scale-105"
+                    >
+                      <Download size={14} /> Download MP4 ({currentStream.quality})
+                    </a>
+                  )}
                 </div>
               )}
 
               {currentStream ? (
                 <VideoPlayer key={activeQIdx} videoUrl={currentStream.url} referer={currentStream.referer} quality={currentStream.quality} />
               ) : (
-                /* Fallback: no stream extracted */
-                <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-neutral-900 flex flex-col items-center justify-center gap-4 relative">
-                  {data.thumbnail && <img src={data.thumbnail} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-20" />}
-                  <div className="relative z-10 text-center px-6">
-                    <AlertTriangle size={36} className="mx-auto mb-3 text-amber-400" />
-                    <p className="text-gray-400 text-sm mb-4">{streamError || "Stream unavailable."}</p>
-                    <a href={data.externalVideoUrl || data.originalUrl} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-full transition-all shadow-lg shadow-cyan-500/30 hover:scale-105">
-                      <Play size={18} className="fill-black" /> Watch on Iwara
-                    </a>
+                /* Fallback: Cloudflare protected or stream unavailable */
+                <div className="aspect-video rounded-2xl overflow-hidden border border-cyan-500/30 bg-neutral-900/90 flex flex-col items-center justify-center p-6 text-center relative shadow-2xl shadow-cyan-500/10">
+                  {data.thumbnail && <img src={data.thumbnail} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-15 blur-sm pointer-events-none" />}
+                  <div className="relative z-10 max-w-lg mx-auto flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/20">
+                      <AlertTriangle size={28} className="text-cyan-400" />
+                    </div>
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-2">
+                      Dilindungi Keamanan Cloudflare Iwara
+                    </h3>
+                    <p className="text-gray-300 text-xs md:text-sm mb-6 leading-relaxed">
+                      Situs Iwara saat ini mengaktifkan proteksi <span className="text-cyan-400 font-semibold">Cloudflare Anti-Bot (Turnstile)</span> sehingga server proxy tidak dapat menarik link streaming MP4 secara otomatis.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+                      <a
+                        href={data.externalVideoUrl || data.originalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black font-extrabold rounded-xl transition-all shadow-xl shadow-cyan-500/30 hover:scale-105 text-sm"
+                      >
+                        <Play size={18} className="fill-black" /> Putar & Download Langsung di Iwara
+                      </a>
+                      <button
+                        onClick={handlePlay}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl border border-white/15 transition-all text-sm"
+                      >
+                        <Loader size={16} /> Coba Muat Ulang
+                      </button>
+                    </div>
+                    <p className="text-gray-400 text-[11px] mt-4">
+                      💡 <span className="text-gray-300 font-medium">Tips:</span> Saat halaman Iwara terbuka di tab baru, Anda bisa langsung menonton tanpa iklan atau menggunakan ekstensi download Anda!
+                    </p>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Source link */}
-          <div className="flex justify-end mt-2">
+          {/* Source link & Download button */}
+          <div className="flex justify-between items-center mt-3">
+            {currentStream ? (
+              <a
+                href={currentStream.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={`${data.title || "video"}.mp4`}
+                className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 font-medium bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all"
+              >
+                <Download size={13} /> Direct Download Link
+              </a>
+            ) : <div />}
             <a href={data.externalVideoUrl || data.originalUrl} target="_blank" rel="noopener noreferrer"
               className="text-xs text-gray-600 hover:text-cyan-400 flex items-center gap-1 transition-colors">
               <ExternalLink size={11} /> Source

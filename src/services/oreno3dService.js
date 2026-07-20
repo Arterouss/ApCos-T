@@ -45,12 +45,15 @@ async function sha1(str) {
 }
 
 // Fetch stream purely from frontend to bypass Vercel's backend IP block
-// Fetch stream with multi-layer fallback (backend first, then frontend proxies)
+// Fetch stream with multi-layer fallback (backend first, direct client, then proxies)
 export const getOreno3dStream = async (iwaraId) => {
   try {
-    // 1. Try our backend first (since backend now has DoH & multi-proxy logic)
+    // 1. Try our backend first (with fast fail)
     try {
-      const backendRes = await fetch(`${API_URL}/stream?iwaraId=${iwaraId}`);
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 4000);
+      const backendRes = await fetch(`${API_URL}/stream?iwaraId=${iwaraId}`, { signal: controller.signal });
+      clearTimeout(id);
       if (backendRes.ok) {
         const data = await backendRes.json();
         if (data && data.rawVideoUrls && data.rawVideoUrls.length > 0) {
@@ -58,32 +61,58 @@ export const getOreno3dStream = async (iwaraId) => {
         }
       }
     } catch (e) {
-      console.warn("Backend stream fetch failed, trying frontend fallback...", e);
+      console.warn("Backend stream fetch failed/timed out, trying direct & proxy fallbacks...", e);
     }
 
-    // 2. Fallback: Fetch video info to get fileUrl using corsproxy / allorigins
+    // 2. Try DIRECT client-side fetch (in case browser has CORS unblocker or valid credentials)
     const infoUrl = `https://api.iwara.tv/video/${iwaraId}`;
     let info = null;
 
     try {
-      const corsproxyUrl = `https://corsproxy.io/?${encodeURIComponent(infoUrl)}`;
-      const res = await fetch(corsproxyUrl);
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(infoUrl, { signal: controller.signal });
+      clearTimeout(id);
       if (res.ok) info = await res.json();
     } catch (e) {
-      console.warn("corsproxy info fetch failed:", e);
+      console.warn("Direct client info fetch failed (CORS/network):", e.message);
     }
 
+    // 3. Fallback: Try corsproxy with fast timeout if direct failed
     if (!info) {
-      const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(infoUrl)}`;
-      const res = await fetch(allOriginsUrl);
-      if (!res.ok) throw new Error("Could not fetch video info via proxies");
-      info = await res.json();
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 3500);
+        const corsproxyUrl = `https://corsproxy.io/?${encodeURIComponent(infoUrl)}`;
+        const res = await fetch(corsproxyUrl, { signal: controller.signal });
+        clearTimeout(id);
+        if (res.ok) info = await res.json();
+      } catch (e) {
+        console.warn("corsproxy info fetch failed:", e);
+      }
+    }
+
+    // 4. Fallback: Try allorigins if both failed
+    if (!info) {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 3500);
+        const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(infoUrl)}`;
+        const res = await fetch(allOriginsUrl, { signal: controller.signal });
+        clearTimeout(id);
+        if (res.ok) info = await res.json();
+      } catch (e) {
+        console.warn("allorigins fetch failed:", e);
+      }
     }
     
-    const fileUrl = info.fileUrl;
-    if (!fileUrl) throw new Error("No fileUrl found in video info");
+    if (!info || !info.fileUrl) {
+      return { rawVideoUrls: [], error: "Cloudflare protection active on Iwara API." };
+    }
 
-    // 3. Compute X-Version signature
+    const fileUrl = info.fileUrl;
+
+    // 5. Compute X-Version signature
     const fileId = info.file?.id || "";
     const fullUrl = fileUrl.startsWith("//") ? "https:" + fileUrl : fileUrl;
     const parsedUrl = new URL(fullUrl);
@@ -91,27 +120,52 @@ export const getOreno3dStream = async (iwaraId) => {
     
     const xVersion = await sha1(`${fileId}_${expires}_5nFp9kmbNnHdAFhaqMvt`);
 
-    // 4. Fetch sources using local proxy or corsproxy
+    // 6. Fetch sources using direct, local proxy, or corsproxy
     let sourcesData = null;
     const sourcesUrl = `https:${fileUrl}`;
     
+    // Try direct sources fetch first
     try {
-      const localProxyUrl = `/api/proxy?url=${encodeURIComponent(sourcesUrl)}`;
-      const res = await fetch(localProxyUrl, {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(sourcesUrl, {
         headers: { "X-Version": xVersion },
+        signal: controller.signal
       });
+      clearTimeout(id);
       if (res.ok) sourcesData = await res.json();
     } catch (e) {
-      console.warn("Local proxy fetch failed, trying corsproxy...");
+      console.warn("Direct sources fetch failed, trying proxy...");
     }
 
     if (!sourcesData) {
-      const corsproxySourcesUrl = `https://corsproxy.io/?${encodeURIComponent(sourcesUrl)}`;
-      const res = await fetch(corsproxySourcesUrl, {
-        headers: { "X-Version": xVersion },
-      });
-      if (!res.ok) throw new Error("Could not fetch stream sources via corsproxy");
-      sourcesData = await res.json();
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 3500);
+        const localProxyUrl = `/api/proxy?url=${encodeURIComponent(sourcesUrl)}`;
+        const res = await fetch(localProxyUrl, {
+          headers: { "X-Version": xVersion },
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        if (res.ok) sourcesData = await res.json();
+      } catch (e) {
+        console.warn("Local proxy fetch failed, trying corsproxy...");
+      }
+    }
+
+    if (!sourcesData) {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 3500);
+        const corsproxySourcesUrl = `https://corsproxy.io/?${encodeURIComponent(sourcesUrl)}`;
+        const res = await fetch(corsproxySourcesUrl, {
+          headers: { "X-Version": xVersion },
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        if (res.ok) sourcesData = await res.json();
+      } catch(e) {}
     }
 
     const rawVideoUrls = [];

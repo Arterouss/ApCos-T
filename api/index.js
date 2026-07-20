@@ -1587,13 +1587,21 @@ app.get("/api/oreno3d/stream", async (req, res) => {
   
   try {
     console.log(`[Iwara Stream] Fetching for: ${iwaraId}`);
-    // Step 1: Get video info (fileUrl) via direct or proxy
+    // Step 1: Get video info with fast 3.5s timeout to avoid long spin if Cloudflare challenges
     let info = null;
     try {
-      info = await iwaraFetch(`${IWARA_API}/video/${iwaraId}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const r = await axios.get(`${IWARA_API}/video/${iwaraId}`, {
+        httpsAgent: sslAgent,
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      info = r.data;
     } catch (e) {
-      console.warn("[Iwara Stream] iwaraFetch failed, returning empty sources so client-side can fallback");
-      return res.json({ rawVideoUrls: [] });
+      console.warn("[Iwara Stream] Fast fetch failed/blocked by Cloudflare, returning empty sources:", e.message);
+      return res.json({ rawVideoUrls: [], cloudflareBlocked: true });
     }
 
     const fileUrl = info?.fileUrl;
@@ -1615,13 +1623,13 @@ app.get("/api/oreno3d/stream", async (req, res) => {
     
     try {
       debugInfo.push(`Trying direct: ${fullUrl}`);
-      const r = await axios.get(fullUrl, { headers: streamHeaders, timeout: 8000 });
+      const r = await axios.get(fullUrl, { headers: streamHeaders, timeout: 4000 });
       sourcesData = r.data;
     } catch (e) {
       debugInfo.push(`Direct failed: ${e.message}`);
       try {
         const proxied = `https://corsproxy.io/?${encodeURIComponent(fullUrl)}`;
-        const r = await axios.get(proxied, { headers: streamHeaders, timeout: 8000 });
+        const r = await axios.get(proxied, { headers: streamHeaders, timeout: 4000 });
         sourcesData = r.data;
       } catch (err2) {
         debugInfo.push(`corsproxy failed: ${err2.message}`);
