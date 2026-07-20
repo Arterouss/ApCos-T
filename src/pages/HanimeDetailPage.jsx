@@ -5,7 +5,8 @@ import Hls from "hls.js";
 import { ArrowLeft, Eye, Calendar } from "lucide-react";
 
 export default function HanimeDetailPage() {
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = params["*"] || params.slug || "";
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeUrl, setActiveUrl] = useState(null);

@@ -40,7 +40,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           path="/hanime"
           element={<HanimePage onOpenSidebar={onOpenSidebar} />}
         />
-        <Route path="/hanime/:slug" element={<HanimeDetailPage />} />
+        <Route path="/hanime/*" element={<HanimeDetailPage />} />
         
         <Route
           path="/hanimetv"
