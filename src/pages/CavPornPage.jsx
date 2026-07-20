@@ -7,7 +7,7 @@ import {
   getCavPornTags,
   getCavPornCategoryVideos,
 } from "../services/cavpornService";
-import { Menu, Play, Clock, ThumbsUp, Tag, Grid } from "lucide-react";
+import { Menu, Play, Clock, ThumbsUp, Tag, Grid, Filter } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 
 export default function CavPornPage({ onOpenSidebar }) {
