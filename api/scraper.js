@@ -97,18 +97,17 @@ export const scrapePornavHDSearch = async (query, pageNum) => {
 export const scrapePornavHDVideo = async (slug) => {
   const browser = await getBrowser();
   const page = await browser.newPage();
+  const url = `https://pornavhd.com/${slug}/`;
   try {
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-    const url = `https://pornavhd.com/${slug}/`;
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
       
     console.log(`[Puppeteer] Navigating to ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
     
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 2500));
     
     const videoData = await page.evaluate(() => {
       const iframes = Array.from(document.querySelectorAll('iframe'));
-      // Find the iframe that looks like a video embed
       const embedIframe = iframes.find(ifr => {
         const src = ifr.src || '';
         return src.includes('/e/') || src.includes('embed') || src.includes('video');
@@ -124,10 +123,10 @@ export const scrapePornavHDVideo = async (slug) => {
       };
     });
     
-    return videoData;
+    return { ...videoData, originalUrl: url };
   } catch (error) {
-    console.error("[Puppeteer Video Error]", error);
-    return null;
+    console.error("[Puppeteer Video Error]", error.message);
+    return { embedUrl: null, title: slug, coverUrl: "https://static.pornavhd.com/img/logo_PornavHD-9Kl5M1Y.svg", originalUrl: url, error: error.message };
   } finally {
     await page.close();
   }

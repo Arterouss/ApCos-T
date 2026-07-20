@@ -176,11 +176,38 @@ export default function HanimePage({ onOpenSidebar }) {
             )}
 
             {data.length === 0 && !loading && (
-              <div className="py-20 text-center text-gray-500 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                  <Menu size={24} className="opacity-30" />
+              <div className="my-12 p-8 max-w-xl mx-auto text-center bg-neutral-900/80 border border-fuchsia-500/30 rounded-3xl backdrop-blur-xl shadow-2xl shadow-fuchsia-950/30 flex flex-col items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-3xl">
+                  🛡️
                 </div>
-                <p>No videos found.</p>
+                <h3 className="text-xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                  Galeri PornavHD Dilindungi Cloudflare
+                </h3>
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  Situs sumber (<strong className="text-fuchsia-300">pornavhd.com</strong>) saat ini mengaktifkan proteksi Cloudflare Turnstile Anti-Bot atau pembatasan IP server, sehingga daftar video tidak dapat ditarik secara otomatis.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full justify-center">
+                  <Link
+                    to="/hanimetv"
+                    className="px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-600/30 flex items-center justify-center gap-2 transition-all transform hover:scale-105"
+                  >
+                    <span>🎬 Buka Server Tanpa Blokir (Jav.Guru)</span>
+                  </Link>
+                  <a
+                    href="https://pornavhd.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 border border-white/10 rounded-xl text-gray-300 hover:text-white font-medium flex items-center justify-center transition-colors"
+                  >
+                    👉 Buka Web Asli (PornavHD)
+                  </a>
+                </div>
+                <button
+                  onClick={() => fetchData(1, false)}
+                  className="text-xs text-gray-400 hover:text-fuchsia-400 underline mt-2"
+                >
+                  🔄 Coba Muat Ulang Galeri
+                </button>
               </div>
             )}
           </>

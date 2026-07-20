@@ -592,16 +592,26 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
     res.json({
       id: slug,
       slug: slug,
-      name: videoData.title,
-      iframe_url: videoData.embedUrl,
-      description: "Video scraped via Puppeteer from PornavHD.",
-      cover_url: videoData.coverUrl,
+      name: videoData.title || slug,
+      iframe_url: videoData.embedUrl || null,
+      original_url: videoData.originalUrl || `https://pornavhd.com/${slug}/`,
+      description: videoData.embedUrl ? "Video scraped via Puppeteer from PornavHD." : "Cloudflare protection active or embed not directly accessible.",
+      cover_url: videoData.coverUrl || "https://static.pornavhd.com/img/logo_PornavHD-9Kl5M1Y.svg",
+      error: videoData.error || (!videoData.embedUrl ? "Cloudflare protection blocked automated embed scraping." : null),
       sources: [],
       files: []
     });
   } catch (e) {
     console.error("[PornavHD/Hnime] Error:", e.message);
-    res.status(500).json({ error: e.message });
+    res.status(200).json({
+      id: slug,
+      slug: slug,
+      name: slug,
+      iframe_url: null,
+      original_url: `https://pornavhd.com/${slug}/`,
+      cover_url: "https://static.pornavhd.com/img/logo_PornavHD-9Kl5M1Y.svg",
+      error: e.message
+    });
   }
 });
 

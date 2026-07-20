@@ -71,33 +71,90 @@ export default function HanimeDetailPage() {
 
   if (loading)
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
-        Loading...
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-white p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-fuchsia-500 mb-4" />
+        <p className="text-gray-400 text-sm animate-pulse">Menghubungkan ke server PornavHD...</p>
       </div>
     );
-  if (!video) return <div className="text-white">Video not found</div>;
+
+  if (!video || !video.iframe_url) {
+    const originalUrl = video?.original_url || `https://pornavhd.com/${slug || ""}`;
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white pb-20 pt-16 px-4 md:px-8 flex flex-col items-center justify-center">
+        <div className="max-w-xl w-full bg-neutral-900/90 border border-fuchsia-500/30 rounded-3xl p-8 shadow-2xl shadow-fuchsia-950/40 text-center relative overflow-hidden backdrop-blur-xl">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500" />
+          <div className="w-16 h-16 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <span className="text-3xl">🛡️</span>
+          </div>
+          <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+            Dilindungi Keamanan Cloudflare PornavHD
+          </h2>
+          <p className="text-gray-300 text-sm leading-relaxed mb-6">
+            Situs asal (<strong className="text-fuchsia-300">pornavhd.com</strong>) saat ini mengaktifkan proteksi Cloudflare Turnstile Anti-Bot atau pembatasan IP server, sehingga sistem scraper tidak dapat mengekstrak link video/iframe secara otomatis.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+            <a
+              href={originalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 font-bold rounded-xl shadow-lg shadow-fuchsia-600/30 flex items-center justify-center gap-2 transition-all transform hover:scale-105"
+            >
+              <span>👉 Buka & Tonton Langsung di PornavHD</span>
+            </a>
+            <Link
+              to="/hanimetv"
+              className="px-6 py-3.5 bg-neutral-800 hover:bg-neutral-700 border border-white/10 rounded-xl text-gray-300 hover:text-white font-medium flex items-center justify-center transition-colors"
+            >
+              🎬 Server Tanpa Blokir (Jav.Guru)
+            </Link>
+          </div>
+
+          <div className="flex justify-between items-center border-t border-white/10 pt-4 text-xs text-gray-400">
+            <Link to="/hanime" className="hover:text-fuchsia-400 flex items-center gap-1">
+              <ArrowLeft size={14} /> Kembali ke Galeri
+            </Link>
+            <button
+              onClick={() => window.location.reload()}
+              className="hover:text-fuchsia-400 underline"
+            >
+              🔄 Coba Muat Ulang
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen text-white pb-20">
-      <div className="w-full bg-black aspect-video relative group shadow-2xl shadow-purple-900/20 bg-grid-white/[0.02]">
+    <div className="min-h-screen text-white pb-20 pt-16 px-4 md:px-8 bg-neutral-950">
+      <div className="max-w-5xl mx-auto mb-5">
+        <Link
+          to="/hanime"
+          className="inline-flex items-center text-gray-400 hover:text-fuchsia-400 transition-colors text-sm"
+        >
+          <ArrowLeft size={16} className="mr-2" /> Kembali ke Galeri PornavHD
+        </Link>
+      </div>
+
+      <div className="max-w-5xl mx-auto bg-black aspect-video relative group rounded-3xl overflow-hidden shadow-2xl shadow-fuchsia-900/20 border border-white/10">
         {activeUrl ? (
           activeType === "image" ? (
             <div className="relative w-full h-full flex items-center justify-center">
-              {/* Loading Spinner for Image */}
               {imgLoading && (
                 <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50 backdrop-blur-sm">
                   <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               )}
               <img
-                key={activeUrl} // Force re-mount on URL change
+                key={activeUrl}
                 src={activeUrl}
                 alt={video.name}
                 className={`w-full h-full object-contain transition-opacity duration-300 ${imgLoading ? "opacity-0" : "opacity-100"}`}
                 onLoad={() => setImgLoading(false)}
                 onError={(e) => {
                   setImgLoading(false);
-                  e.target.style.display = "none"; // Hide broken image
+                  e.target.style.display = "none";
                 }}
               />
             </div>
@@ -112,8 +169,18 @@ export default function HanimeDetailPage() {
             />
           )
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-red-500 font-bold backdrop-blur-sm">
-            Stream Unavailable (Source Protected or Removed)
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-center p-6 backdrop-blur-sm">
+            <span className="text-3xl mb-3">🛡️</span>
+            <p className="text-fuchsia-400 font-bold mb-2">Stream Iframe Tidak Tersedia</p>
+            <p className="text-gray-400 text-sm max-w-md mb-4">Situs asal mengunci pemutaran iframe di luar domain mereka.</p>
+            <a
+              href={video.original_url || `https://pornavhd.com/${slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl font-bold text-sm shadow-lg transition-all"
+            >
+              👉 Tonton Langsung di Web Asli
+            </a>
           </div>
         )}
       </div>
