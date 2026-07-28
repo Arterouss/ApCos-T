@@ -11,7 +11,7 @@ const menuItems = [
   { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
   { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
   { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },
-  { name: "AI Tools", path: "/ai-tools", icon: <Sparkles size={20} /> },
+  { name: "Doujin Desu", path: "/doujin", icon: <Book size={20} /> },
 ];
 
 const SidebarContent = ({ onClose, location }) => (

@@ -555,6 +555,44 @@ app.get("/api/proxy/cossora", async (req, res) => {
     res.status(500).send("Error fetching video");
   }
 });
+// ==========================================
+// DOUJIN DESU API ROUTES
+// ==========================================
+app.get("/api/doujin/list", async (req, res) => {
+  try {
+    const { page = 1, type = "", genre = "", search = "" } = req.query;
+    const { scrapeDoujinList } = await import("./scraperDoujin.js");
+    const data = await scrapeDoujinList({ page, type, genre, search });
+    res.json(data);
+  } catch (error) {
+    console.error("[Doujin API Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get(/^\/api\/doujin\/detail\/(.*)$/, async (req, res) => {
+  try {
+    const slug = req.params[0];
+    const { scrapeDoujinDetail } = await import("./scraperDoujin.js");
+    const data = await scrapeDoujinDetail(slug);
+    res.json(data);
+  } catch (error) {
+    console.error("[Doujin Detail Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get(/^\/api\/doujin\/chapter\/(.*)$/, async (req, res) => {
+  try {
+    const slug = req.params[0];
+    const { scrapeDoujinChapter } = await import("./scraperDoujin.js");
+    const data = await scrapeDoujinChapter(slug);
+    res.json(data);
+  } catch (error) {
+    console.error("[Doujin Chapter Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Search & Latest Endpoint (Scraper)
 app.get("/api/hnime/search", async (req, res) => {

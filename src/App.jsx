@@ -21,7 +21,9 @@ import Oreno3dPage from "./pages/Oreno3dPage";
 import Oreno3dDetailPage from "./pages/Oreno3dDetailPage";
 import CavPornPage from "./pages/CavPornPage";
 import CavPornDetailPage from "./pages/CavPornDetailPage";
-import AiToolsPage from "./pages/AiToolsPage";
+import DoujinPage from "./pages/DoujinPage";
+import DoujinDetailPage from "./pages/DoujinDetailPage";
+import DoujinReaderPage from "./pages/DoujinReaderPage";
 import Sidebar from "./components/Sidebar";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
@@ -67,9 +69,11 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         />
         <Route path="/cavporn/:id/:slug" element={<CavPornDetailPage />} />
         <Route
-          path="/ai-tools"
-          element={<AiToolsPage onOpenSidebar={onOpenSidebar} />}
+          path="/doujin"
+          element={<DoujinPage onOpenSidebar={onOpenSidebar} />}
         />
+        <Route path="/doujin/chapter/*" element={<DoujinReaderPage />} />
+        <Route path="/doujin/*" element={<DoujinDetailPage />} />
       </Routes>
     </AnimatePresence>
   );
