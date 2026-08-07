@@ -7,19 +7,36 @@ import MediaViewer from "../components/Rule34/MediaViewer";
 import SearchBar from "../components/Rule34/SearchBar";
 import TagList from "../components/Rule34/TagList";
 import CategoryChips from "../components/Rule34/CategoryChips";
+import { useRule34Video } from "../hooks/useRule34Video";
+import Rule34VideoCard from "../components/Rule34/Rule34VideoCard";
+import Rule34VideoViewer from "../components/Rule34/Rule34VideoViewer";
+import { Video, Image as ImageIcon } from "lucide-react";
 
 export default function Rule34Page({ onOpenSidebar }) {
-  const { posts, loading, hasMore, loadMore, searchPosts, currentTag } =
-    useRule34Posts();
+  const [mode, setMode] = useState("images"); // 'images' | 'videos'
+  
+  // Images State
+  const { posts, loading, hasMore, loadMore, searchPosts, currentTag } = useRule34Posts();
   const [tagsList, setTagsList] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
 
-  // Initial load tags
+  // Videos State
+  const { 
+    videos, 
+    loading: videoLoading, 
+    hasMore: videoHasMore, 
+    loadMore: videoLoadMore, 
+    searchVideos, 
+    currentSearch: videoSearch 
+  } = useRule34Video();
+  const [selectedVideo, setSelectedVideo] = useState(null);
+
+  // Initial load tags & posts
   useEffect(() => {
     loadTags();
-    // Initial posts load is handled if we want to default to nothing or empty string
     searchPosts("");
-  }, [searchPosts]);
+    searchVideos("");
+  }, [searchPosts, searchVideos]);
 
   const loadTags = async () => {
     try {
@@ -32,12 +49,21 @@ export default function Rule34Page({ onOpenSidebar }) {
 
   return (
     <div className="min-h-screen text-white pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 pb-20">
-      {/* Media Viewer Modal */}
+      {/* Media Viewer Modals */}
       {selectedPost && (
         <MediaViewer
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          onTagClick={searchPosts}
+          onTagClick={(tag) => {
+             setMode("images");
+             searchPosts(tag);
+          }}
+        />
+      )}
+      {selectedVideo && (
+        <Rule34VideoViewer
+          video={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
         />
       )}
 
@@ -51,22 +77,59 @@ export default function Rule34Page({ onOpenSidebar }) {
           animations.
         </p>
 
-        <SearchBar onSearch={searchPosts} initialValue={currentTag} />
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+          <div className="flex bg-white/5 rounded-xl p-1 border border-white/10 w-full sm:w-auto">
+            <button
+              onClick={() => setMode("images")}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                mode === "images" 
+                ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20" 
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <ImageIcon size={18} /> Images (Booru)
+            </button>
+            <button
+              onClick={() => setMode("videos")}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                mode === "videos" 
+                ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20" 
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Video size={18} /> Videos (Tube)
+            </button>
+          </div>
+        </div>
 
-        <CategoryChips onTagClick={searchPosts} />
+        <SearchBar 
+          onSearch={mode === "images" ? searchPosts : searchVideos} 
+          initialValue={mode === "images" ? currentTag : videoSearch} 
+        />
 
-        <TagList tags={tagsList} onTagClick={searchPosts} />
+        {mode === "images" && (
+          <>
+            <CategoryChips onTagClick={searchPosts} />
+            <TagList tags={tagsList} onTagClick={searchPosts} />
+          </>
+        )}
       </div>
 
       {/* Gallery Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} onClick={setSelectedPost} />
-        ))}
+        {mode === "images" ? (
+          posts.map((post) => (
+            <PostCard key={post.id} post={post} onClick={setSelectedPost} />
+          ))
+        ) : (
+          videos.map((video) => (
+            <Rule34VideoCard key={video.id} video={video} onClick={setSelectedVideo} />
+          ))
+        )}
       </div>
 
       {/* Loading / Empty States */}
-      {loading && (
+      {(mode === "images" ? loading : videoLoading) && (
         <div className="flex justify-center py-20">
           <div className="relative">
             <div className="w-12 h-12 rounded-full border-4 border-violet-500/30 border-t-violet-500 animate-spin"></div>
@@ -77,7 +140,7 @@ export default function Rule34Page({ onOpenSidebar }) {
         </div>
       )}
 
-      {!loading && posts.length === 0 && (
+      {!(mode === "images" ? loading : videoLoading) && (mode === "images" ? posts.length === 0 : videos.length === 0) && (
         <div className="text-center py-32 text-gray-500 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-sm mx-auto max-w-2xl">
           <div className="bg-white/5 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Search className="text-gray-400" size={32} />
@@ -89,10 +152,10 @@ export default function Rule34Page({ onOpenSidebar }) {
         </div>
       )}
 
-      {!loading && posts.length > 0 && hasMore && (
+      {!(mode === "images" ? loading : videoLoading) && (mode === "images" ? posts.length > 0 && hasMore : videos.length > 0 && videoHasMore) && (
         <div className="text-center py-12">
           <button
-            onClick={loadMore}
+            onClick={mode === "images" ? loadMore : videoLoadMore}
             className="group relative px-8 py-3 rounded-full bg-white/5 hover:bg-violet-600/20 border border-white/10 hover:border-violet-500/50 transition-all overflow-hidden"
           >
             <span className="relative z-10 text-violet-300 group-hover:text-white font-semibold flex items-center gap-2">

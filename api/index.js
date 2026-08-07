@@ -9,6 +9,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
+import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./scraperRule34Video.js";
 
 try {
   dns.setServers(["1.1.1.1", "8.8.8.8", "1.0.0.1", "8.8.4.4"]);
@@ -1066,28 +1067,51 @@ app.get("/api/r34/posts", async (req, res) => {
     });
 
     const targetUrl = `${R34_BASE}&${params.toString()}`;
+
     console.log(`Fetching Rule34: ${tags || "All"} (Page ${pid})`);
 
     const response = await fetch(targetUrl);
-
     if (!response.ok) {
-      throw new Error(`R34 API Error: ${response.status}`);
+      throw new Error(`Rule34 API responded with status ${response.status}`);
     }
 
-    const data = await response.json();
-
-    if (!Array.isArray(data)) {
-      return res.json([]);
+    const text = await response.text();
+    if (!text) {
+      return res.json([]); // empty result
     }
 
+    const data = JSON.parse(text);
     res.json(data);
   } catch (err) {
     console.error("Rule34 Proxy Error:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Failed to fetch rule34 posts" });
   }
 });
 
+// --- Rule34Video.com Endpoints ---
+app.get("/api/rule34video/list", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const search = req.query.search || "";
+    const data = await scrapeRule34VideoList(page, search);
+    res.json(data);
+  } catch (error) {
+    console.error("Rule34Video List API Error:", error.message);
+    res.status(500).json({ error: error.message || "Failed to fetch videos" });
+  }
+});
 
+app.get("/api/rule34video/detail", async (req, res) => {
+  try {
+    const slug = req.query.slug;
+    if (!slug) return res.status(400).json({ error: "Slug is required" });
+    const data = await scrapeRule34VideoDetail(slug);
+    res.json(data);
+  } catch (error) {
+    console.error("Rule34Video Detail API Error:", error.message);
+    res.status(500).json({ error: error.message || "Failed to fetch details" });
+  }
+});
 
 // ==========================================
 // COSPLAY TELE API
