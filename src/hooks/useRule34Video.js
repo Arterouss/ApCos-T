@@ -31,27 +31,29 @@ export const useRule34Video = () => {
     }
   }, []);
 
-  const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
+  const goToPage = useCallback(async (newPage) => {
+    if (loading) return;
     
     try {
       setLoading(true);
-      const nextPage = page + 1;
       
-      const res = await fetch(`${API_BASE}/list?page=${nextPage}&search=${encodeURIComponent(currentSearch)}`);
-      if (!res.ok) throw new Error("Failed to fetch more videos");
+      const res = await fetch(`${API_BASE}/list?page=${newPage}&search=${encodeURIComponent(currentSearch)}`);
+      if (!res.ok) throw new Error("Failed to fetch videos");
       
       const data = await res.json();
       
-      setVideos(prev => [...prev, ...(data.videos || [])]);
+      setVideos(data.videos || []);
       setHasMore(data.hasMore);
-      setPage(nextPage);
+      setPage(newPage);
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [page, currentSearch, hasMore, loading]);
+  }, [currentSearch, loading]);
 
   const getVideoDetail = useCallback(async (slug) => {
     try {
@@ -70,8 +72,9 @@ export const useRule34Video = () => {
     error,
     hasMore,
     searchVideos,
-    loadMore,
+    goToPage,
     getVideoDetail,
-    currentSearch
+    currentSearch,
+    page
   };
 };

@@ -25,7 +25,8 @@ export default function Rule34Page({ onOpenSidebar }) {
     videos, 
     loading: videoLoading, 
     hasMore: videoHasMore, 
-    loadMore: videoLoadMore, 
+    page: videoPage,
+    goToPage: videoGoToPage,
     searchVideos, 
     currentSearch: videoSearch 
   } = useRule34Video();
@@ -152,10 +153,10 @@ export default function Rule34Page({ onOpenSidebar }) {
         </div>
       )}
 
-      {!(mode === "images" ? loading : videoLoading) && (mode === "images" ? posts.length > 0 && hasMore : videos.length > 0 && videoHasMore) && (
+      {!(mode === "images" ? loading : videoLoading) && mode === "images" && posts.length > 0 && hasMore && (
         <div className="text-center py-12">
           <button
-            onClick={mode === "images" ? loadMore : videoLoadMore}
+            onClick={loadMore}
             className="group relative px-8 py-3 rounded-full bg-white/5 hover:bg-violet-600/20 border border-white/10 hover:border-violet-500/50 transition-all overflow-hidden"
           >
             <span className="relative z-10 text-violet-300 group-hover:text-white font-semibold flex items-center gap-2">
@@ -165,6 +166,47 @@ export default function Rule34Page({ onOpenSidebar }) {
               </span>
             </span>
             <div className="absolute inset-0 bg-violet-600/10 opacity-0 group-hover:opacity-100 blur-md transition-opacity"></div>
+          </button>
+        </div>
+      )}
+
+      {!(mode === "images" ? loading : videoLoading) && mode === "videos" && videos.length > 0 && (
+        <div className="flex justify-center items-center gap-2 py-12">
+          <button
+            onClick={() => videoGoToPage(Math.max(1, videoPage - 1))}
+            disabled={videoPage === 1}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+          >
+            Prev
+          </button>
+          
+          <div className="flex gap-1">
+            {videoPage > 2 && (
+               <button onClick={() => videoGoToPage(1)} className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-violet-600/30 transition-colors">1</button>
+            )}
+            {videoPage > 3 && <span className="w-10 h-10 flex items-center justify-center text-white/50">...</span>}
+            
+            {videoPage > 1 && (
+               <button onClick={() => videoGoToPage(videoPage - 1)} className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-violet-600/30 transition-colors">{videoPage - 1}</button>
+            )}
+            
+            <button className="w-10 h-10 rounded-lg bg-violet-600 border border-violet-500 text-white font-bold">{videoPage}</button>
+            
+            {videoHasMore && (
+               <button onClick={() => videoGoToPage(videoPage + 1)} className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-violet-600/30 transition-colors">{videoPage + 1}</button>
+            )}
+            
+            {videoHasMore && (
+               <span className="w-10 h-10 flex items-center justify-center text-white/50">...</span>
+            )}
+          </div>
+
+          <button
+            onClick={() => videoGoToPage(videoPage + 1)}
+            disabled={!videoHasMore}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+          >
+            Next
           </button>
         </div>
       )}

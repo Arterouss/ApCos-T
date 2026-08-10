@@ -71,7 +71,6 @@ export default function Rule34VideoViewer({ video, onClose }) {
               className="w-full h-full"
               frameBorder="0"
               allowFullScreen
-              sandbox="allow-scripts allow-same-origin allow-presentation"
             ></iframe>
           ) : (
             <div className="text-red-400">
