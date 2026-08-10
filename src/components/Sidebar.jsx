@@ -12,6 +12,7 @@ const menuItems = [
   { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
   { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },
   { name: "Doujin Desu", path: "/doujin", icon: <Book size={20} /> },
+  { name: "Nhentai", path: "/nhentai", icon: <Sparkles size={20} /> },
 ];
 
 const SidebarContent = ({ onClose, location }) => (

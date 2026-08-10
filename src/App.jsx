@@ -24,6 +24,7 @@ import CavPornDetailPage from "./pages/CavPornDetailPage";
 import DoujinPage from "./pages/DoujinPage";
 import DoujinDetailPage from "./pages/DoujinDetailPage";
 import DoujinReaderPage from "./pages/DoujinReaderPage";
+import NhentaiPage from "./pages/NhentaiPage";
 import Sidebar from "./components/Sidebar";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
@@ -74,6 +75,11 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         />
         <Route path="/doujin/chapter/*" element={<DoujinReaderPage />} />
         <Route path="/doujin/*" element={<DoujinDetailPage />} />
+        
+        <Route
+          path="/nhentai"
+          element={<NhentaiPage onOpenSidebar={onOpenSidebar} />}
+        />
       </Routes>
     </AnimatePresence>
   );

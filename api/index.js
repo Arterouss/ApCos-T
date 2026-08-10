@@ -33,6 +33,9 @@ const sslAgent = new https.Agent({
 
 app.use(cors());
 
+import nhentaiRouter from "./nhentai.js";
+app.use("/api/nhentai", nhentaiRouter);
+
 // --- CONSTANTS ---
 const HANIME_API = "https://hanime.tv/api/v8";
 const HANIME_SEARCH_API = "https://search.htv-services.com";
