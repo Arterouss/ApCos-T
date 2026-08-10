@@ -4,7 +4,6 @@ import { Link, useLocation } from "react-router-dom";
 import { X, Users, Tv, Image, Book, Camera, Box, Video, Sparkles, Film } from "lucide-react";
 
 const menuItems = [
-  { name: "Pawchive", path: "/", icon: <Users size={20} /> },
   { name: "Jav.Guru", path: "/hanimetv", icon: <Film size={20} /> },
   { name: "PornavHD", path: "/hanime", icon: <Film size={20} /> },
   { name: "Iwara TV", path: "/oreno3d", icon: <Box size={20} /> },

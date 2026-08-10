@@ -4,10 +4,10 @@ import {
   Routes,
   Route,
   useLocation,
+  Navigate
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { Menu } from "lucide-react";
-import Home from "./pages/Home";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimePage from "./pages/HanimePage";
 import HanimeDetailPage from "./pages/HanimeDetailPage";
@@ -35,7 +35,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
       <Routes location={location} key={location.pathname}>
         <Route
           path="/"
-          element={<Home onOpenSidebar={onOpenSidebar} />}
+          element={<Navigate to="/nhentai" replace />}
         />
         <Route path="/creator/:service/:id" element={<CreatorPosts />} />
 
