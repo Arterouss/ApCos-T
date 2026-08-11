@@ -1406,7 +1406,7 @@ const iwaraFetch = async (url, customHeaders = {}) => {
     console.log(`[Iwara ScraperAPI] Fetching ${url}`);
     const r = await axios.get(proxied, { 
       headers: customHeaders,
-      timeout: 15000 
+      timeout: 30000 
     });
     
     // ScraperAPI returns the JSON string if the endpoint is pure JSON
