@@ -7,9 +7,9 @@ export default function NhentaiCard({ gallery, onClick }) {
   
   const title = gallery.english_title || gallery.japanese_title || "Unknown Title";
 
-  // Get first 3 tags for display
-  const displayTags = gallery.tag_ids 
-    ? gallery.tag_ids.slice(0, 3) 
+  // Get first 3 tags for display (using resolved tags)
+  const displayTags = gallery.tags 
+    ? gallery.tags.slice(0, 3) 
     : [];
 
   return (
@@ -37,7 +37,6 @@ export default function NhentaiCard({ gallery, onClick }) {
             <span className="text-xs font-bold text-white">{gallery.num_favorites}</span>
           </div>
         )}
-      </div>
 
       <div className="p-3 flex-1 flex flex-col">
         <h3 className="text-sm font-bold text-white line-clamp-2 mb-2 group-hover:text-pink-400 transition-colors">
@@ -45,12 +44,12 @@ export default function NhentaiCard({ gallery, onClick }) {
         </h3>
         
         <div className="mt-auto flex flex-wrap gap-1">
-          {displayTags.map((tagId, idx) => (
+          {displayTags.map((tag) => (
             <span 
-              key={idx}
+              key={tag.id || tag}
               className="text-[10px] px-1.5 py-0.5 rounded-sm bg-pink-500/20 text-pink-300 border border-pink-500/20"
             >
-              Tag {tagId}
+              {tag.name || tag}
             </span>
           ))}
         </div>

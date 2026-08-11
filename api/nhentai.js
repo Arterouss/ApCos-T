@@ -50,6 +50,45 @@ router.get('/galleries', async (req, res) => {
     }
 
     const data = await fetchNhentai(endpoint);
+
+    // Resolve Tags for the galleries
+    if (data && data.result && Array.isArray(data.result)) {
+      try {
+        const uniqueTagIds = new Set();
+        data.result.forEach(gallery => {
+          if (gallery.tag_ids) {
+            gallery.tag_ids.forEach(id => uniqueTagIds.add(id));
+          }
+        });
+
+        const idsArray = Array.from(uniqueTagIds);
+        const tagMap = {};
+
+        // Fetch tags in chunks of 50 to avoid URI Too Long errors
+        const chunkSize = 50;
+        for (let i = 0; i < idsArray.length; i += chunkSize) {
+          const chunk = idsArray.slice(i, i + chunkSize);
+          const tagsResponse = await fetchNhentai(`/tags/ids?ids=${chunk.join(',')}`);
+          if (Array.isArray(tagsResponse)) {
+            tagsResponse.forEach(tag => {
+              tagMap[tag.id] = tag;
+            });
+          }
+        }
+
+        // Attach full tags back to the galleries
+        data.result = data.result.map(gallery => {
+          const fullTags = gallery.tag_ids 
+            ? gallery.tag_ids.map(id => tagMap[id]).filter(Boolean)
+            : [];
+          return { ...gallery, tags: fullTags };
+        });
+      } catch (tagErr) {
+        console.error('Error resolving tags:', tagErr.message);
+        // Continue even if tag resolution fails
+      }
+    }
+
     res.json(data);
   } catch (error) {
     console.error('[Nhentai API] List Error:', error.message);
