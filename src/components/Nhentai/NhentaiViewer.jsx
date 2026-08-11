@@ -112,7 +112,8 @@ export default function NhentaiViewer({ gallery, onClose }) {
       >
         <div className="max-w-[800px] mx-auto w-full flex flex-col items-center">
           {detail.pages.map((page, index) => {
-            const imageUrl = `https://i.nhentai.net/${page.path}`;
+            const rawUrl = `https://i.nhentai.net/${page.path}`;
+            const imageUrl = `/api/nhentai/image?url=${encodeURIComponent(rawUrl)}`;
             return (
               <div 
                 key={index} 

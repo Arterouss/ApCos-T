@@ -2,8 +2,8 @@ import React from "react";
 import { BookOpen, Heart } from "lucide-react";
 
 export default function NhentaiCard({ gallery, onClick }) {
-  // Use t.nhentai.net for thumbnails. Example path: "galleries/4110972/thumb.webp"
-  const thumbUrl = `https://t.nhentai.net/${gallery.thumbnail}`;
+  const rawThumbUrl = `https://t.nhentai.net/${gallery.thumbnail}`;
+  const thumbUrl = `/api/nhentai/image?url=${encodeURIComponent(rawThumbUrl)}`;
   
   const title = gallery.english_title || gallery.japanese_title || "Unknown Title";
 

@@ -69,4 +69,30 @@ router.get('/galleries/:id', async (req, res) => {
   }
 });
 
+// Proxy for Nhentai Images to bypass ISP blocking on client side
+router.get('/image', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'URL required' });
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://nhentai.net/',
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).send('Error fetching image');
+    }
+
+    res.set('Content-Type', response.headers.get('content-type'));
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    response.body.pipe(res);
+  } catch (error) {
+    console.error('Nhentai Image Proxy Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
