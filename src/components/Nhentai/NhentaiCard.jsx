@@ -37,6 +37,7 @@ export default function NhentaiCard({ gallery, onClick }) {
             <span className="text-xs font-bold text-white">{gallery.num_favorites}</span>
           </div>
         )}
+      </div>
 
       <div className="p-3 flex-1 flex flex-col">
         <h3 className="text-sm font-bold text-white line-clamp-2 mb-2 group-hover:text-pink-400 transition-colors">
