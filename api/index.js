@@ -1395,44 +1395,34 @@ const IWARA_HEADERS = {
   "Connection": "keep-alive",
 };
 
+const SCRAPER_API_KEY = "4a21d9f2cfa3ccf27c74ba8aec026c43";
+
 const iwaraFetch = async (url, customHeaders = {}) => {
-  const headers = { ...IWARA_HEADERS, ...customHeaders };
-  // Try 1: direct with full browser headers
   try {
-    const r = await axios.get(url, { headers, timeout: 8000 });
-    return r.data;
-  } catch (e) {
-    if (e.response?.status !== 403) throw e;
-    console.warn("[Iwara] 403 direct, trying allorigins proxy...");
-  }
-
-  // Try 2: route through allorigins (bypasses IP block)
-  try {
-    const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const r = await axios.get(proxied, {
-      headers: { "User-Agent": headers["User-Agent"], ...customHeaders },
-      timeout: 9000,
-    });
-    if (typeof r.data === "string") return JSON.parse(r.data);
-    return r.data;
-  } catch (e) {
-    console.warn("[Iwara] allorigins failed:", e.message);
-  }
-
-  // Try 3: corsproxy.io
-  try {
-    const proxied = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const r = await axios.get(proxied, {
+    // Iwara TV is heavily protected by Cloudflare recently.
+    // We MUST use render=true to load it as a real browser and bypass the JS challenge.
+    // And keep_headers=true is needed to forward custom auth headers (like X-Version).
+    const proxied = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(url)}&render=true&keep_headers=true`;
+    console.log(`[Iwara ScraperAPI] Fetching ${url}`);
+    const r = await axios.get(proxied, { 
       headers: customHeaders,
-      timeout: 9000
+      timeout: 15000 
     });
-    if (typeof r.data === "string") return JSON.parse(r.data);
+    
+    // ScraperAPI returns the JSON string if the endpoint is pure JSON
+    if (typeof r.data === "string") {
+      try {
+        return JSON.parse(r.data);
+      } catch (err) {
+        console.error("[Iwara ScraperAPI JSON Parse Error]", err.message);
+        throw new Error("Iwara returned invalid JSON (possibly Cloudflare block HTML)");
+      }
+    }
     return r.data;
   } catch (e) {
-    console.warn("[Iwara] corsproxy.io failed:", e.message);
+    console.error("[Iwara ScraperAPI Error]:", e.message);
+    throw new Error("Failed to fetch from Iwara via ScraperAPI");
   }
-
-  throw new Error("Iwara API unreachable (403 from all sources)");
 };
 
 // ── Debug endpoint ────────────────────────────────────────────────
@@ -1662,18 +1652,10 @@ app.get("/api/oreno3d/stream", async (req, res) => {
   
   try {
     console.log(`[Iwara Stream] Fetching for: ${iwaraId}`);
-    // Step 1: Get video info with fast 3.5s timeout to avoid long spin if Cloudflare challenges
+    // Step 1: Get video info via ScraperAPI
     let info = null;
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
-      const r = await axios.get(`${IWARA_API}/video/${iwaraId}`, {
-        httpsAgent: sslAgent,
-        headers: { "User-Agent": "Mozilla/5.0" },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      info = r.data;
+      info = await iwaraFetch(`${IWARA_API}/video/${iwaraId}`);
     } catch (e) {
       console.warn("[Iwara Stream] Fast fetch failed/blocked by Cloudflare, returning empty sources:", e.message);
       return res.json({ rawVideoUrls: [], cloudflareBlocked: true });
@@ -1697,18 +1679,10 @@ app.get("/api/oreno3d/stream", async (req, res) => {
     let debugInfo = [];
     
     try {
-      debugInfo.push(`Trying direct: ${fullUrl}`);
-      const r = await axios.get(fullUrl, { headers: streamHeaders, timeout: 4000 });
-      sourcesData = r.data;
+      debugInfo.push(`Trying iwaraFetch: ${fullUrl}`);
+      sourcesData = await iwaraFetch(fullUrl, streamHeaders);
     } catch (e) {
-      debugInfo.push(`Direct failed: ${e.message}`);
-      try {
-        const proxied = `https://corsproxy.io/?${encodeURIComponent(fullUrl)}`;
-        const r = await axios.get(proxied, { headers: streamHeaders, timeout: 4000 });
-        sourcesData = r.data;
-      } catch (err2) {
-        debugInfo.push(`corsproxy failed: ${err2.message}`);
-      }
+      debugInfo.push(`iwaraFetch failed: ${e.message}`);
     }
 
     const rawVideoUrls = [];

@@ -3,6 +3,19 @@ import * as cheerio from "cheerio";
 
 const BASE_URL = "https://rule34video.com";
 
+const SCRAPER_API_KEY = "4a21d9f2cfa3ccf27c74ba8aec026c43";
+
+const fetchScraperAPI = async (targetUrl, useRender = false) => {
+  const url = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}${useRender ? '&render=true' : ''}`;
+  console.log(`[ScraperAPI Rule34] Fetching ${targetUrl} (render=${useRender})`);
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`ScraperAPI returned status ${response.status}`);
+  }
+  return response.text();
+};
+
 export const scrapeRule34VideoList = async (page = 1, searchQuery = "") => {
   let url = `${BASE_URL}/latest-updates/${page}/`;
   if (searchQuery) {
@@ -10,21 +23,7 @@ export const scrapeRule34VideoList = async (page = 1, searchQuery = "") => {
   }
 
   try {
-    console.log(`[Rule34Video Scraper] Fetching ${url}`);
-    
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Rule34Video returned status ${response.status}`);
-    }
-
-    const html = await response.text();
+    const html = await fetchScraperAPI(url);
     const $ = cheerio.load(html);
 
     const videos = [];
@@ -71,20 +70,7 @@ export const scrapeRule34VideoDetail = async (slug) => {
   const url = slug.includes('rule34video.com') ? slug : `${BASE_URL}/${slug}`;
 
   try {
-    console.log(`[Rule34Video Scraper] Fetching Detail ${url}`);
-    
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Rule34Video Detail returned status ${response.status}`);
-    }
-
-    const html = await response.text();
+    const html = await fetchScraperAPI(url, true);
     const $ = cheerio.load(html);
 
     const titleEl = $('h1, h2, .title').first();
