@@ -1421,6 +1421,9 @@ const iwaraFetch = async (url, customHeaders = {}) => {
     return r.data;
   } catch (e) {
     console.error("[Iwara ScraperAPI Error]:", e.message);
+    if (e.response && e.response.status === 404) {
+      throw new Error("Iwara returned 404 Not Found (Video deleted)");
+    }
     throw new Error("Failed to fetch from Iwara via ScraperAPI");
   }
 };
@@ -1600,10 +1603,21 @@ app.get("/api/oreno3d/detail", async (req, res) => {
 
     const title = $("h1").text().trim() || $("title").text().split("｜")[0].trim() || "Untitled";
     
-    const tags = [];
+    let tags = [];
     $(".video-tag-btn .tag-text, .tag-btn .tag-text").each((i, el) => {
       const t = $(el).text().trim();
       if (t && !tags.includes(t)) tags.push(t);
+    });
+
+    // Move NTR/Netorare tags to the front
+    tags = tags.sort((a, b) => {
+      const aLower = a.toLowerCase();
+      const bLower = b.toLowerCase();
+      const aIsNtr = aLower.includes('ntr') || aLower.includes('netorare');
+      const bIsNtr = bLower.includes('ntr') || bLower.includes('netorare');
+      if (aIsNtr && !bIsNtr) return -1;
+      if (!aIsNtr && bIsNtr) return 1;
+      return 0;
     });
 
     const authorComment = $(".video-information-comment").text().trim();
@@ -1657,6 +1671,10 @@ app.get("/api/oreno3d/stream", async (req, res) => {
     try {
       info = await iwaraFetch(`${IWARA_API}/video/${iwaraId}`);
     } catch (e) {
+      if (e.message.includes("404")) {
+        console.warn("[Iwara Stream] Video deleted (404 Not Found) for:", iwaraId);
+        return res.json({ rawVideoUrls: [], notFound: true });
+      }
       console.warn("[Iwara Stream] Fast fetch failed/blocked by Cloudflare, returning empty sources:", e.message);
       return res.json({ rawVideoUrls: [], cloudflareBlocked: true });
     }

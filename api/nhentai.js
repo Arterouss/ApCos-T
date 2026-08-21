@@ -78,9 +78,20 @@ router.get('/galleries', async (req, res) => {
 
         // Attach full tags back to the galleries
         data.result = data.result.map(gallery => {
-          const fullTags = gallery.tag_ids 
+          let fullTags = gallery.tag_ids 
             ? gallery.tag_ids.map(id => tagMap[id]).filter(Boolean)
             : [];
+          
+          fullTags = fullTags.sort((a, b) => {
+            const aName = (a.name || "").toLowerCase();
+            const bName = (b.name || "").toLowerCase();
+            const aIsNtr = aName.includes("ntr") || aName.includes("netorare");
+            const bIsNtr = bName.includes("ntr") || bName.includes("netorare");
+            if (aIsNtr && !bIsNtr) return -1;
+            if (!aIsNtr && bIsNtr) return 1;
+            return 0;
+          });
+
           return { ...gallery, tags: fullTags };
         });
       } catch (tagErr) {
@@ -101,6 +112,19 @@ router.get('/galleries/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const data = await fetchNhentai(`/galleries/${id}`);
+    
+    if (data && Array.isArray(data.tags)) {
+      data.tags = data.tags.sort((a, b) => {
+        const aName = (a.name || "").toLowerCase();
+        const bName = (b.name || "").toLowerCase();
+        const aIsNtr = aName.includes("ntr") || aName.includes("netorare");
+        const bIsNtr = bName.includes("ntr") || bName.includes("netorare");
+        if (aIsNtr && !bIsNtr) return -1;
+        if (!aIsNtr && bIsNtr) return 1;
+        return 0;
+      });
+    }
+    
     res.json(data);
   } catch (error) {
     console.error('[Nhentai API] Detail Error:', error.message);

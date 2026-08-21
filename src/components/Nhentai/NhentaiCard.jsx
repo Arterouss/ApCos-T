@@ -44,15 +44,22 @@ export default function NhentaiCard({ gallery, onClick }) {
           {title}
         </h3>
         
-        <div className="mt-auto flex flex-wrap gap-1">
-          {displayTags.map((tag) => (
-            <span 
-              key={tag.id || tag}
-              className="text-[10px] px-1.5 py-0.5 rounded-sm bg-pink-500/20 text-pink-300 border border-pink-500/20"
-            >
-              {tag.name || tag}
-            </span>
-          ))}
+          {displayTags.map((tag) => {
+            const tagName = tag.name || tag;
+            const isNtr = typeof tagName === 'string' && (tagName.toLowerCase().includes('ntr') || tagName.toLowerCase().includes('netorare'));
+            return (
+              <span 
+                key={tag.id || tag}
+                className={`text-[10px] px-1.5 py-0.5 rounded-sm border ${
+                  isNtr 
+                    ? 'bg-red-600/90 text-white border-red-500 font-bold shadow-[0_0_8px_rgba(220,38,38,0.7)] animate-pulse'
+                    : 'bg-pink-500/20 text-pink-300 border-pink-500/20'
+                }`}
+              >
+                {tagName}
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>

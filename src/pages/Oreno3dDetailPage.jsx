@@ -174,6 +174,9 @@ export default function Oreno3dDetailPage() {
       if (result.debug) console.log("Stream debug info:", result.debug);
       if (result.error) {
         setStreamError("Backend Error: " + result.error);
+      } else if (result.notFound) {
+        setData(prev => ({ ...prev, notFound: true }));
+        setStreamError("Video telah dihapus");
       } else if (!result.rawVideoUrls || result.rawVideoUrls.length === 0) {
         setStreamError("No video sources found.");
       } else {
@@ -306,10 +309,13 @@ export default function Oreno3dDetailPage() {
                       <AlertTriangle size={28} className="text-cyan-400" />
                     </div>
                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">
-                      Dilindungi Keamanan Cloudflare Iwara
+                      {data.notFound ? "Video Telah Dihapus" : "Dilindungi Keamanan Cloudflare Iwara"}
                     </h3>
                     <p className="text-gray-300 text-xs md:text-sm mb-6 leading-relaxed">
-                      Situs Iwara saat ini mengaktifkan proteksi <span className="text-cyan-400 font-semibold">Cloudflare Anti-Bot (Turnstile)</span> sehingga server proxy tidak dapat menarik link streaming MP4 secara otomatis.
+                      {data.notFound 
+                        ? "Video Iwara asli untuk halaman ini kemungkinan besar sudah dihapus atau di-private oleh pembuat aslinya (404 Not Found)."
+                        : <span>Situs Iwara saat ini mengaktifkan proteksi <span className="text-cyan-400 font-semibold">Cloudflare Anti-Bot (Turnstile)</span> sehingga server proxy tidak dapat menarik link streaming MP4 secara otomatis.</span>
+                      }
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-3 w-full">
                       <a
@@ -363,11 +369,22 @@ export default function Oreno3dDetailPage() {
               <Tag size={13}/> Tags
             </h3>
             <div className="flex flex-wrap gap-2">
-              {data.tags.map((tag, i) => (
-                <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:border-cyan-500/40 hover:text-cyan-300 transition-colors cursor-default">
-                  {tag}
-                </span>
-              ))}
+              {data.tags.map((tag, i) => {
+                const isNtr = tag.toLowerCase().includes('ntr') || tag.toLowerCase().includes('netorare');
+                return (
+                  <span
+                    key={i}
+                    className={`px-2.5 py-1 border rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                      isNtr 
+                        ? 'bg-red-600/80 border-red-500 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)] font-bold animate-pulse'
+                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-cyan-400'
+                    }`}
+                  >
+                    <Tag size={10} className="inline mr-1" />
+                    {tag}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}

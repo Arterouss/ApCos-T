@@ -92,11 +92,21 @@ export default function DoujinDetailPage() {
             </h1>
             
             <div className="flex flex-wrap gap-2 mb-6">
-              {data.genres && data.genres.map(g => (
-                <span key={g} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300">
-                  {g}
-                </span>
-              ))}
+              {data.genres && data.genres.map(g => {
+                const isNtr = g.toLowerCase().includes('ntr') || g.toLowerCase().includes('netorare');
+                return (
+                  <span 
+                    key={g} 
+                    className={`px-3 py-1 border rounded-full text-xs transition-colors ${
+                      isNtr 
+                        ? 'bg-red-600/90 text-white border-red-500 font-bold shadow-[0_0_8px_rgba(220,38,38,0.7)] animate-pulse'
+                        : 'bg-white/5 border-white/10 text-gray-300'
+                    }`}
+                  >
+                    {g}
+                  </span>
+                );
+              })}
             </div>
 
             <div className="bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-sm">
