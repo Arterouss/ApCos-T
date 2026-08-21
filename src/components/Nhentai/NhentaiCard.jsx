@@ -43,7 +43,7 @@ export default function NhentaiCard({ gallery, onClick }) {
         <h3 className="text-sm font-bold text-white line-clamp-2 mb-2 group-hover:text-pink-400 transition-colors">
           {title}
         </h3>
-        
+        <div className="mt-auto flex flex-wrap gap-1">
           {displayTags.map((tag) => {
             const tagName = tag.name || tag;
             const isNtr = typeof tagName === 'string' && (tagName.toLowerCase().includes('ntr') || tagName.toLowerCase().includes('netorare'));
