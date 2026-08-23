@@ -1,34 +1,102 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { getDoujinList } from "../services/doujinService";
-import { Book, Search, Filter, AlertTriangle } from "lucide-react";
-import SearchBar from "../components/SearchBar";
+import { Book, Search, X, ChevronDown, ChevronUp, Tag, AlertTriangle } from "lucide-react";
 import GlassCard from "../components/GlassCard";
 
-const GENRES = [
-  "Action", "Adventure", "Comedy", "Drama", "Ecchi", "Fantasy",
-  "Harem", "Romance", "School", "Slice of Life", "Isekai", "NTR",
-  "Milf", "Incest", "Anal", "Ahegao", "Tentacles", "Yuri"
+// ── All available genre/tag chips ────────────────────────────────────────
+const ALL_TAGS = [
+  // Type
+  { label: "🔥 NTR",        value: "ntr",         color: "red"    },
+  { label: "💕 Gyaru",      value: "gyaru",        color: "pink"   },
+  { label: "👙 Milf",       value: "milf",         color: "orange" },
+  { label: "🏫 School",     value: "school",       color: "blue"   },
+  { label: "⛪ Nun",        value: "nun",          color: "purple" },
+  { label: "🧝 Fantasy",   value: "fantasy",       color: "indigo" },
+  { label: "🌸 Romance",   value: "romance",       color: "pink"   },
+  { label: "😂 Comedy",    value: "comedy",        color: "yellow" },
+  { label: "🗡️ Action",    value: "action",        color: "red"    },
+  { label: "🌍 Isekai",    value: "isekai",        color: "green"  },
+  { label: "💘 Harem",     value: "harem",         color: "pink"   },
+  { label: "😏 Ecchi",     value: "ecchi",         color: "orange" },
+  { label: "👨‍👩‍👧 Incest",  value: "incest",        color: "purple" },
+  { label: "🐙 Tentacles", value: "tentacles",     color: "green"  },
+  { label: "🎀 Ahegao",    value: "ahegao",        color: "pink"   },
+  { label: "👩‍❤️‍👩 Yuri",   value: "yuri",          color: "rose"   },
+  { label: "📖 Drama",     value: "drama",         color: "blue"   },
+  { label: "🏠 Slice of Life", value: "slice-of-life", color: "teal" },
+  { label: "🤺 Adventure", value: "adventure",     color: "amber"  },
+  { label: "🔞 Anal",      value: "anal",          color: "orange" },
+  { label: "🩺 Nurse",     value: "nurse",         color: "blue"   },
+  { label: "👮 Police",    value: "police",        color: "indigo" },
+  { label: "🧙 Magic",     value: "magic",         color: "purple" },
+  { label: "🤖 Mecha",     value: "mecha",         color: "gray"   },
+  { label: "🐱 Kemonomimi", value: "kemonomimi",   color: "amber"  },
+  { label: "🦄 Monster Girl", value: "monster-girl", color: "green" },
+  { label: "😴 Somnophilia", value: "somnophilia", color: "indigo" },
+  { label: "🔗 BDSM",      value: "bdsm",          color: "red"    },
 ];
+
+const TAG_COLORS = {
+  red:    "bg-red-600/20 border-red-500/40 text-red-300 hover:bg-red-600/40",
+  pink:   "bg-pink-600/20 border-pink-500/40 text-pink-300 hover:bg-pink-600/40",
+  orange: "bg-orange-600/20 border-orange-500/40 text-orange-300 hover:bg-orange-600/40",
+  blue:   "bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/40",
+  purple: "bg-purple-600/20 border-purple-500/40 text-purple-300 hover:bg-purple-600/40",
+  indigo: "bg-indigo-600/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-600/40",
+  yellow: "bg-yellow-600/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/40",
+  green:  "bg-green-600/20 border-green-500/40 text-green-300 hover:bg-green-600/40",
+  teal:   "bg-teal-600/20 border-teal-500/40 text-teal-300 hover:bg-teal-600/40",
+  rose:   "bg-rose-600/20 border-rose-500/40 text-rose-300 hover:bg-rose-600/40",
+  amber:  "bg-amber-600/20 border-amber-500/40 text-amber-300 hover:bg-amber-600/40",
+  gray:   "bg-gray-600/20 border-gray-500/40 text-gray-300 hover:bg-gray-600/40",
+};
+
+const TAG_COLORS_ACTIVE = {
+  red:    "bg-red-600 border-red-500 text-white shadow-lg shadow-red-500/30",
+  pink:   "bg-pink-600 border-pink-500 text-white shadow-lg shadow-pink-500/30",
+  orange: "bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-500/30",
+  blue:   "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/30",
+  purple: "bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/30",
+  indigo: "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/30",
+  yellow: "bg-yellow-500 border-yellow-400 text-black shadow-lg shadow-yellow-500/30",
+  green:  "bg-green-600 border-green-500 text-white shadow-lg shadow-green-500/30",
+  teal:   "bg-teal-600 border-teal-500 text-white shadow-lg shadow-teal-500/30",
+  rose:   "bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-500/30",
+  amber:  "bg-amber-500 border-amber-400 text-black shadow-lg shadow-amber-500/30",
+  gray:   "bg-gray-600 border-gray-500 text-white shadow-lg shadow-gray-500/30",
+};
+
+// Initial tags to show (rest hidden behind "Show More")
+const INITIAL_SHOW = 12;
+
 
 export default function DoujinPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery,    setSearchQuery]    = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  
-  const [activeType, setActiveType] = useState(""); // "" = all, "manga", "manhwa"
-  const [activeGenre, setActiveGenre] = useState("");
-  const [showGenres, setShowGenres] = useState(false);
-  const [error, setError] = useState(null);
+  const [tagSearch,      setTagSearch]      = useState(""); // live tag search input
+  const [activeType,     setActiveType]     = useState("");
+  const [activeGenre,    setActiveGenre]    = useState("");
+  const [showAllTags,    setShowAllTags]    = useState(false);
+  const [error,          setError]          = useState(null);
+  const tagInputRef = useRef(null);
 
+  // Debounce main text search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Filter ALL_TAGS based on tagSearch input
+  const filteredTags = tagSearch.trim()
+    ? ALL_TAGS.filter(t =>
+        t.label.toLowerCase().includes(tagSearch.toLowerCase()) ||
+        t.value.toLowerCase().includes(tagSearch.toLowerCase())
+      )
+    : showAllTags ? ALL_TAGS : ALL_TAGS.slice(0, INITIAL_SHOW);
 
   const fetchData = React.useCallback(async (pageNum) => {
     setLoading(true);
@@ -51,18 +119,27 @@ export default function DoujinPage() {
     fetchData(1);
   }, [debouncedQuery, activeType, activeGenre, fetchData]);
 
+  const handleTagClick = (tagValue) => {
+    setActiveGenre(prev => prev === tagValue ? "" : tagValue);
+    setTagSearch("");
+  };
+
   const handleClearFilter = () => {
     setActiveType("");
     setActiveGenre("");
     setSearchQuery("");
+    setTagSearch("");
   };
 
   const getSubtitle = () => {
     if (debouncedQuery) return `Pencarian: "${debouncedQuery}"`;
-    if (activeGenre) return `Genre: ${activeGenre}`;
-    if (activeType === "doujin") return "Koleksi Doujinshi & Manga";
-    if (activeType === "manhwa") return "Koleksi Manhwa";
-    if (activeType === "all") return "Semua Komik";
+    if (activeGenre) {
+      const tag = ALL_TAGS.find(t => t.value === activeGenre);
+      return `Tag: ${tag ? tag.label : activeGenre}`;
+    }
+    if (activeType === "doujin")  return "Koleksi Doujinshi & Manga";
+    if (activeType === "manhwa")  return "Koleksi Manhwa";
+    if (activeType === "all")     return "Semua Komik";
     return "Jelajahi Doujinshi, Manga & Manhwa";
   };
 
@@ -78,93 +155,119 @@ export default function DoujinPage() {
           </p>
         </header>
 
-        {/* Search Bar */}
-        <div className="mb-6 max-w-md">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-8">
-          <div className="flex bg-white/5 rounded-xl p-1 border border-white/10">
-            <button
-              onClick={() => setActiveType("")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                activeType === "" ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Trending
-            </button>
-            <button
-              onClick={() => setActiveType("all")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                activeType === "all" ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Semua
-            </button>
-            <button
-              onClick={() => setActiveType("doujin")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                activeType === "doujin" ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Manga
-            </button>
-            <button
-              onClick={() => setActiveType("manhwa")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                activeType === "manhwa" ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Manhwa
-            </button>
+        {/* ── Search + Type tabs row ─────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          {/* Text Search */}
+          <div className="relative flex-1 max-w-sm">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Cari judul manga..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-all"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                <X size={14} />
+              </button>
+            )}
           </div>
 
-          <button
-            onClick={() => setShowGenres(!showGenres)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-              activeGenre || showGenres
-                ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20"
-                : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10"
-            }`}
-          >
-            <Filter size={16} />
-            {activeGenre || "Genres"}
-          </button>
-          
-          {(activeType || activeGenre) && (
+          {/* Type tabs */}
+          <div className="flex bg-white/5 rounded-xl p-1 border border-white/10 self-start">
+            {[
+              { label: "🔥 Trending", value: "" },
+              { label: "Semua",       value: "all" },
+              { label: "Manga",       value: "doujin" },
+              { label: "Manhwa",      value: "manhwa" },
+            ].map(t => (
+              <button
+                key={t.value}
+                onClick={() => setActiveType(t.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
+                  activeType === t.value ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Tag / Genre section ───────────────────────────────────────── */}
+        <div className="mb-8 p-4 rounded-2xl bg-white/3 border border-white/8 backdrop-blur">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Tag size={14} className="text-indigo-400" />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filter Tag</span>
+              {activeGenre && (
+                <span className="text-xs text-indigo-300 bg-indigo-600/20 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+                  Aktif: {ALL_TAGS.find(t => t.value === activeGenre)?.label || activeGenre}
+                </span>
+              )}
+            </div>
+            {(activeGenre || activeType || searchQuery) && (
+              <button
+                onClick={handleClearFilter}
+                className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors"
+              >
+                <X size={12} /> Reset semua
+              </button>
+            )}
+          </div>
+
+          {/* Tag search input */}
+          <div className="relative mb-3">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+            <input
+              ref={tagInputRef}
+              type="text"
+              placeholder="Ketik untuk cari tag... (contoh: gyaru, nun, milf)"
+              value={tagSearch}
+              onChange={e => setTagSearch(e.target.value)}
+              className="w-full pl-8 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all"
+            />
+            {tagSearch && (
+              <button onClick={() => setTagSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Tag chips */}
+          <div className="flex flex-wrap gap-2">
+            {filteredTags.length > 0 ? filteredTags.map(tag => {
+              const isActive = activeGenre === tag.value;
+              return (
+                <button
+                  key={tag.value}
+                  onClick={() => handleTagClick(tag.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
+                    isActive ? TAG_COLORS_ACTIVE[tag.color] : TAG_COLORS[tag.color]
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              );
+            }) : (
+              <p className="text-gray-600 text-xs italic">Tag tidak ditemukan untuk "{tagSearch}"</p>
+            )}
+          </div>
+
+          {/* Show more / less */}
+          {!tagSearch && ALL_TAGS.length > INITIAL_SHOW && (
             <button
-              onClick={handleClearFilter}
-              className="px-3 py-2 text-xs text-red-400 hover:text-red-300 underline"
+              onClick={() => setShowAllTags(s => !s)}
+              className="mt-3 flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-400 transition-colors"
             >
-              Clear Filters
+              {showAllTags
+                ? <><ChevronUp size={12} /> Tampilkan Lebih Sedikit</>
+                : <><ChevronDown size={12} /> Tampilkan Semua ({ALL_TAGS.length}) Tag</>
+              }
             </button>
           )}
         </div>
-
-        {/* Genres Dropdown */}
-        {showGenres && (
-          <div className="mb-8 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl animate-fade-in shadow-xl">
-            <div className="flex flex-wrap gap-2">
-              {GENRES.map((g) => (
-                <button
-                  key={g}
-                  onClick={() => {
-                    setActiveGenre(g.toLowerCase());
-                    setShowGenres(false);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-all border ${
-                    activeGenre === g.toLowerCase()
-                      ? "bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30"
-                      : "bg-neutral-800 border-white/10 text-gray-300 hover:bg-neutral-700 hover:text-white"
-                  }`}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Error State */}
         {error && (
