@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getDoujinDetail } from "../services/doujinService";
-import { ArrowLeft, BookOpen, Clock, AlertTriangle } from "lucide-react";
+import { useReadProgress } from "../hooks/useReadProgress";
+import { ArrowLeft, BookOpen, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function DoujinDetailPage() {
   const params = useParams();
   const slug = params["*"] || params.slug || "";
-  
+
+  const { isRead } = useReadProgress(slug);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -129,21 +131,33 @@ export default function DoujinDetailPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {data.chapters && data.chapters.length > 0 ? (
-              data.chapters.map((chap, idx) => (
-                <Link
-                  key={`${chap.id}-${idx}`}
-                  to={`/doujin/chapter/${chap.slug}`}
-                  state={{ chapters: data.chapters, mangaSlug: slug }}
-                  className="flex justify-between items-center p-4 bg-neutral-900 border border-white/5 rounded-xl hover:border-indigo-500/50 hover:bg-indigo-950/30 transition-all group"
-                >
-                  <span className="font-semibold text-gray-200 group-hover:text-indigo-300 line-clamp-1">
-                    {chap.title}
-                  </span>
-                  <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                    {chap.date}
-                  </span>
-                </Link>
-              ))
+              data.chapters.map((chap, idx) => {
+                const read = isRead(chap.slug);
+                return (
+                  <Link
+                    key={`${chap.id}-${idx}`}
+                    to={`/doujin/chapter/${chap.slug}`}
+                    state={{ chapters: data.chapters, mangaSlug: slug }}
+                    className={`flex justify-between items-center p-4 border rounded-xl transition-all group ${
+                      read
+                        ? 'bg-emerald-950/30 border-emerald-500/30 hover:border-emerald-400/60'
+                        : 'bg-neutral-900 border-white/5 hover:border-indigo-500/50 hover:bg-indigo-950/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {read && <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />}
+                      <span className={`font-semibold line-clamp-1 ${
+                        read ? 'text-emerald-300' : 'text-gray-200 group-hover:text-indigo-300'
+                      }`}>
+                        {chap.title}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                      {chap.date}
+                    </span>
+                  </Link>
+                );
+              })
             ) : (
               <p className="text-gray-500 col-span-full text-center py-8">
                 Tidak ada chapter ditemukan.
