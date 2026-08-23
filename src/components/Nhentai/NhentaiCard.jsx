@@ -1,21 +1,34 @@
-import React from "react";
-import { BookOpen, Heart } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { BookOpen, Heart, CheckCircle2 } from "lucide-react";
+import { isNhentaiRead } from "./NhentaiViewer";
 
 export default function NhentaiCard({ gallery, onClick }) {
   const rawThumbUrl = `https://t.nhentai.net/${gallery.thumbnail}`;
   const thumbUrl = `/api/nhentai/image?url=${encodeURIComponent(rawThumbUrl)}`;
-  
+
   const title = gallery.english_title || gallery.japanese_title || "Unknown Title";
 
   // Get first 3 tags for display (using resolved tags)
-  const displayTags = gallery.tags 
-    ? gallery.tags.slice(0, 3) 
-    : [];
+  const displayTags = gallery.tags ? gallery.tags.slice(0, 3) : [];
+
+  // Check read status from localStorage (re-check when card re-renders)
+  const [read, setRead] = useState(() => isNhentaiRead(gallery.id));
+
+  // Listen for custom event emitted after viewer closes so card updates immediately
+  useEffect(() => {
+    const handler = () => setRead(isNhentaiRead(gallery.id));
+    window.addEventListener("nhentai-read-update", handler);
+    return () => window.removeEventListener("nhentai-read-update", handler);
+  }, [gallery.id]);
 
   return (
     <div
       onClick={() => onClick(gallery)}
-      className="group relative bg-white/5 rounded-xl overflow-hidden cursor-pointer border border-white/10 hover:border-pink-500/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(236,72,153,0.15)] flex flex-col h-full"
+      className={`group relative bg-white/5 rounded-xl overflow-hidden cursor-pointer border transition-all duration-300 flex flex-col h-full ${
+        read
+          ? "border-emerald-500/40 hover:border-emerald-400/60 hover:shadow-[0_0_20px_rgba(52,211,153,0.15)]"
+          : "border-white/10 hover:border-pink-500/50 hover:shadow-[0_0_20px_rgba(236,72,153,0.15)]"
+      }`}
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-black/40">
         <img
@@ -25,13 +38,20 @@ export default function NhentaiCard({ gallery, onClick }) {
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
-        
+
+        {/* Page count badge */}
         <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5 border border-white/10">
           <BookOpen size={12} className="text-pink-400" />
           <span className="text-xs font-bold text-white">{gallery.num_pages}</span>
         </div>
-        
-        {gallery.num_favorites > 0 && (
+
+        {/* Read badge OR favorites badge */}
+        {read ? (
+          <div className="absolute top-2 left-2 bg-emerald-500/90 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1 border border-emerald-400/60 shadow-lg shadow-emerald-500/30">
+            <CheckCircle2 size={12} className="text-white" />
+            <span className="text-[10px] font-bold text-white">Dibaca</span>
+          </div>
+        ) : gallery.num_favorites > 0 && (
           <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1 border border-white/10">
             <Heart size={12} className="text-pink-500 fill-pink-500" />
             <span className="text-xs font-bold text-white">{gallery.num_favorites}</span>
@@ -40,20 +60,20 @@ export default function NhentaiCard({ gallery, onClick }) {
       </div>
 
       <div className="p-3 flex-1 flex flex-col">
-        <h3 className="text-sm font-bold text-white line-clamp-2 mb-2 group-hover:text-pink-400 transition-colors">
+        <h3 className={`text-sm font-bold line-clamp-2 mb-2 transition-colors ${read ? "text-emerald-300 group-hover:text-emerald-200" : "text-white group-hover:text-pink-400"}`}>
           {title}
         </h3>
         <div className="mt-auto flex flex-wrap gap-1">
           {displayTags.map((tag) => {
             const tagName = tag.name || tag;
-            const isNtr = typeof tagName === 'string' && (tagName.toLowerCase().includes('ntr') || tagName.toLowerCase().includes('netorare'));
+            const isNtr = typeof tagName === "string" && (tagName.toLowerCase().includes("ntr") || tagName.toLowerCase().includes("netorare"));
             return (
-              <span 
+              <span
                 key={tag.id || tag}
                 className={`text-[10px] px-1.5 py-0.5 rounded-sm border ${
-                  isNtr 
-                    ? 'bg-red-600/90 text-white border-red-500 font-bold shadow-[0_0_8px_rgba(220,38,38,0.7)] animate-pulse'
-                    : 'bg-pink-500/20 text-pink-300 border-pink-500/20'
+                  isNtr
+                    ? "bg-red-600/90 text-white border-red-500 font-bold shadow-[0_0_8px_rgba(220,38,38,0.7)] animate-pulse"
+                    : "bg-pink-500/20 text-pink-300 border-pink-500/20"
                 }`}
               >
                 {tagName}
