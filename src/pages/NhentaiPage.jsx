@@ -80,7 +80,19 @@ const INITIAL_SHOW = 14;
 
 export default function NhentaiPage() {
   const { galleries, loading, error, hasMore, searchGalleries, goToPage, currentSearch, currentSort, page } = useNhentai();
-  const [selectedGallery, setSelectedGallery] = useState(null);
+  const [selectedGallery,    setSelectedGallery]    = useState(null);
+  const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(-1);
+
+  const openGallery = (gallery, idx) => {
+    setSelectedGallery(gallery);
+    setSelectedGalleryIdx(idx);
+  };
+
+  const closeGallery = () => {
+    window.dispatchEvent(new Event("nhentai-read-update"));
+    setSelectedGallery(null);
+    setSelectedGalleryIdx(-1);
+  };
 
   // Search & tag state
   const [searchInput, setSearchInput]   = useState("");
@@ -138,7 +150,10 @@ export default function NhentaiPage() {
       {selectedGallery && (
         <NhentaiViewer
           gallery={selectedGallery}
-          onClose={() => setSelectedGallery(null)}
+          galleries={galleries}
+          currentIdx={selectedGalleryIdx}
+          onNavigate={(gallery, idx) => openGallery(gallery, idx)}
+          onClose={closeGallery}
         />
       )}
 
@@ -272,8 +287,8 @@ export default function NhentaiPage() {
 
         {/* Gallery Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
-          {galleries.map((gallery) => (
-            <NhentaiCard key={gallery.id} gallery={gallery} onClick={setSelectedGallery} />
+          {galleries.map((gallery, idx) => (
+            <NhentaiCard key={gallery.id} gallery={gallery} onClick={(g) => openGallery(g, idx)} />
           ))}
         </div>
 
