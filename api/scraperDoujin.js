@@ -5,10 +5,10 @@ const BASE_URL = "https://doujin.desu.xxx";
 const SCRAPER_API_KEY = "4a21d9f2cfa3ccf27c74ba8aec026c43";
 
 const fetchScraperAPI = async (targetUrl) => {
-  const url = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}&render=true`;
+  const url = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}&render=true`;
   console.log(`[Doujin ScraperAPI] Fetching ${targetUrl}`);
   try {
-    const r = await axios.get(url, { timeout: 45000 });
+    const r = await axios.get(url, { timeout: 60000 });
     return r.data;
   } catch (e) {
     console.error(`[Doujin ScraperAPI] Failed: ${e.message}`);
@@ -93,7 +93,8 @@ export const scrapeDoujinList = async ({ page = 1, type = "", genre = "", search
     });
   });
 
-  return results;
+  // Filter out banner slider items which mess up the grid
+  return results.filter(r => !r.cover_url || !r.cover_url.includes('/banner/'));
 };
 
 export const scrapeDoujinDetail = async (slug) => {
@@ -168,9 +169,34 @@ export const scrapeDoujinChapter = async (slug) => {
   const title = $('h1, h2, h3').first().text().trim() || "Chapter";
   
   const images = [];
-  $('img').each((i, el) => {
-    const src = $(el).attr('src') || $(el).attr('data-src') || "";
-    if ((src.includes('pic.desu.xxx') || src.includes('content') || src.includes('pages')) && !src.includes('banner') && !src.includes('logo')) {
+  
+  // Try to find images specifically in the reader area first
+  let $imgElements = $('#readerarea img');
+  
+  // Fallback to all images if readerarea not found
+  if ($imgElements.length === 0) {
+    $imgElements = $('img');
+  }
+
+  $imgElements.each((i, el) => {
+    let src = $(el).attr('src') || $(el).attr('data-src') || "";
+    if (!src) return;
+    
+    src = src.trim();
+    
+    // Filter out UI elements, banners, logos, badges, and ads
+    const isUI = src.includes('banner') || 
+                 src.includes('logo') || 
+                 src.includes('rank') || 
+                 src.includes('badge') || 
+                 src.includes('avatar') ||
+                 src.includes('level') ||
+                 /sport|bet|cuan|slot|casino|720x90|720\.webp/i.test(src);
+    
+    // Must look like content
+    const isContent = src.includes('pic.desu.xxx') || src.includes('content') || src.includes('pages');
+    
+    if (isContent && !isUI) {
       images.push(src);
     }
   });
