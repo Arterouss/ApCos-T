@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Users, ExternalLink, Loader2, Camera, Play } from "lucide-react";
+import { ArrowLeft, Users, ExternalLink, Loader2, Camera, Play, X } from "lucide-react";
 import { getFapelloModel } from "../services/fapelloService";
 
 export default function FapelloDetailPage() {

@@ -27,6 +27,8 @@ import Porn3dxPage from "./pages/Porn3dxPage";
 import Porn3dxDetailPage from "./pages/Porn3dxDetailPage";
 import FapelloPage from "./pages/FapelloPage";
 import FapelloDetailPage from "./pages/FapelloDetailPage";
+import HentaiPlayPage from "./pages/HentaiPlayPage";
+import HentaiPlayDetailPage from "./pages/HentaiPlayDetailPage";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
   const location = useLocation();
@@ -51,6 +53,12 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           element={<Porn3dxPage onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/porn3dx/:slug" element={<Porn3dxDetailPage />} />
+
+        <Route
+          path="/hentaiplay"
+          element={<HentaiPlayPage onOpenSidebar={onOpenSidebar} />}
+        />
+        <Route path="/hentaiplay/video/:slug" element={<HentaiPlayDetailPage />} />
         
         <Route
           path="/rule34"

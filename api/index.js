@@ -39,6 +39,33 @@ app.use(cors());
 import nhentaiRouter from "./nhentai.js";
 app.use("/api/nhentai", nhentaiRouter);
 
+// ==========================================
+// HENTAIPLAY ROUTES
+// ==========================================
+app.get("/api/hentaiplay/list", async (req, res) => {
+  try {
+    const { page = 1, search = '' } = req.query;
+    const { scrapeHentaiPlayList } = await import('./scraperHentaiPlay.js');
+    const data = await scrapeHentaiPlayList(parseInt(page), search);
+    res.json(data);
+  } catch (err) {
+    console.error('[HentaiPlay] List Error:', err.message);
+    res.status(500).json({ error: 'Gagal mengambil daftar video HentaiPlay', details: err.message });
+  }
+});
+
+app.get("/api/hentaiplay/video/:slug(*)", async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const { scrapeHentaiPlayVideo } = await import('./scraperHentaiPlay.js');
+    const data = await scrapeHentaiPlayVideo(slug);
+    res.json(data);
+  } catch (err) {
+    console.error('[HentaiPlay] Video Error:', err.message);
+    res.status(500).json({ error: 'Gagal mengambil detail video HentaiPlay', details: err.message });
+  }
+});
+
 // --- CONSTANTS ---
 const HANIME_API = "https://hanime.tv/api/v8";
 const HANIME_SEARCH_API = "https://search.htv-services.com";
