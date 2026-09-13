@@ -15,6 +15,7 @@ const menuCategories = [
     title: "Video Dewasa",
     items: [
       { name: "HentaiPlay", path: "/hentaiplay", icon: <Film size={20} /> },
+      { name: "Jav.Guru", path: "/hanimetv", icon: <Film size={20} /> },
       { name: "Porn3dx", path: "/porn3dx", icon: <Film size={20} /> },
       { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },
       { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
