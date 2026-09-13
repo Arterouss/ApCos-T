@@ -54,7 +54,7 @@ app.get("/api/hentaiplay/list", async (req, res) => {
   }
 });
 
-app.get("/api/hentaiplay/video/*", async (req, res) => {
+app.get(/^\/api\/hentaiplay\/video\/(.*)$/, async (req, res) => {
   try {
     const slug = req.params[0];
     const { scrapeHentaiPlayVideo } = await import('./scraperHentaiPlay.js');
