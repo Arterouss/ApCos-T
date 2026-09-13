@@ -15,8 +15,7 @@ const menuCategories = [
     title: "Video Dewasa",
     items: [
       { name: "Jav.Guru", path: "/hanimetv", icon: <Film size={20} /> },
-      { name: "PornavHD", path: "/hanime", icon: <Film size={20} /> },
-      { name: "Iwara TV", path: "/oreno3d", icon: <Box size={20} /> },
+      { name: "Porn3dx", path: "/porn3dx", icon: <Film size={20} /> },
       { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },
       { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
     ]
@@ -24,6 +23,7 @@ const menuCategories = [
   {
     title: "Cosplay & Image",
     items: [
+      { name: "Fapello", path: "/fapello", icon: <Camera size={20} /> },
       { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
     ]
   }

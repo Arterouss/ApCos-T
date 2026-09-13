@@ -2,11 +2,11 @@ import * as cheerio from "cheerio";
 import axios from "axios";
 
 const BASE_URL = "https://doujin.desu.xxx";
-const SCRAPER_API_KEY = "4a21d9f2cfa3ccf27c74ba8aec026c43";
+const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
 
 const fetchScraperAPI = async (targetUrl) => {
-  const url = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}&render=true`;
-  console.log(`[Doujin ScraperAPI] Fetching ${targetUrl}`);
+  const url = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(targetUrl)}&premium_proxy=true`;
+  console.log(`[Doujin ZenRows] Fetching ${targetUrl}`);
   try {
     const r = await axios.get(url, { timeout: 60000 });
     return r.data;

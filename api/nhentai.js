@@ -7,6 +7,7 @@ const BASE_URL = 'https://nhentai.net/api/v2';
 
 const fetchNhentai = async (endpoint) => {
   const url = `${BASE_URL}${endpoint}`;
+  
   const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${NHENTAI_API_KEY}`,

@@ -9,16 +9,12 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { Menu } from "lucide-react";
 import CreatorPosts from "./pages/CreatorPosts";
-import HanimePage from "./pages/HanimePage";
-import HanimeDetailPage from "./pages/HanimeDetailPage";
 import HanimeTvPage from "./pages/HanimeTvPage";
 import HanimeTvDetailPage from "./pages/HanimeTvDetailPage";
 
 import Rule34Page from "./pages/Rule34Page";
 import CosplayTelePage from "./pages/CosplayTelePage";
 import CosplayDetailPage from "./pages/CosplayDetailPage";
-import Oreno3dPage from "./pages/Oreno3dPage";
-import Oreno3dDetailPage from "./pages/Oreno3dDetailPage";
 import CavPornPage from "./pages/CavPornPage";
 import CavPornDetailPage from "./pages/CavPornDetailPage";
 import DoujinPage from "./pages/DoujinPage";
@@ -26,6 +22,11 @@ import DoujinDetailPage from "./pages/DoujinDetailPage";
 import DoujinReaderPage from "./pages/DoujinReaderPage";
 import NhentaiPage from "./pages/NhentaiPage";
 import Sidebar from "./components/Sidebar";
+
+import Porn3dxPage from "./pages/Porn3dxPage";
+import Porn3dxDetailPage from "./pages/Porn3dxDetailPage";
+import FapelloPage from "./pages/FapelloPage";
+import FapelloDetailPage from "./pages/FapelloDetailPage";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
   const location = useLocation();
@@ -40,30 +41,33 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         <Route path="/creator/:service/:id" element={<CreatorPosts />} />
 
         <Route
-          path="/hanime"
-          element={<HanimePage onOpenSidebar={onOpenSidebar} />}
-        />
-        <Route path="/hanime/*" element={<HanimeDetailPage />} />
-        
-        <Route
           path="/hanimetv"
           element={<HanimeTvPage onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/hanimetv/:slug" element={<HanimeTvDetailPage />} />
+        
+        <Route
+          path="/porn3dx"
+          element={<Porn3dxPage onOpenSidebar={onOpenSidebar} />}
+        />
+        <Route path="/porn3dx/:slug" element={<Porn3dxDetailPage />} />
+        
         <Route
           path="/rule34"
           element={<Rule34Page onOpenSidebar={onOpenSidebar} />}
         />
+        
+        <Route
+          path="/fapello"
+          element={<FapelloPage onOpenSidebar={onOpenSidebar} />}
+        />
+        <Route path="/fapello/:slug" element={<FapelloDetailPage />} />
+        
         <Route
           path="/cosplay"
           element={<CosplayTelePage onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/cosplay/:slug" element={<CosplayDetailPage />} />
-        <Route
-          path="/oreno3d"
-          element={<Oreno3dPage onOpenSidebar={onOpenSidebar} />}
-        />
-        <Route path="/oreno3d/:slug" element={<Oreno3dDetailPage />} />
         <Route
           path="/cavporn"
           element={<CavPornPage onOpenSidebar={onOpenSidebar} />}

@@ -10,6 +10,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
 import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./scraperRule34Video.js";
+import { scrapePorn3dxList, scrapePorn3dxDetail } from "./scraperPorn3dx.js";
+import { scrapeFapelloList, scrapeFapelloModel } from "./scraperFapello.js";
+
 
 try {
   dns.setServers(["1.1.1.1", "8.8.8.8", "1.0.0.1", "8.8.4.4"]);
@@ -598,7 +601,57 @@ app.get(/^\/api\/doujin\/chapter\/(.*)$/, async (req, res) => {
   }
 });
 
-// Search & Latest Endpoint (Scraper)
+// ==========================================
+// PORN3DX API ROUTES
+// ==========================================
+app.get("/api/porn3dx/list", async (req, res) => {
+  try {
+    const { page = 1, search = "", tag = "" } = req.query;
+    const data = await scrapePorn3dxList({ page: parseInt(page), search, tag });
+    res.json(data);
+  } catch (error) {
+    console.error("[Porn3dx API Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get(/^\/api\/porn3dx\/detail\/(.*)$/, async (req, res) => {
+  try {
+    const slug = req.params[0];
+    const data = await scrapePorn3dxDetail(slug);
+    res.json(data);
+  } catch (error) {
+    console.error("[Porn3dx Detail Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// FAPELLO API ROUTES
+// ==========================================
+app.get("/api/fapello/list", async (req, res) => {
+  try {
+    const { page = 1, search = "", sort = "trending" } = req.query;
+    const data = await scrapeFapelloList({ page: parseInt(page), search, sort });
+    res.json(data);
+  } catch (error) {
+    console.error("[Fapello API Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get(/^\/api\/fapello\/model\/(.*)$/, async (req, res) => {
+  try {
+    const slug = req.params[0];
+    const data = await scrapeFapelloModel(slug);
+    res.json(data);
+  } catch (error) {
+    console.error("[Fapello Model Error]", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 app.get("/api/hnime/search", async (req, res) => {
   try {
     let { q, page } = req.query;

@@ -1,16 +1,16 @@
 import * as cheerio from "cheerio";
 import fetch from "node-fetch";
 
-const SCRAPER_API_KEY = "4a21d9f2cfa3ccf27c74ba8aec026c43";
+const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
 
-// Helper for ScraperAPI
-const fetchScraperAPI = async (targetUrl, useRender = false) => {
-  const url = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}${useRender ? '&render=true' : ''}`;
-  console.log(`[ScraperAPI] Fetching ${targetUrl}`);
+// Helper for ZenRows
+const fetchScraperAPI = async (targetUrl, useRender = true) => {
+  const url = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(targetUrl)}${useRender ? '&js_render=true' : ''}`;
+  console.log(`[ZenRows Fallback] Fetching ${targetUrl}`);
   
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`ScraperAPI returned status ${response.status}`);
+    throw new Error(`ZenRows API returned status ${response.status}`);
   }
   return response.text();
 };

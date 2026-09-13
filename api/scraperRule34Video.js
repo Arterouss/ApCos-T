@@ -3,15 +3,15 @@ import * as cheerio from "cheerio";
 
 const BASE_URL = "https://rule34video.com";
 
-const SCRAPER_API_KEY = "4a21d9f2cfa3ccf27c74ba8aec026c43";
+const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
 
-const fetchScraperAPI = async (targetUrl, useRender = false) => {
-  const url = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}${useRender ? '&render=true' : ''}`;
-  console.log(`[ScraperAPI Rule34] Fetching ${targetUrl} (render=${useRender})`);
+const fetchZenRows = async (targetUrl, useRender = true) => {
+  const url = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(targetUrl)}${useRender ? '&js_render=true' : ''}`;
+  console.log(`[ZenRows Rule34] Fetching ${targetUrl}`);
   
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`ScraperAPI returned status ${response.status}`);
+    throw new Error(`ZenRows API returned status ${response.status}`);
   }
   return response.text();
 };
@@ -23,7 +23,7 @@ export const scrapeRule34VideoList = async (page = 1, searchQuery = "") => {
   }
 
   try {
-    const html = await fetchScraperAPI(url);
+    const html = await fetchZenRows(url);
     const $ = cheerio.load(html);
 
     const videos = [];
@@ -70,7 +70,7 @@ export const scrapeRule34VideoDetail = async (slug) => {
   const url = slug.includes('rule34video.com') ? slug : `${BASE_URL}/${slug}`;
 
   try {
-    const html = await fetchScraperAPI(url, true);
+    const html = await fetchZenRows(url, true);
     const $ = cheerio.load(html);
 
     const titleEl = $('h1, h2, .title').first();
