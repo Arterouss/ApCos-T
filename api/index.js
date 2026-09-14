@@ -2758,6 +2758,19 @@ app.get("/api/cavporn/player", (req, res) => {
 
 // Serve frontend files (for Render / Railway deployment)
 const distPath = path.join(__dirname, "../dist");
+// ==========================================
+// PERSONAL VIDEO ROUTE (TELEGRAM)
+// ==========================================
+app.get("/api/personal/videos", async (req, res) => {
+  try {
+    const { getTelegramVideos } = await import('./telegramVideo.js');
+    const videos = await getTelegramVideos();
+    res.json({ success: true, data: videos });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.use(express.static(distPath));
 
 app.get(/.*/, (req, res) => {

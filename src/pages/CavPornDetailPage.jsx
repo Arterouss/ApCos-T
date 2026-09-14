@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getCavPornDetail } from "../services/cavpornService";
 import Hls from "hls.js";
+import { useFavorites } from "../hooks/useFavorites";
 import {
   ArrowLeft,
   Download,
@@ -11,6 +12,10 @@ import {
   Tag,
   Clock,
   ThumbsUp,
+  Share2,
+  ListVideo,
+  Info,
+  Heart,
 } from "lucide-react";
 
 export default function CavPornDetailPage() {
@@ -21,6 +26,7 @@ export default function CavPornDetailPage() {
   const [videoError, setVideoError] = useState(null);
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -186,9 +192,28 @@ export default function CavPornDetailPage() {
           <ArrowLeft size={20} /> Back to Gallery
         </Link>
 
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 bg-gradient-to-r from-red-400 to-rose-500 bg-clip-text text-transparent">
-          {data.title}
-        </h1>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-red-400 to-rose-500 bg-clip-text text-transparent">
+            {data.title}
+          </h1>
+          <button
+            onClick={() => toggleFavorite({
+              id: id,
+              link: `/cavporn/detail?url=${encodeURIComponent(url)}&id=${encodeURIComponent(id)}`,
+              title: data.title,
+              cover_url: data.thumbnail || null,
+              type: "JAV",
+              source: "CavPorn"
+            })}
+            className={`p-3 rounded-full flex-shrink-0 transition-all ${
+              isFavorite(id)
+                ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-red-400"
+            }`}
+          >
+            <Heart size={24} className={isFavorite(id) ? "fill-white" : ""} />
+          </button>
+        </div>
 
         {/* Video Player - Direct HLS.js integration, no iframe */}
         <div className="mb-8">

@@ -29,6 +29,8 @@ import FapelloPage from "./pages/FapelloPage";
 import FapelloDetailPage from "./pages/FapelloDetailPage";
 import HentaiPlayPage from "./pages/HentaiPlayPage";
 import HentaiPlayDetailPage from "./pages/HentaiPlayDetailPage";
+import FavoritesPage from "./pages/FavoritesPage";
+import PersonalVideoPage from "./pages/PersonalVideoPage";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
   const location = useLocation();
@@ -41,6 +43,9 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           element={<Navigate to="/nhentai" replace />}
         />
         <Route path="/creator/:service/:id" element={<CreatorPosts />} />
+        
+        <Route path="/favorites" element={<FavoritesPage onOpenSidebar={onOpenSidebar} />} />
+        <Route path="/personal" element={<PersonalVideoPage onOpenSidebar={onOpenSidebar} />} />
 
         <Route
           path="/hanimetv"

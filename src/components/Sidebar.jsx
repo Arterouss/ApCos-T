@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Box, Video, Sparkles, Film } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Box, Video, MonitorPlay, Menu, Heart, FolderLock, Sparkles, Film } from "lucide-react";
 
 const menuCategories = [
   {
@@ -22,7 +22,14 @@ const menuCategories = [
     ]
   },
   {
-    title: "Cosplay & Image",
+    title: "Koleksi Saya",
+    items: [
+      { name: "Favorit Saya", path: "/favorites", icon: <Heart size={20} /> },
+      { name: "Video Pribadi", path: "/personal", icon: <FolderLock size={20} /> },
+    ],
+  },
+  {
+    title: "Cosplay & Foto",
     items: [
       { name: "Fapello", path: "/fapello", icon: <Camera size={20} /> },
       { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },

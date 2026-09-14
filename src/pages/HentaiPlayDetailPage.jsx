@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Loader2, AlertCircle, Film, Tag } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, AlertCircle, Film, Tag, Heart } from "lucide-react";
 import { getHentaiPlayVideo } from "../services/hentaiPlayService";
+import { useFavorites } from "../hooks/useFavorites";
 
 export default function HentaiPlayDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -129,11 +131,30 @@ export default function HentaiPlayDetailPage() {
         </div>
 
         {/* Title & Info */}
-        <div className="mb-6">
-          <h2 className="text-xl md:text-2xl font-bold text-white mb-3 leading-tight">{data.title}</h2>
-          {data.description && (
-            <p className="text-sm text-gray-400 leading-relaxed">{data.description}</p>
-          )}
+        <div className="mb-6 flex items-start gap-4 justify-between">
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold text-white mb-3 leading-tight">{data.title}</h2>
+            {data.description && (
+              <p className="text-sm text-gray-400 leading-relaxed">{data.description}</p>
+            )}
+          </div>
+          <button
+            onClick={() => toggleFavorite({
+              id: slug,
+              link: `/hentaiplay/video/${encodeURIComponent(slug)}`,
+              title: data.title,
+              cover_url: data.cover_url,
+              type: "Video",
+              source: "HentaiPlay"
+            })}
+            className={`p-3 rounded-full flex-shrink-0 transition-all ${
+              isFavorite(slug) || isFavorite(`/hentaiplay/video/${encodeURIComponent(slug)}`)
+                ? "bg-rose-600 text-white shadow-lg shadow-rose-600/30"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-rose-400"
+            }`}
+          >
+            <Heart size={24} className={isFavorite(slug) || isFavorite(`/hentaiplay/video/${encodeURIComponent(slug)}`) ? "fill-white" : ""} />
+          </button>
         </div>
 
         {/* Tags */}

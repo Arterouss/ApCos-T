@@ -1,7 +1,9 @@
 import React from "react";
-import { X, Image as ImageIcon, Download } from "lucide-react";
+import { X, Image as ImageIcon, Download, Heart } from "lucide-react";
+import { useFavorites } from "../../hooks/useFavorites";
 
 export default function MediaViewer({ post, onClose, onTagClick }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
   if (!post) return null;
 
   const isVideo =
@@ -56,7 +58,24 @@ export default function MediaViewer({ post, onClose, onTagClick }) {
                 </button>
               ))}
           </div>
-          <div className="flex gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => toggleFavorite({
+                id: post.id,
+                link: `/rule34?tag=${encodeURIComponent(post.tags.split(" ")[0])}`, // Best effort fallback link
+                title: `Rule34 Image #${post.id}`,
+                cover_url: post.sample_url || post.preview_url || post.file_url,
+                type: "R34 Image",
+                source: "Rule34"
+              })}
+              className={`flex items-center justify-center p-3 rounded-xl transition-all font-bold text-sm ${
+                isFavorite(post.id)
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-violet-400 border border-white/10"
+              }`}
+            >
+              <Heart size={20} className={isFavorite(post.id) ? "fill-white" : ""} />
+            </button>
             <a
               href={post.file_url}
               target="_blank"

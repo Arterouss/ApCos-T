@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { X, Play, Loader2, Tag } from "lucide-react";
+import { X, Play, Loader2, Tag, Heart } from "lucide-react";
 import { useRule34Video } from "../../hooks/useRule34Video";
+import { useFavorites } from "../../hooks/useFavorites";
 
 export default function Rule34VideoViewer({ video, onClose }) {
   const { getVideoDetail } = useRule34Video();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,10 +45,27 @@ export default function Rule34VideoViewer({ video, onClose }) {
 
       <div className="w-full max-w-5xl bg-neutral-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 border-b border-white/10 shrink-0">
+        <div className="p-4 border-b border-white/10 shrink-0 flex items-center justify-between gap-4">
           <h2 className="text-xl md:text-2xl font-bold text-white line-clamp-1">
             {detail?.title || video.title}
           </h2>
+          <button
+            onClick={() => toggleFavorite({
+              id: video.slug,
+              link: `/rule34`, // User has to search for it, or we could just link to /rule34
+              title: detail?.title || video.title,
+              cover_url: video.thumbnail_url || null,
+              type: "R34 Video",
+              source: "Rule34"
+            })}
+            className={`p-2 rounded-full flex-shrink-0 transition-all ${
+              isFavorite(video.slug)
+                ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-violet-400"
+            }`}
+          >
+            <Heart size={20} className={isFavorite(video.slug) ? "fill-white" : ""} />
+          </button>
         </div>
 
         {/* Video Player Area */}
