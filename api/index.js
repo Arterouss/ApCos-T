@@ -2759,17 +2759,35 @@ app.get("/api/cavporn/player", (req, res) => {
 // Serve frontend files (for Render / Railway deployment)
 const distPath = path.join(__dirname, "../dist");
 // ==========================================
-// PERSONAL VIDEO ROUTE (TELEGRAM)
+// PERSONAL PHOTO ROUTE (TELEGRAM)
 // ==========================================
-app.get("/api/personal/videos", async (req, res) => {
+app.get("/api/personal/photos", async (req, res) => {
   try {
-    const { getTelegramVideos } = await import('./telegramVideo.js');
-    const videos = await getTelegramVideos();
+    const { getTelegramPhotos } = await import('./telegramPhoto.js');
+    const photos = await getTelegramPhotos();
+    res.json({ success: true, data: photos });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// PERSONAL VIDEO ROUTE (GOOGLE DRIVE)
+// ==========================================
+app.get("/api/personal/drive", async (req, res) => {
+  const { folderLink } = req.query;
+  if (!folderLink) {
+    return res.status(400).json({ success: false, error: 'Parameter folderLink wajib diisi.' });
+  }
+  try {
+    const { getDriveVideos } = await import('./driveFolder.js');
+    const videos = await getDriveVideos(folderLink);
     res.json({ success: true, data: videos });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 app.use(express.static(distPath));
 

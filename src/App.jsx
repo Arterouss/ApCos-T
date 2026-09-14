@@ -31,6 +31,7 @@ import HentaiPlayPage from "./pages/HentaiPlayPage";
 import HentaiPlayDetailPage from "./pages/HentaiPlayDetailPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import PersonalVideoPage from "./pages/PersonalVideoPage";
+import PersonalPhotoPage from "./pages/PersonalPhotoPage";
 
 const AnimatedRoutes = ({ onOpenSidebar }) => {
   const location = useLocation();
@@ -46,6 +47,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         
         <Route path="/favorites" element={<FavoritesPage onOpenSidebar={onOpenSidebar} />} />
         <Route path="/personal" element={<PersonalVideoPage onOpenSidebar={onOpenSidebar} />} />
+        <Route path="/personal-photo" element={<PersonalPhotoPage onOpenSidebar={onOpenSidebar} />} />
 
         <Route
           path="/hanimetv"

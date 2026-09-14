@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Box, Video, MonitorPlay, Menu, Heart, FolderLock, Sparkles, Film } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Box, Video, MonitorPlay, Menu, Heart, FolderLock, Sparkles, Film, ImageIcon } from "lucide-react";
 
 const menuCategories = [
+  {
+    title: "My Fav",
+    items: [
+      { name: "Favorit Saya", path: "/favorites", icon: <Heart size={20} /> },
+      { name: "Video Pribadi", path: "/personal", icon: <Film size={20} /> },
+      { name: "Foto Pribadi", path: "/personal-photo", icon: <Camera size={20} /> },
+    ],
+  },
   {
     title: "Manga & Doujin",
     items: [
@@ -20,13 +28,6 @@ const menuCategories = [
       { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },
       { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
     ]
-  },
-  {
-    title: "Koleksi Saya",
-    items: [
-      { name: "Favorit Saya", path: "/favorites", icon: <Heart size={20} /> },
-      { name: "Video Pribadi", path: "/personal", icon: <FolderLock size={20} /> },
-    ],
   },
   {
     title: "Cosplay & Foto",
