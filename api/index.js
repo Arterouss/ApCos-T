@@ -8,6 +8,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
+import * as cheerio from "cheerio";
 import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./scraperRule34Video.js";
 import { scrapePorn3dxList, scrapePorn3dxDetail } from "./scraperPorn3dx.js";
 import { scrapeFapelloList, scrapeFapelloModel } from "./scraperFapello.js";
