@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Box, Video, MonitorPlay, Menu, Heart, FolderLock, Sparkles, Film, ImageIcon } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film } from "lucide-react";
 
 const menuCategories = [
   {

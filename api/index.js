@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
 import { Buffer } from "buffer";
 import axios from "axios";
 import https from "https";

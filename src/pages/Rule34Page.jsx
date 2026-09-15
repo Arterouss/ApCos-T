@@ -32,13 +32,6 @@ export default function Rule34Page({ onOpenSidebar }) {
   } = useRule34Video();
   const [selectedVideo, setSelectedVideo] = useState(null);
 
-  // Initial load tags & posts
-  useEffect(() => {
-    loadTags();
-    searchPosts("");
-    searchVideos("");
-  }, [searchPosts, searchVideos]);
-
   const loadTags = async () => {
     try {
       const t = await getRule34Tags(15);
@@ -47,6 +40,13 @@ export default function Rule34Page({ onOpenSidebar }) {
       console.error("Failed to load tags", e);
     }
   };
+
+  // Initial load tags & posts
+  useEffect(() => {
+    loadTags();
+    searchPosts("");
+    searchVideos("");
+  }, [searchPosts, searchVideos]);
 
   return (
     <div className="min-h-screen text-white pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 pb-20">
