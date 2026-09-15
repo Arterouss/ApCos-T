@@ -8,6 +8,9 @@ export default function PersonalPhotoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [activeTab, setActiveTab] = useState("Semua");
+
+  const categories = ["Semua", "MyGoon", "Cosplay", "Gravure"];
 
   useEffect(() => {
     fetchPhotos();
@@ -90,6 +93,25 @@ export default function PersonalPhotoPage() {
         )}
       </div>
 
+      {/* Filter Tabs */}
+      {!loading && !error && photos.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveTab(cat)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === cat 
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30" 
+                  : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"
+              }`}
+            >
+              {cat === "Semua" ? "Semua" : `#${cat}`}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Setup Guide jika token belum diset */}
       {isTokenNotSet && (
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-6 max-w-xl mx-auto mt-16 text-center">
@@ -141,7 +163,13 @@ export default function PersonalPhotoPage() {
       {/* Foto Grid */}
       {!loading && !error && photos.length > 0 && (
         <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-3 space-y-3">
-          {photos.map((photo, i) => (
+          {photos
+            .filter(photo => {
+              if (activeTab === "Semua") return true;
+              const caption = (photo.caption || "").toLowerCase();
+              return caption.includes(`#${activeTab.toLowerCase()}`);
+            })
+            .map((photo, i) => (
             <motion.div
               key={photo.id}
               initial={{ opacity: 0, y: 20 }}
