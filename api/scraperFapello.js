@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import axios from "axios";
 
-const BASE_URL = "https://fapello.com";
+const BASE_URL = "https://fapello.su";
 const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
 
 const fetchZenRows = async (targetUrl) => {
@@ -41,10 +41,10 @@ export const scrapeFapelloList = async ({ page = 1, search = "", sort = "trendin
     if (!$a.length || !$img.length) return;
 
     const href = $a.attr("href") || "";
-    if (seen.has(href) || !href.match(/fapello\.com\/[a-z0-9_-]+\/?$/i)) return;
+    if (seen.has(href) || !href.match(/fapello\.(com|su)\/[a-z0-9_-]+\/?$/i)) return;
     seen.add(href);
 
-    const slug = href.replace(/https?:\/\/fapello\.com\//, "").replace(/\/$/, "");
+    const slug = href.replace(/https?:\/\/fapello\.(com|su)\//, "").replace(/\/$/, "");
     const name = $(el).text().replace(/\s+/g, " ").trim() || slug;
     const cover = $img.attr("src") || $img.attr("data-src") || "";
 

@@ -82,52 +82,32 @@ export default function HentaiPlayDetailPage() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Video Player Section */}
         <div className="mb-6">
-          {data.embed_url ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video"
-            >
-              <iframe
-                src={data.embed_url}
-                title={data.title}
-                className="w-full h-full"
-                allowFullScreen
-                allow="autoplay; fullscreen; picture-in-picture"
-                frameBorder="0"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative group cursor-pointer"
+            onClick={() => window.open(data.original_url, '_blank')}
+          >
+            {/* Thumbnail Background */}
+            {data.cover_url && (
+              <img
+                src={data.cover_url}
+                alt={data.title}
+                className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-300"
               />
-            </motion.div>
-          ) : (
-            // No embed URL - show cover with link to original
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="rounded-2xl overflow-hidden border border-white/10 bg-neutral-900 aspect-video flex flex-col items-center justify-center gap-6 relative"
-            >
-              {data.cover_url && (
-                <img
-                  src={data.cover_url}
-                  alt={data.title}
-                  className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
-                />
-              )}
-              <div className="relative z-10 flex flex-col items-center gap-4">
-                <Film size={48} className="text-gray-600" />
-                <p className="text-sm text-gray-400 text-center px-8">
-                  Video player tidak dapat dimuat secara otomatis.
-                </p>
-                <a
-                  href={data.original_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-xl font-semibold text-sm shadow-lg shadow-rose-500/20 transition-all active:scale-95"
-                >
-                  Tonton di HentaiPlay <ExternalLink size={16} />
-                </a>
+            )}
+            {/* Overlay + Play Button */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-rose-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-rose-500/50 group-hover:scale-110 transition-transform duration-300 border border-rose-400/30">
+                <Film size={36} className="text-white ml-1" />
               </div>
-            </motion.div>
-          )}
+              <div className="text-center">
+                <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
+                <p className="text-rose-300 text-xs mt-1">Membuka di HentaiPlay.net</p>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* Title & Info */}

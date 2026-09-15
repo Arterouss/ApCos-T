@@ -68,7 +68,7 @@ app.get(/^\/api\/hentaiplay\/video\/(.*)$/, async (req, res) => {
 // --- CONSTANTS ---
 const HANIME_API = "https://hanime.tv/api/v8";
 const HANIME_SEARCH_API = "https://search.htv-services.com";
-const CAVPORN_BASE = "https://cav103.com";
+const CAVPORN_BASE = "https://cav107.com";
 const ORENO3D_BASE = "https://oreno3d.com";
 const IWARA_API_BASE = "https://api.iwara.tv";
 const IWARA_WEB_BASE = "https://www.iwara.tv";

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Camera, AlertCircle, X, ZoomIn } from "lucide-react";
+import { Loader2, Camera, AlertCircle, X, ZoomIn, Trash2 } from "lucide-react";
+
+const HIDDEN_KEY = "apicos_hidden_photos";
 
 export default function PersonalPhotoPage() {
   const [photos, setPhotos] = useState([]);
@@ -9,6 +11,20 @@ export default function PersonalPhotoPage() {
   const [error, setError] = useState(null);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [activeTab, setActiveTab] = useState("Semua");
+  const [hiddenIds, setHiddenIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || "[]")); }
+    catch { return new Set(); }
+  });
+
+  const hidePhoto = (id, e) => {
+    e.stopPropagation();
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const categories = ["Semua", "MyGoon", "Cosplay", "Gravure"];
 
@@ -164,6 +180,7 @@ export default function PersonalPhotoPage() {
       {!loading && !error && photos.length > 0 && (
         <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-3 space-y-3">
           {photos
+            .filter(photo => !hiddenIds.has(photo.id))
             .filter(photo => {
               if (activeTab === "Semua") return true;
               const caption = (photo.caption || "").toLowerCase();
@@ -184,9 +201,18 @@ export default function PersonalPhotoPage() {
                 className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
               />
+              {/* Hover overlay */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                 <ZoomIn size={28} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
               </div>
+              {/* Trash button */}
+              <button
+                onClick={(e) => hidePhoto(photo.id, e)}
+                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-600 hover:text-white transition-all duration-200"
+                title="Sembunyikan foto"
+              >
+                <Trash2 size={14} />
+              </button>
               {photo.caption && (
                 <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
                   <p className="text-xs text-gray-200 line-clamp-2">{photo.caption}</p>

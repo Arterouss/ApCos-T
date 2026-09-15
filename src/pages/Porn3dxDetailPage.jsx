@@ -77,26 +77,30 @@ export default function Porn3dxDetailPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {/* Video or Cover */}
-        {data?.video_type === "bunny" && data?.video_url ? (
-          <div className="rounded-xl overflow-hidden aspect-video bg-black border border-white/10">
-            <iframe
-              src={data.video_url}
-              className="w-full h-full"
-              allow="fullscreen"
-              allowFullScreen
-              title={data.title}
-            />
-          </div>
-        ) : data?.cover_url ? (
-          <div className="rounded-xl overflow-hidden max-h-[70vh] flex justify-center bg-black border border-white/10">
+        {/* Video Thumbnail + Play */}
+        {data?.cover_url && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-xl overflow-hidden aspect-video bg-black border border-white/10 relative group cursor-pointer"
+            onClick={() => window.open(data.original_url, '_blank')}
+          >
             <img
               src={data.cover_url}
               alt={data.title}
-              className="max-h-[70vh] object-contain"
+              className="w-full h-full object-cover opacity-70 group-hover:opacity-50 transition-opacity duration-300"
             />
-          </div>
-        ) : null}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <div className="w-20 h-20 rounded-full bg-violet-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-violet-500/50 group-hover:scale-110 transition-transform duration-300 border border-violet-400/30">
+                <Play size={36} className="text-white ml-1" />
+              </div>
+              <div className="text-center">
+                <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
+                <p className="text-violet-300 text-xs mt-1">Membuka di Porn3dx.com</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Title & Info */}
         <div className="flex items-start gap-4 justify-between">
