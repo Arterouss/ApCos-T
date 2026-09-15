@@ -55,7 +55,7 @@ export async function getDriveVideos(folderLinkOrId) {
       title: file.name.replace(/\.[^/.]+$/, ''), // Hilangkan ekstensi
       filename: file.name,
       thumbnail: file.thumbnailLink?.replace('=s220', '=s400') || null,
-      stream_url: `https://drive.google.com/file/d/${file.id}/preview`,
+      stream_url: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${GOOGLE_API_KEY}`,
       download_url: `https://drive.google.com/uc?export=download&id=${file.id}`,
       date: file.createdTime,
       size: file.size ? Math.round(parseInt(file.size) / (1024 * 1024)) + ' MB' : null,

@@ -78,13 +78,12 @@ export default function PersonalVideoPage() {
                   <X size={20} />
                 </button>
               </div>
-              <div className="aspect-video bg-black">
-                <iframe
+              <div className="aspect-video bg-black relative">
+                <video
                   src={playingVideo.stream_url}
-                  className="w-full h-full"
-                  allow="autoplay"
-                  allowFullScreen
-                  title={playingVideo.title}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
                 />
               </div>
               <div className="p-3 flex items-center justify-between text-xs text-gray-500 shrink-0">
