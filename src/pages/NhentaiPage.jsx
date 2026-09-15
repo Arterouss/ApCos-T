@@ -3,6 +3,7 @@ import { Search, Book, Flame, X, ChevronDown, ChevronUp, Tag } from "lucide-reac
 import { useNhentai } from "../hooks/useNhentai";
 import NhentaiCard from "../components/Nhentai/NhentaiCard";
 import NhentaiViewer from "../components/Nhentai/NhentaiViewer";
+import { useModalBack } from "../hooks/useModalBack";
 
 // ── Tag chips ─────────────────────────────────────────────────────────────
 const ALL_TAGS = [
@@ -93,6 +94,9 @@ export default function NhentaiPage() {
     setSelectedGallery(null);
     setSelectedGalleryIdx(-1);
   };
+
+  // Back button HP menutup modal, bukan keluar dari halaman
+  useModalBack(!!selectedGallery, closeGallery);
 
   // Search & tag state
   const [searchInput, setSearchInput]   = useState("");

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Film, Image, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { getPorn3dxList } from "../services/porn3dxService";
+import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 
 const TAGS = [
   "3d porn", "blender", "anime", "big tits", "ass", "hentai", "game porn",
@@ -80,10 +81,12 @@ export default function Porn3dxPage({ onOpenSidebar }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [activeTag, setActiveTag] = useState("");
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = usePersistentState("porn3dx_search", "");
+  const [searchInput, setSearchInput] = useState(search);
+  const [activeTag, setActiveTag] = usePersistentState("porn3dx_tag", "");
+  const [page, setPage] = usePersistentState("porn3dx_page", 1);
+
+  useScrollRestoration("porn3dx");
 
   const fetchData = useCallback(async () => {
     setLoading(true);

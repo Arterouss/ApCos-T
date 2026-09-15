@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Search, Film, ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react";
 import { getHentaiPlayList } from "../services/hentaiPlayService";
+import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 
 export default function HentaiPlayPage() {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePersistentState("hentaiplay_page", 1);
   const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = usePersistentState("hentaiplay_search", "");
+  const [searchInput, setSearchInput] = useState(search);
+
+  useScrollRestoration("hentaiplay");
 
   const fetchVideos = useCallback(async (pageNum, searchQuery) => {
     setLoading(true);
     setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const data = await getHentaiPlayList(pageNum, searchQuery);
       setVideos(data.videos || []);

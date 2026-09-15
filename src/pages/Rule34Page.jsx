@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getRule34Tags } from "../services/rule34Service";
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, Video, Image as ImageIcon } from "lucide-react";
 import { useRule34Posts } from "../hooks/useRule34Posts";
 import PostCard from "../components/Rule34/PostCard";
 import MediaViewer from "../components/Rule34/MediaViewer";
@@ -10,7 +10,7 @@ import CategoryChips from "../components/Rule34/CategoryChips";
 import { useRule34Video } from "../hooks/useRule34Video";
 import Rule34VideoCard from "../components/Rule34/Rule34VideoCard";
 import Rule34VideoViewer from "../components/Rule34/Rule34VideoViewer";
-import { Video, Image as ImageIcon } from "lucide-react";
+import { useModalBack } from "../hooks/useModalBack";
 
 export default function Rule34Page({ onOpenSidebar }) {
   const [mode, setMode] = useState("images"); // 'images' | 'videos'
@@ -31,6 +31,14 @@ export default function Rule34Page({ onOpenSidebar }) {
     currentSearch: videoSearch 
   } = useRule34Video();
   const [selectedVideo, setSelectedVideo] = useState(null);
+
+  // Back button HP menutup modal yang sedang aktif
+  const activeModal = !!selectedPost || !!selectedVideo;
+  const closeActiveModal = () => {
+    if (selectedPost) setSelectedPost(null);
+    if (selectedVideo) setSelectedVideo(null);
+  };
+  useModalBack(activeModal, closeActiveModal);
 
   const loadTags = async () => {
     try {

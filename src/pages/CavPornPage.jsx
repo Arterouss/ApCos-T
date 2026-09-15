@@ -9,11 +9,12 @@ import {
 } from "../services/cavpornService";
 import { Menu, Play, Clock, ThumbsUp, Tag, Grid, Filter } from "lucide-react";
 import SearchBar from "../components/SearchBar";
+import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 
 export default function CavPornPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePersistentState("cavporn_page", 1);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [categories, setCategories] = useState([]);
@@ -21,6 +22,8 @@ export default function CavPornPage({ onOpenSidebar }) {
   const [activeCategory, setActiveCategory] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
   const [showTags, setShowTags] = useState(false);
+
+  useScrollRestoration("cavporn");
 
   // Debounce search query
   useEffect(() => {
@@ -65,6 +68,7 @@ export default function CavPornPage({ onOpenSidebar }) {
       }
     };
     fetchData();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [page, debouncedQuery, activeCategory]);
 
   // Reset to page 1 on filter change

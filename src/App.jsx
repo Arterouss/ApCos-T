@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -33,11 +33,21 @@ import FavoritesPage from "./pages/FavoritesPage";
 import PersonalVideoPage from "./pages/PersonalVideoPage";
 import PersonalPhotoPage from "./pages/PersonalPhotoPage";
 
+// Scroll to top setiap pindah halaman utama (bukan saat pagination)
+const ScrollToTop = () => {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [location.pathname]);
+  return null;
+};
+
 const AnimatedRoutes = ({ onOpenSidebar }) => {
   const location = useLocation();
 
   return (
     <AnimatePresence mode="wait">
+      <ScrollToTop />
       <Routes location={location} key={location.pathname}>
         <Route
           path="/"
