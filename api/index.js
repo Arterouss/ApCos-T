@@ -1858,16 +1858,29 @@ async function resolveJavGuruSearcho(searchoUrl, referer) {
 }
 
 // Trending/Latest
+// ── FAST FETCH helper (no proxy fallback, suited for Vercel 10s limit) ──────
+const fastFetch = async (url, headers = {}) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': getRandomUA(), ...headers },
+      agent: sslAgent,
+      signal: controller.signal,
+    });
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 app.get("/api/hanime/trending", async (req, res) => {
   const { page = 0 } = req.query;
   const pageNum = parseInt(page) || 0;
   const url = pageNum === 0 ? "https://jav.guru/" : `https://jav.guru/page/${pageNum + 1}/`;
   
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": getRandomUA() }
-    });
-    const html = await response.text();
+    const html = await fastFetch(url);
     const $ = cheerio.load(html);
     const videos = [];
     
@@ -1907,10 +1920,7 @@ app.get("/api/hanime/search", async (req, res) => {
     : `https://jav.guru/page/${pageNum + 1}/?s=${encodeURIComponent(q)}`;
   
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": getRandomUA() }
-    });
-    const html = await response.text();
+    const html = await fastFetch(url);
     const $ = cheerio.load(html);
     const videos = [];
     
@@ -2213,33 +2223,9 @@ app.get("/api/cavporn/latest", async (req, res) => {
 
   try {
     console.log(`[CavPorn] Fetching latest page ${page}`);
-    let html;
-    let videos = [];
-
-    // Try full page first
-    try {
-      html = await fetchWithFallback(fullPageUrl, {
-        "User-Agent": getRandomUA(),
-        Referer: CAVPORN_BASE + "/",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-      });
-      videos = parseCavPornVideos(html);
-      console.log(`[CavPorn] Full page found ${videos.length} videos`);
-    } catch (e) {
-      console.log(`[CavPorn] Full page failed, trying async...`);
-    }
-
-    // Fallback to async if full page returned no results
-    if (videos.length === 0) {
-      html = await fetchWithFallback(asyncUrl, {
-        "User-Agent": getRandomUA(),
-        Referer: CAVPORN_BASE + "/",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-      });
-      videos = parseCavPornVideos(html);
-      console.log(`[CavPorn] Async found ${videos.length} videos`);
-    }
-
+    const html = await fastFetch(fullPageUrl, { Referer: CAVPORN_BASE + "/", "Accept-Language": "en-US,en;q=0.9" });
+    let videos = parseCavPornVideos(html);
+    console.log(`[CavPorn] Found ${videos.length} videos`);
     res.json(videos);
   } catch (error) {
     console.error("[CavPorn] Latest Error:", error.message);
@@ -2256,11 +2242,7 @@ app.get("/api/cavporn/search", async (req, res) => {
 
   try {
     console.log(`[CavPorn] Searching "${q}" page ${page}`);
-    const html = await fetchWithFallback(url, {
-      "User-Agent": getRandomUA(),
-      Referer: CAVPORN_BASE + "/",
-      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    });
+    const html = await fastFetch(url, { Referer: CAVPORN_BASE + "/" });
 
     const videos = parseCavPornVideos(html);
     console.log(`[CavPorn] Search "${q}" found ${videos.length} results`);
@@ -2277,10 +2259,7 @@ app.get("/api/cavporn/categories", async (req, res) => {
 
   try {
     console.log("[CavPorn] Fetching categories");
-    const html = await fetchWithFallback(url, {
-      "User-Agent": getRandomUA(),
-      Referer: CAVPORN_BASE + "/",
-    });
+    const html = await fastFetch(url, { Referer: CAVPORN_BASE + "/" });
 
     const $ = cheerio.load(html);
     const categories = [];
