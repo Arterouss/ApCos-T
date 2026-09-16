@@ -63,20 +63,22 @@ export default function PersonalVideoPage() {
       <AnimatePresence>
         {playingVideo && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-black/95 backdrop-blur-md"
           >
-            <div className="w-full max-w-5xl flex flex-col bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
-                <h3 className="font-bold text-white line-clamp-1 pr-4 text-sm md:text-base">{playingVideo.title}</h3>
-                <button
-                  onClick={() => setPlayingVideo(null)}
-                  className="p-2 rounded-full bg-white/10 hover:bg-red-500/80 text-white transition-colors shrink-0"
-                >
-                  <X size={20} />
-                </button>
+            {/* Absolute Close Button */}
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="absolute top-4 right-4 md:top-6 md:right-6 z-[110] p-3 rounded-full bg-white/10 hover:bg-red-500 text-white transition-all backdrop-blur-md"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="w-full max-w-5xl flex flex-col bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative">
+              <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0 pr-16">
+                <h3 className="font-bold text-white line-clamp-1 text-sm md:text-base">{playingVideo.title}</h3>
               </div>
               <div className="aspect-video bg-black relative">
                 <video
