@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Search, Film, ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react";
 import { getHentaiPlayList } from "../services/hentaiPlayService";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
