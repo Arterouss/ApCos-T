@@ -144,13 +144,13 @@ export default function HanimeTvPage({ onOpenSidebar }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
               {data.map((item, idx) => (
                 <GlassCard
-                  key={`${item.id}-${idx}`}
-                  to={`/hanimetv/${item.slug || item.id}`}
-                  title={item.name}
-                  thumb={item.poster_url || item.cover_url}
+                  key={`${item?.id || idx}-${idx}`}
+                  to={`/hanimetv/${item?.slug || item?.id || ''}`}
+                  title={item?.name || 'Unknown Title'}
+                  thumb={item?.poster_url || item?.cover_url || ''}
                   category={
-                    item.views
-                      ? `${item.views.toLocaleString()} Views`
+                    item?.views
+                      ? `${Number(item.views) ? Number(item.views).toLocaleString() : item.views} Views`
                       : "Anime"
                   }
                   fallbackIcon={Play}
