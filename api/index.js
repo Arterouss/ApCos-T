@@ -2750,6 +2750,28 @@ app.get("/api/personal/photos", async (req, res) => {
   }
 });
 
+app.delete("/api/personal/photos", async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ success: false, error: "Missing photo id" });
+    const { deleteTelegramPhoto } = await import('./telegramPhoto.js');
+    const success = await deleteTelegramPhoto(id);
+    res.json({ success });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/telegram/webhook", async (req, res) => {
+  const { handleTelegramWebhook } = await import('./telegramWebhook.js');
+  return handleTelegramWebhook(req, res);
+});
+
+app.get("/api/telegram/setwebhook", async (req, res) => {
+  const { setTelegramWebhook } = await import('./telegramWebhook.js');
+  return setTelegramWebhook(req, res);
+});
+
 // ==========================================
 // PERSONAL VIDEO ROUTE (GOOGLE DRIVE)
 // ==========================================

@@ -16,14 +16,31 @@ export default function PersonalPhotoPage() {
     catch { return new Set(); }
   });
 
-  const hidePhoto = (id, e) => {
+  const deletePhoto = async (id, e) => {
     e.stopPropagation();
+    if (!window.confirm("Apakah Anda yakin ingin menghapus foto ini selamanya?")) return;
+    
+    // Sembunyikan dari UI sementara loading
     setHiddenIds(prev => {
       const next = new Set(prev);
       next.add(id);
-      localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next]));
       return next;
     });
+
+    try {
+      await axios.delete(`/api/personal/photos?id=${encodeURIComponent(id)}`);
+      // Hapus permanen dari state
+      setPhotos(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error("Gagal menghapus foto:", err);
+      // Munculkan lagi jika gagal
+      setHiddenIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      alert("Gagal menghapus foto.");
+    }
   };
 
   const categories = ["Semua", "MyGoon", "Cosplay", "Gravure"];
@@ -207,9 +224,9 @@ export default function PersonalPhotoPage() {
               </div>
               {/* Trash button */}
               <button
-                onClick={(e) => hidePhoto(photo.id, e)}
+                onClick={(e) => deletePhoto(photo.id, e)}
                 className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-600 hover:text-white transition-all duration-200"
-                title="Sembunyikan foto"
+                title="Hapus foto permanen"
               >
                 <Trash2 size={14} />
               </button>
