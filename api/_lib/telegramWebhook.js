@@ -48,12 +48,23 @@ export async function handleTelegramWebhook(req, res) {
       const filePath = fileRes.data.result.file_path;
       newPhoto.url = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
       
+      // FIX RACE CONDITION UNTUK ALBUM CAPTION
+      if (newPhoto.group_id) {
+        if (!newPhoto.caption) {
+          // Kasus 1: Webhook foto tanpa caption tiba lebih lambat/cepat.
+          // Cek apakah ada foto lain di grup ini yang sudah punya caption di DB.
+          const sibling = await collection.findOne({ group_id: newPhoto.group_id, caption: { $ne: null } });
+          if (sibling) {
+            newPhoto.caption = sibling.caption;
+          }
+        }
+      }
+
       // Simpan ke MongoDB (upsert agar tidak ganda)
       await collection.updateOne({ id: newPhoto.id }, { $set: newPhoto }, { upsert: true });
 
-      // Jika bagian dari album, kita perlu mendistribusikan caption secara asynchronous
-      // karena Telegram mengirim foto album sebagai pesan terpisah secara berurutan.
-      // Solusi sederhana: Jika photo ini punya caption dan group_id, update semua photo lain dengan group_id yg sama.
+      // Kasus 2: Webhook foto yang bawa caption tiba. Update saudara-saudaranya yang mungkin
+      // sudah masuk duluan ke DB tapi caption-nya masih null.
       if (newPhoto.group_id && newPhoto.caption) {
         await collection.updateMany(
           { group_id: newPhoto.group_id, caption: null },
