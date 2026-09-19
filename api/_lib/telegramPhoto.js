@@ -71,7 +71,14 @@ export async function getTelegramPhotos() {
 
   // Ambil SEMUA foto dari MongoDB yang belum dihapus, diurutkan dari yang terbaru
   const photos = await collection.find({ deleted: { $ne: true } }).sort({ date: -1 }).toArray();
-  return photos;
+  const result = photos.map(photo => ({
+    ...photo,
+    // Timpa url asli di DB dengan url proxy lokal untuk menghindari blokir ISP
+    // dan masalah kadaluarsa (expired 1 jam) dari Telegram.
+    url: `/api/telegram/image?file_id=${photo.file_id}`
+  }));
+
+  return result;
 }
 
 /**

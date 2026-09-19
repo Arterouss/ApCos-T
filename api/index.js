@@ -2773,6 +2773,11 @@ app.get("/api/telegram/setwebhook", async (req, res) => {
   return setTelegramWebhook(req, res);
 });
 
+app.get("/api/telegram/image", async (req, res) => {
+  const { proxyTelegramImage } = await import('./_lib/telegramImageProxy.js');
+  return proxyTelegramImage(req, res);
+});
+
 // ==========================================
 // PERSONAL VIDEO ROUTE (GOOGLE DRIVE)
 // ==========================================
