@@ -9,9 +9,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
 import * as cheerio from "cheerio";
-import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./scraperRule34Video.js";
-import { scrapePorn3dxList, scrapePorn3dxDetail } from "./scraperPorn3dx.js";
-import { scrapeFapelloList, scrapeFapelloModel } from "./scraperFapello.js";
+import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./_lib/scraperRule34Video.js";
+import { scrapePorn3dxList, scrapePorn3dxDetail } from "./_lib/scraperPorn3dx.js";
+import { scrapeFapelloList, scrapeFapelloModel } from "./_lib/scraperFapello.js";
 
 
 try {
@@ -36,7 +36,7 @@ const sslAgent = new https.Agent({
 
 app.use(cors());
 
-import nhentaiRouter from "./nhentai.js";
+import nhentaiRouter from "./_lib/nhentai.js";
 app.use("/api/nhentai", nhentaiRouter);
 
 // ==========================================
@@ -45,7 +45,7 @@ app.use("/api/nhentai", nhentaiRouter);
 app.get("/api/hentaiplay/list", async (req, res) => {
   try {
     const { page = 1, search = '' } = req.query;
-    const { scrapeHentaiPlayList } = await import('./scraperHentaiPlay.js');
+    const { scrapeHentaiPlayList } = await import('./_lib/scraperHentaiPlay.js');
     const data = await scrapeHentaiPlayList(parseInt(page), search);
     res.json(data);
   } catch (err) {
@@ -57,7 +57,7 @@ app.get("/api/hentaiplay/list", async (req, res) => {
 app.get(/^\/api\/hentaiplay\/video\/(.*)$/, async (req, res) => {
   try {
     const slug = req.params[0];
-    const { scrapeHentaiPlayVideo } = await import('./scraperHentaiPlay.js');
+    const { scrapeHentaiPlayVideo } = await import('./_lib/scraperHentaiPlay.js');
     const data = await scrapeHentaiPlayVideo(slug);
     res.json(data);
   } catch (err) {
@@ -343,7 +343,7 @@ const fetchWithFallback = async (
   // 5. Ultimate Fallback: Puppeteer Stealth
   try {
     console.log(`[Proxy] Stealth Fallback triggered for: ${targetUrl}`);
-    const { fetchWithStealth } = await import("./scraper.js");
+    const { fetchWithStealth } = await import("./_lib/scraper.js");
     const text = await fetchWithStealth(targetUrl);
     if (text) return text;
     lastError = `Stealth Fallback returned empty`;
@@ -595,7 +595,7 @@ app.get("/api/proxy/cossora", async (req, res) => {
 app.get("/api/doujin/list", async (req, res) => {
   try {
     const { page = 1, type = "", genre = "", search = "" } = req.query;
-    const { scrapeDoujinList } = await import("./scraperDoujin.js");
+    const { scrapeDoujinList } = await import("./_lib/scraperDoujin.js");
     const data = await scrapeDoujinList({ page, type, genre, search });
     res.json(data);
   } catch (error) {
@@ -607,7 +607,7 @@ app.get("/api/doujin/list", async (req, res) => {
 app.get(/^\/api\/doujin\/detail\/(.*)$/, async (req, res) => {
   try {
     const slug = req.params[0];
-    const { scrapeDoujinDetail } = await import("./scraperDoujin.js");
+    const { scrapeDoujinDetail } = await import("./_lib/scraperDoujin.js");
     const data = await scrapeDoujinDetail(slug);
     res.json(data);
   } catch (error) {
@@ -619,7 +619,7 @@ app.get(/^\/api\/doujin\/detail\/(.*)$/, async (req, res) => {
 app.get(/^\/api\/doujin\/chapter\/(.*)$/, async (req, res) => {
   try {
     const slug = req.params[0];
-    const { scrapeDoujinChapter } = await import("./scraperDoujin.js");
+    const { scrapeDoujinChapter } = await import("./_lib/scraperDoujin.js");
     const data = await scrapeDoujinChapter(slug);
     res.json(data);
   } catch (error) {
@@ -684,7 +684,7 @@ app.get("/api/hnime/search", async (req, res) => {
     let { q, page } = req.query;
     page = parseInt(page) || 1;
 
-    const { scrapePornavHDSearch } = await import("./scraper.js");
+    const { scrapePornavHDSearch } = await import("./_lib/scraper.js");
     const posts = await scrapePornavHDSearch(q, page);
 
     res.json({
@@ -706,7 +706,7 @@ app.get(/^\/api\/hnime\/video\/(.*)$/, async (req, res) => {
   const slug = req.params[0];
 
   try {
-    const { scrapePornavHDVideo } = await import("./scraper.js");
+    const { scrapePornavHDVideo } = await import("./_lib/scraper.js");
     const videoData = await scrapePornavHDVideo(slug);
 
     if (!videoData) throw new Error("Failed to retrieve content from PornavHD.");
@@ -2742,7 +2742,7 @@ const distPath = path.join(__dirname, "../dist");
 // ==========================================
 app.get("/api/personal/photos", async (req, res) => {
   try {
-    const { getTelegramPhotos } = await import('./telegramPhoto.js');
+    const { getTelegramPhotos } = await import('./_lib/telegramPhoto.js');
     const photos = await getTelegramPhotos();
     res.json({ success: true, data: photos });
   } catch (error) {
@@ -2754,7 +2754,7 @@ app.delete("/api/personal/photos", async (req, res) => {
   try {
     const { id } = req.query;
     if (!id) return res.status(400).json({ success: false, error: "Missing photo id" });
-    const { deleteTelegramPhoto } = await import('./telegramPhoto.js');
+    const { deleteTelegramPhoto } = await import('./_lib/telegramPhoto.js');
     const success = await deleteTelegramPhoto(id);
     res.json({ success });
   } catch (error) {
@@ -2763,12 +2763,12 @@ app.delete("/api/personal/photos", async (req, res) => {
 });
 
 app.post("/api/telegram/webhook", async (req, res) => {
-  const { handleTelegramWebhook } = await import('./telegramWebhook.js');
+  const { handleTelegramWebhook } = await import('./_lib/telegramWebhook.js');
   return handleTelegramWebhook(req, res);
 });
 
 app.get("/api/telegram/setwebhook", async (req, res) => {
-  const { setTelegramWebhook } = await import('./telegramWebhook.js');
+  const { setTelegramWebhook } = await import('./_lib/telegramWebhook.js');
   return setTelegramWebhook(req, res);
 });
 
@@ -2781,7 +2781,7 @@ app.get("/api/personal/drive", async (req, res) => {
     return res.status(400).json({ success: false, error: 'Parameter folderLink wajib diisi.' });
   }
   try {
-    const { getDriveVideos } = await import('./driveFolder.js');
+    const { getDriveVideos } = await import('./_lib/driveFolder.js');
     const videos = await getDriveVideos(folderLink);
     res.json({ success: true, data: videos });
   } catch (error) {
