@@ -13,6 +13,8 @@ export default function HentaiPlayDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [isPlaying, setIsPlaying] = useState(false);
+
   useEffect(() => {
     const fetchVideo = async () => {
       setLoading(true);
@@ -82,32 +84,61 @@ export default function HentaiPlayDetailPage() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Video Player Section */}
         <div className="mb-6">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative group cursor-pointer"
-            onClick={() => window.open(data.original_url, '_blank')}
-          >
-            {/* Thumbnail Background */}
-            {data.cover_url && (
-              <img
-                src={data.cover_url}
-                alt={data.title}
-                className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-300"
-              />
-            )}
-            {/* Overlay + Play Button */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-rose-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-rose-500/50 group-hover:scale-110 transition-transform duration-300 border border-rose-400/30">
-                <Film size={36} className="text-white ml-1" />
+          {!isPlaying ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative group cursor-pointer"
+              onClick={() => {
+                if (data.embed_url) {
+                  setIsPlaying(true);
+                } else {
+                  window.open(data.original_url, '_blank');
+                }
+              }}
+            >
+              {/* Thumbnail Background */}
+              {data.cover_url && (
+                <img
+                  src={data.cover_url}
+                  alt={data.title}
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-300"
+                />
+              )}
+              {/* Overlay + Play Button */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-rose-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-rose-500/50 group-hover:scale-110 transition-transform duration-300 border border-rose-400/30">
+                  <Film size={36} className="text-white ml-1" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
+                  <p className="text-rose-300 text-xs mt-1">
+                    {data.embed_url ? "Nonton Langsung Disini" : "Membuka di HentaiPlay.net"}
+                  </p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
-                <p className="text-rose-300 text-xs mt-1">Membuka di HentaiPlay.net</p>
-              </div>
+            </motion.div>
+          ) : (
+            <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative">
+              {data.embed_url.endsWith(".mp4") ? (
+                <video
+                  src={data.embed_url}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  controlsList="nodownload"
+                ></video>
+              ) : (
+                <iframe
+                  src={data.embed_url}
+                  className="w-full h-full border-0"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                ></iframe>
+              )}
             </div>
-          </motion.div>
+          )}
         </div>
 
         {/* Title & Info */}

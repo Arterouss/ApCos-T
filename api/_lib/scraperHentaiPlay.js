@@ -103,6 +103,16 @@ export const scrapeHentaiPlayVideo = async (slug) => {
     });
   }
 
+  // Fallback 2: look for direct mp4 video source
+  if (!embedUrl) {
+    $('video source').each((_, el) => {
+      const src = $(el).attr('src') || '';
+      if (src && src.includes('.mp4')) {
+        embedUrl = embedUrl || src;
+      }
+    });
+  }
+
   // Tags
   const tags = [];
   $('.tagcloud a, .post-tags a, a[rel="tag"]').each((_, el) => {
