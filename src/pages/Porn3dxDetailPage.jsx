@@ -13,6 +13,7 @@ export default function Porn3dxDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImg, setSelectedImg] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -78,7 +79,50 @@ export default function Porn3dxDetailPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Video Thumbnail + Play */}
-        {data?.cover_url && (
+        {data?.cover_url && data?.video_url ? (
+          !isPlaying ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-xl overflow-hidden aspect-video bg-black border border-white/10 relative group cursor-pointer"
+              onClick={() => setIsPlaying(true)}
+            >
+              <img
+                src={data.cover_url}
+                alt={data.title}
+                className="w-full h-full object-cover opacity-70 group-hover:opacity-50 transition-opacity duration-300"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <div className="w-20 h-20 rounded-full bg-violet-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-violet-500/50 group-hover:scale-110 transition-transform duration-300 border border-violet-400/30">
+                  <Play size={36} className="text-white ml-1" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
+                  <p className="text-violet-300 text-xs mt-1">Nonton Langsung Disini</p>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="rounded-xl overflow-hidden aspect-video bg-black border border-white/10 relative">
+              {data.video_type === "video" ? (
+                <video
+                  src={data.video_url}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  controlsList="nodownload"
+                ></video>
+              ) : (
+                <iframe
+                  src={data.video_url}
+                  className="w-full h-full border-0"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                ></iframe>
+              )}
+            </div>
+          )
+        ) : data?.cover_url ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -92,15 +136,15 @@ export default function Porn3dxDetailPage() {
             />
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
               <div className="w-20 h-20 rounded-full bg-violet-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-violet-500/50 group-hover:scale-110 transition-transform duration-300 border border-violet-400/30">
-                <Play size={36} className="text-white ml-1" />
+                <ExternalLink size={36} className="text-white ml-1" />
               </div>
               <div className="text-center">
-                <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
-                <p className="text-violet-300 text-xs mt-1">Membuka di Porn3dx.com</p>
+                <p className="text-white font-bold text-base drop-shadow-lg">Buka di Web Asli</p>
+                <p className="text-violet-300 text-xs mt-1">Video tidak tersedia untuk di-embed</p>
               </div>
             </div>
           </motion.div>
-        )}
+        ) : null}
 
         {/* Title & Info */}
         <div className="flex items-start gap-4 justify-between">
