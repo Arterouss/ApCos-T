@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search } from "lucide-react";
 
 const menuCategories = [
   {
@@ -38,7 +38,7 @@ const menuCategories = [
   }
 ];
 
-const SidebarContent = ({ onClose, location }) => {
+const SidebarContent = ({ onClose, location, onOpenSearch }) => {
   const getActiveCategory = () => {
     const idx = menuCategories.findIndex(cat => 
       cat.items.some(item => item.path === location.pathname)
@@ -67,7 +67,7 @@ const SidebarContent = ({ onClose, location }) => {
       <div className="absolute top-0 left-0 w-full h-48 bg-violet-600/20 blur-[100px] pointer-events-none" />
 
       <div className="p-8 pb-4 z-10 shrink-0">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-5">
           <Link to="/" onClick={onClose} className="group">
             <h2 className="text-3xl font-extrabold tracking-tighter">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-white group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-violet-400 transition-all duration-500">
@@ -86,6 +86,23 @@ const SidebarContent = ({ onClose, location }) => {
             <X size={24} />
           </button>
         </div>
+
+        {/* Global Search Quick Trigger */}
+        <button
+          onClick={() => {
+            onOpenSearch?.();
+            onClose?.();
+          }}
+          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-pink-500/40 text-gray-300 hover:text-white transition-all shadow-inner group cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <Search size={16} className="text-pink-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-medium">Cari apa saja...</span>
+          </div>
+          <kbd className="text-[10px] bg-black/50 border border-white/10 px-1.5 py-0.5 rounded text-gray-400 font-mono group-hover:text-pink-300 group-hover:border-pink-500/30 transition-colors">
+            Ctrl+K
+          </kbd>
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 space-y-6 pb-6 z-10 custom-scrollbar">
@@ -177,7 +194,7 @@ const SidebarContent = ({ onClose, location }) => {
   );
 };
 
-const Sidebar = ({ isOpen, onClose }) => {
+const Sidebar = ({ isOpen, onClose, onOpenSearch }) => {
   const location = useLocation();
 
   const sidebarVariants = {
@@ -210,7 +227,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 variants={sidebarVariants}
                 className="fixed left-0 top-0 h-full w-72 z-[60] shadow-2xl"
               >
-                <SidebarContent onClose={onClose} location={location} />
+                <SidebarContent onClose={onClose} location={location} onOpenSearch={onOpenSearch} />
               </motion.div>
             </>
           )}
@@ -219,7 +236,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Desktop Static Sidebar */}
       <div className="hidden md:block fixed left-0 top-0 h-full w-72 z-40">
-        <SidebarContent onClose={onClose} location={location} />
+        <SidebarContent onClose={onClose} location={location} onOpenSearch={onOpenSearch} />
       </div>
     </>
   );

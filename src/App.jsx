@@ -7,7 +7,8 @@ import {
   Navigate
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { Menu } from "lucide-react";
+import { Menu, Search } from "lucide-react";
+import GlobalSearchModal from "./components/GlobalSearchModal";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimeTvPage from "./pages/HanimeTvPage";
 import HanimeTvDetailPage from "./pages/HanimeTvDetailPage";
@@ -116,8 +117,23 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
   const onOpenSidebar = () => setIsSidebarOpen(true);
+  const onOpenSearch = () => setIsGlobalSearchOpen(true);
+  const onCloseSearch = () => setIsGlobalSearchOpen(false);
+
+  // Global Keyboard Shortcut: Ctrl+K / Cmd+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsGlobalSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <Router>
@@ -133,6 +149,7 @@ function App() {
           <Sidebar
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
+            onOpenSearch={onOpenSearch}
           />
 
           <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-hidden">
@@ -140,7 +157,7 @@ function App() {
             <div className="md:hidden sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50">
               <button
                 onClick={onOpenSidebar}
-                className="p-2.5 bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-xl text-white transition-all flex items-center justify-center"
+                className="p-2.5 bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
                 aria-label="Open Menu"
               >
                 <Menu size={22} className="text-orange-400" />
@@ -153,12 +170,25 @@ function App() {
                   PRO
                 </span>
               </div>
-              <div className="w-10" /> {/* Spacer */}
+              <button
+                onClick={onOpenSearch}
+                className="p-2.5 bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-xl text-pink-400 hover:text-pink-300 transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                aria-label="Cari di semua platform"
+                title="Pencarian Cepat"
+              >
+                <Search size={20} />
+              </button>
             </div>
 
             <AnimatedRoutes onOpenSidebar={onOpenSidebar} />
           </main>
         </div>
+
+        {/* Global Search Modal */}
+        <GlobalSearchModal
+          isOpen={isGlobalSearchOpen}
+          onClose={onCloseSearch}
+        />
       </div>
     </Router>
   );
