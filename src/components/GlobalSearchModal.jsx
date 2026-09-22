@@ -121,7 +121,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
               id: `hp-${item.slug}`,
               source: "hentaiplay",
               title: item.title,
-              thumbnail: item.thumbnail,
+              thumbnail: item.cover_url || item.thumbnail,
               duration: item.duration,
               extra: item.episode ? `Ep: ${item.episode}` : null,
               onClick: () => {

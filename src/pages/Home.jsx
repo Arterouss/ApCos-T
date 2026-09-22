@@ -161,9 +161,9 @@ export default function Home({ onOpenSidebar }) {
     <div className="min-h-screen text-white bg-[#070709] pb-24">
       {/* ── 1. CINEMATIC HERO BANNER ────────────────────────────────────────── */}
       <div className="relative w-full h-[58vh] sm:h-[68vh] min-h-[420px] max-h-[720px] overflow-hidden bg-neutral-950">
-        {featuredItem?.thumbnail ? (
+        {featuredItem?.cover_url || featuredItem?.thumbnail ? (
           <img
-            src={featuredItem.thumbnail}
+            src={featuredItem.cover_url || featuredItem.thumbnail}
             alt={featuredItem.title}
             className="w-full h-full object-cover object-center scale-105 filter brightness-[0.75] contrast-[1.1] transition-transform duration-1000"
           />
@@ -274,20 +274,21 @@ export default function Home({ onOpenSidebar }) {
                 className="w-48 sm:w-60 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-red-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
               >
                 <div className="relative aspect-video bg-black/60 overflow-hidden">
-                  <img
-                    src={item.thumbnail}
-                    alt={item.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {item.duration && (
-                    <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white">
-                      {item.duration}
-                    </span>
+                  {item.cover_url || item.thumbnail ? (
+                    <img
+                      src={item.cover_url || item.thumbnail}
+                      alt={item.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-neutral-800">
+                      <Film size={28} className="text-gray-600" />
+                    </div>
                   )}
-                  {item.episode && (
+                  {item.categories?.length > 0 && (
                     <span className="absolute top-2 left-2 bg-red-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
-                      Ep {item.episode}
+                      {item.categories[0]}
                     </span>
                   )}
                   {/* Play Overlay */}
