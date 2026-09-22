@@ -9,6 +9,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { Menu, Search } from "lucide-react";
 import GlobalSearchModal from "./components/GlobalSearchModal";
+import Home from "./pages/Home";
 import CreatorPosts from "./pages/CreatorPosts";
 import HanimeTvPage from "./pages/HanimeTvPage";
 import HanimeTvDetailPage from "./pages/HanimeTvDetailPage";
@@ -52,7 +53,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
       <Routes location={location} key={location.pathname}>
         <Route
           path="/"
-          element={<Navigate to="/nhentai" replace />}
+          element={<Home onOpenSidebar={onOpenSidebar} />}
         />
         <Route path="/creator/:service/:id" element={<CreatorPosts />} />
         
@@ -137,11 +138,12 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen text-white relative overflow-hidden bg-neutral-950">
-        {/* Global Ambient Background */}
-        <div className="fixed inset-0 z-0 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-900/20 rounded-full blur-[150px] animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-900/20 rounded-full blur-[150px] animate-pulse delay-700" />
+      <div className="min-h-screen text-white relative overflow-hidden bg-[#070709]">
+        {/* Global Ambient Cinema Background */}
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-rose-950/20 rounded-full blur-[160px] pointer-events-none" />
+          <div className="absolute top-[35%] right-[-10%] w-[45%] h-[45%] bg-red-950/15 rounded-full blur-[180px] pointer-events-none" />
+          <div className="absolute bottom-[-10%] left-[25%] w-[40%] h-[40%] bg-amber-950/15 rounded-full blur-[160px] pointer-events-none" />
         </div>
 
         {/* Sidebar & Content Wrapper */}
@@ -154,25 +156,25 @@ function App() {
 
           <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-hidden">
             {/* Global Sticky Top Header for Mobile */}
-            <div className="md:hidden sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50">
+            <div className="md:hidden sticky top-0 z-40 bg-[#070709]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between shadow-xl shadow-black/60">
               <button
                 onClick={onOpenSidebar}
-                className="p-2.5 bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
+                className="p-2.5 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/10 rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
                 aria-label="Open Menu"
               >
-                <Menu size={22} className="text-orange-400" />
+                <Menu size={22} className="text-red-400" />
               </button>
               <div className="flex items-center gap-2">
-                <span className="font-black text-lg bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-red-500 to-rose-600 tracking-tight">
+                <span className="font-black text-lg bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 tracking-tight">
                   ApiCos
                 </span>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
-                  PRO
+                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-600/30 text-red-400 border border-red-500/40 tracking-wider">
+                  CINEMA
                 </span>
               </div>
               <button
                 onClick={onOpenSearch}
-                className="p-2.5 bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-xl text-pink-400 hover:text-pink-300 transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                className="p-2.5 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/10 rounded-xl text-red-400 hover:text-red-300 transition-all flex items-center justify-center cursor-pointer shadow-sm"
                 aria-label="Cari di semua platform"
                 title="Pencarian Cepat"
               >

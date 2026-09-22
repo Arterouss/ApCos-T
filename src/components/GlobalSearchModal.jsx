@@ -38,7 +38,7 @@ const QUICK_TAGS = [
 ];
 
 const SOURCE_CONFIG = {
-  all: { label: "Semua", color: "from-fuchsia-500 to-violet-600", text: "text-white" },
+  all: { label: "Semua", color: "from-red-600 to-rose-600", text: "text-white" },
   hentaiplay: { label: "HentaiPlay", color: "from-rose-500 to-pink-600", badge: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
   hanime: { label: "Hanime.tv", color: "from-violet-500 to-purple-600", badge: "bg-violet-500/20 text-violet-300 border-violet-500/30" },
   porn3dx: { label: "Porn3dx", color: "from-indigo-500 to-cyan-500", badge: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
@@ -343,7 +343,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
         >
           {/* Top Search Input Bar */}
           <div className="p-4 sm:p-5 border-b border-white/10 flex items-center gap-3 relative bg-white/[0.02]">
-            <div className="text-pink-400 pl-1">
+            <div className="text-red-400 pl-1">
               <Search size={22} className="shrink-0" />
             </div>
 
@@ -357,7 +357,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             />
 
             {loading && (
-              <Loader2 size={20} className="text-pink-400 animate-spin shrink-0" />
+              <Loader2 size={20} className="text-red-500 animate-spin shrink-0" />
             )}
 
             {query && !loading && (

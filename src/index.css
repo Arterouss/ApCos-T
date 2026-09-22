@@ -20,8 +20,8 @@
   font-weight: 400;
 
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.92);
-  background-color: #050505;
+  color: rgba(255, 255, 255, 0.94);
+  background-color: #070709;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -35,10 +35,10 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  background: #000000;
+  background: #070709;
   overflow-x: hidden;
-  selection-background-color: rgba(139, 92, 246, 0.3); /* Violet tint */
-  selection-color: #fff;
+  selection-background-color: rgba(225, 29, 72, 0.35); /* Crimson red selection */
+  selection-color: #ffffff;
 }
 
 #root {
@@ -47,7 +47,7 @@ body {
   text-align: center;
 }
 
-/* Custom scrollbar - Slim & Modern */
+/* Custom Cinema Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -56,27 +56,41 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(225, 29, 72, 0.6); /* Red highlight on hover */
 }
 
-/* Glassmorphism Utilities */
-.glass-panel {
-  background: rgba(25, 25, 25, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Cinema Utilities */
+.cinema-panel {
+  background: rgba(15, 15, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #c084fc 0%, #e879f9 100%);
+  background: linear-gradient(135deg, #f43f5e 0%, #fb923c 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.text-gold-gradient {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hide scrollbar for clean carousels */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
