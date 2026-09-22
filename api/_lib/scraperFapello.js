@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import axios from "axios";
 
-const BASE_URL = "https://fapello.su";
+const BASE_URL = "https://fapello.com";
 const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
 
 const fetchZenRows = async (targetUrl) => {
@@ -34,9 +34,9 @@ export const scrapeFapelloList = async ({ page = 1, search = "", sort = "trendin
   const results = [];
   const seen = new Set();
 
-  // Fapello model cards: div.flex.flex-1.items-center.w-full.text-white with inner <a> and <img>
+  // Fapello model cards: div.flex.flex-1.items-center with inner <a> and <img>
   $("div.flex.flex-1.items-center").each((i, el) => {
-    const $a = $(el).find("a[href*='fapello.com']").first();
+    const $a = $(el).find("a").first();
     const $img = $(el).find("img").first();
     if (!$a.length || !$img.length) return;
 
@@ -85,21 +85,24 @@ export const scrapeFapelloModel = async (slug) => {
   const posts = [];
   const seen = new Set();
 
-  $("a[href*='fapello.com'][href*='/p/']").each((i, el) => {
+  $("a").each((i, el) => {
     const href = $(el).attr("href") || "";
-    if (seen.has(href)) return;
-    seen.add(href);
+    const match = href.match(new RegExp(`/${slug}/(\\d+)/?`));
+    if (!match) return;
+    const postId = match[1];
+    if (seen.has(postId)) return;
+    seen.add(postId);
 
     const $img = $(el).find("img").first();
     const $video = $(el).find("video").first();
-    const cover = $img.attr("src") || $img.attr("data-src") || "";
+    let cover = $img.attr("src") || $img.attr("data-src") || "";
     const isVideo = $video.length > 0;
-    const postId = href.match(/\/p\/(\d+)/)?.[1] || href;
 
     posts.push({
       id: postId,
       href,
       cover_url: cover,
+      full_url: cover ? cover.replace("_300px", "") : "",
       is_video: isVideo,
     });
   });
