@@ -640,7 +640,8 @@ app.get("/api/porn3dx/list", async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("[Porn3dx API Error]", error);
-    res.status(500).json({ error: error.message });
+    const statusCode = error.isMaintenance ? 503 : 500;
+    res.status(statusCode).json({ error: error.message, isMaintenance: !!error.isMaintenance });
   }
 });
 
@@ -651,7 +652,8 @@ app.get(/^\/api\/porn3dx\/detail\/(.*)$/, async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("[Porn3dx Detail Error]", error);
-    res.status(500).json({ error: error.message });
+    const statusCode = error.isMaintenance ? 503 : 500;
+    res.status(statusCode).json({ error: error.message, isMaintenance: !!error.isMaintenance });
   }
 });
 

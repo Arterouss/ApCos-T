@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Film, Image, Tag, ExternalLink, Loader2, Play, Share2, X, Heart } from "lucide-react";
+import { ArrowLeft, Film, Image, Tag, ExternalLink, Loader2, Play, Share2, X, Heart, Wrench } from "lucide-react";
 import { getPorn3dxDetail } from "../services/porn3dxService";
 import { useFavorites } from "../hooks/useFavorites";
 import { filterBlockedTags } from "../utils/contentFilter";
@@ -25,7 +25,7 @@ export default function Porn3dxDetailPage() {
         const res = await getPorn3dxDetail(decodedSlug);
         setData(res);
       } catch (e) {
-        setError("Gagal memuat detail. " + (e.response?.data?.error || e.message));
+        setError(e.response?.data?.error || e.message || "Gagal memuat detail.");
       } finally {
         setLoading(false);
       }
@@ -45,12 +45,35 @@ export default function Porn3dxDetailPage() {
   }
 
   if (error) {
+    const isMaint = error.includes("MAINTENANCE") || error.includes("pemeliharaan") || error.includes("503");
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center gap-4">
-        <p className="text-red-400 text-sm">{error}</p>
-        <button onClick={() => navigate(-1)} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm">
-          Kembali
-        </button>
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
+        {isMaint ? (
+          <div className="max-w-md w-full bg-neutral-900 border border-amber-500/20 rounded-2xl p-6 text-center shadow-2xl">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center mb-3">
+              <Wrench size={24} className="animate-pulse" />
+            </div>
+            <h3 className="font-bold text-white text-base mb-1">Server Porn3dx Sedang Maintenance</h3>
+            <p className="text-xs text-gray-400 leading-relaxed mb-5">
+              Website sumber porn3dx.com saat ini sedang dalam pemeliharaan oleh pengembang aslinya. Detail konten akan dapat diakses kembali setelah maintenance selesai.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={() => navigate(-1)} className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-medium transition-colors">
+                Kembali
+              </button>
+              <button onClick={() => navigate("/rule34video")} className="px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-lg shadow-violet-600/30">
+                Buka Rule34Video (3D)
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="text-red-400 text-sm max-w-md">{error}</p>
+            <button onClick={() => navigate(-1)} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold">
+              Kembali
+            </button>
+          </div>
+        )}
       </div>
     );
   }

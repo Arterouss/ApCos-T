@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Film, Image, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { 
+  Search, 
+  X, 
+  Film, 
+  Image, 
+  Loader2, 
+  ChevronLeft, 
+  ChevronRight,
+  Wrench,
+  RefreshCw,
+  AlertTriangle,
+  ArrowRight,
+  Play
+} from "lucide-react";
 import { getPorn3dxList } from "../services/porn3dxService";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
@@ -23,55 +36,69 @@ const Porn3dxCard = ({ item, onClick }) => {
       className="group relative rounded-xl overflow-hidden bg-gray-900 border border-white/5 hover:border-violet-500/40 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-violet-900/20"
       onClick={() => onClick(item)}
     >
-      <div className="relative aspect-video overflow-hidden bg-gray-800">
+      {/* Thumbnail */}
+      <div className="relative aspect-[3/4] bg-neutral-900 overflow-hidden">
         {!imgLoaded && !imgError && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="text-violet-400 animate-spin" size={24} />
+          <div className="absolute inset-0 flex items-center justify-center bg-neutral-800 animate-pulse">
+            <Film size={24} className="text-gray-600" />
           </div>
         )}
-        {!imgError ? (
+        {imgError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-800 text-gray-500">
+            <Film size={28} className="mb-1" />
+            <span className="text-[10px]">No Preview</span>
+          </div>
+        ) : (
           <img
             src={item.cover_url}
             alt={item.title}
+            loading="lazy"
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgError(true)}
-            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+              imgLoaded ? "opacity-100" : "opacity-0"
+            }`}
           />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-            <Film className="text-gray-600" size={40} />
-          </div>
         )}
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+
         {/* Type Badge */}
-        <div className="absolute top-2 left-2 flex gap-1">
+        <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/10">
           {item.type === "video" ? (
-            <span className="bg-violet-600/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-              <Film size={10} /> VIDEO
-            </span>
+            <>
+              <Film size={10} className="text-violet-400" />
+              <span>Video</span>
+            </>
           ) : (
-            <span className="bg-rose-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-              <Image size={10} /> IMAGE
-            </span>
+            <>
+              <Image size={10} className="text-pink-400" />
+              <span>Image</span>
+            </>
           )}
         </div>
-        {/* Duration */}
+
+        {/* Duration Badge */}
         {item.duration && (
-          <div className="absolute bottom-2 right-2">
-            <span className="bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
-              {item.duration}
-            </span>
+          <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+            {item.duration}
           </div>
         )}
-        {/* Gradient */}
-        <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-      <div className="p-3">
-        <p className="text-white text-sm font-medium line-clamp-2 leading-snug">
-          {item.title || "Unknown"}
-        </p>
+
+        {/* Views */}
         {item.views && (
-          <p className="text-gray-500 text-xs mt-1">{item.views} views</p>
+          <div className="absolute bottom-2 right-2 text-gray-400 text-[10px] flex items-center gap-1 bg-black/50 backdrop-blur-sm px-1.5 py-0.5 rounded">
+            <span>👁 {item.views}</span>
+          </div>
         )}
+      </div>
+
+      {/* Info */}
+      <div className="p-2.5">
+        <h3 className="text-xs font-semibold text-gray-200 line-clamp-2 group-hover:text-violet-300 transition-colors leading-snug">
+          {item.title}
+        </h3>
       </div>
     </motion.div>
   );
@@ -82,6 +109,7 @@ export default function Porn3dxPage({ onOpenSidebar }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isMaintenance, setIsMaintenance] = useState(false);
   const [search, setSearch] = usePersistentState("porn3dx_search", "");
   const [searchInput, setSearchInput] = useState(search);
   const [activeTag, setActiveTag] = usePersistentState("porn3dx_tag", "");
@@ -92,11 +120,14 @@ export default function Porn3dxPage({ onOpenSidebar }) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setIsMaintenance(false);
     try {
       const data = await getPorn3dxList(page, search, activeTag);
-      setItems(filterBlockedItems(data || []));
+      setItems(filterBlockedItems(Array.isArray(data) ? data : data?.items || []));
     } catch (e) {
-      setError("Gagal memuat konten Porn3dx. " + (e.response?.data?.error || e.message));
+      const isMaint = e.response?.data?.isMaintenance || e.response?.status === 503 || e.message?.includes("MAINTENANCE");
+      setIsMaintenance(isMaint);
+      setError(e.response?.data?.error || e.message || "Gagal memuat konten Porn3dx.");
     } finally {
       setLoading(false);
     }
@@ -220,18 +251,74 @@ export default function Porn3dxPage({ onOpenSidebar }) {
           </div>
         )}
 
-        {/* Error */}
+        {/* Error / Maintenance */}
         {!loading && error && (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="text-4xl">😵</div>
-            <p className="text-red-400 text-sm text-center max-w-md">{error}</p>
-            <button
-              onClick={fetchData}
-              className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm rounded-xl"
+          isMaintenance ? (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-2xl mx-auto my-12 bg-neutral-900/90 border border-amber-500/20 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl shadow-amber-500/5 text-center"
             >
-              Coba Lagi
-            </button>
-          </div>
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center mb-5 shadow-lg shadow-amber-500/10">
+                <Wrench size={32} className="animate-pulse" />
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold uppercase tracking-wider mb-3">
+                <AlertTriangle size={12} /> Server Pusat Sedang Maintenance
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white mb-2 tracking-tight">
+                Porn3dx Sedang Dalam Pemeliharaan
+              </h2>
+
+              <p className="text-gray-400 text-xs sm:text-sm leading-relaxed mb-6 max-w-lg mx-auto">
+                Website sumber resmi <strong className="text-white">porn3dx.com</strong> saat ini sedang offline untuk pembaruan fitur & server oleh pengelola aslinya (Status HTTP 503). Konten animasi 3D akan otomatis muncul kembali begitu maintenance dari pihak Porn3dx selesai.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+                <button
+                  onClick={fetchData}
+                  className="w-full sm:w-auto px-5 py-3 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-violet-600/30"
+                >
+                  <RefreshCw size={15} />
+                  <span>Cek Ulang Status Server</span>
+                </button>
+              </div>
+
+              <div className="pt-6 border-t border-white/5">
+                <p className="text-xs text-gray-500 mb-3 font-medium">Sementara itu, Anda dapat menikmati alternatif video & 3D lainnya:</p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => navigate("/rule34video")}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/30 text-gray-300 hover:text-white text-xs rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Film size={13} className="text-violet-400" />
+                    <span>Rule34Video (3D & SFM)</span>
+                    <ArrowRight size={11} className="text-gray-500" />
+                  </button>
+                  <button
+                    onClick={() => navigate("/hentaiplay")}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-rose-500/30 text-gray-300 hover:text-white text-xs rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Play size={13} className="text-rose-400" />
+                    <span>HentaiPlay (Anime Series)</span>
+                    <ArrowRight size={11} className="text-gray-500" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+              <div className="text-4xl">😵</div>
+              <p className="text-red-400 text-sm max-w-md">{error}</p>
+              <button
+                onClick={fetchData}
+                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm rounded-xl transition-all active:scale-95"
+              >
+                Coba Lagi
+              </button>
+            </div>
+          )
         )}
 
         {/* Grid */}
