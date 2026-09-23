@@ -5,9 +5,8 @@ import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film
 
 const menuCategories = [
   {
-    title: "Menu Utama",
+    title: "Koleksi & Favorit",
     items: [
-      { name: "Beranda", path: "/", icon: <Home size={20} /> },
       { name: "Favorit Saya", path: "/favorites", icon: <Heart size={20} /> },
       { name: "Video Pribadi", path: "/personal", icon: <Film size={20} /> },
       { name: "Foto Pribadi", path: "/personal-photo", icon: <Camera size={20} /> },
@@ -44,14 +43,17 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
     const idx = menuCategories.findIndex(cat => 
       cat.items.some(item => item.path === location.pathname)
     );
-    return idx !== -1 ? idx : 0;
+    return idx !== -1 ? idx : -1;
   };
 
-  const [expandedCats, setExpandedCats] = useState([getActiveCategory()]);
+  const [expandedCats, setExpandedCats] = useState(() => {
+    const active = getActiveCategory();
+    return active !== -1 ? [active] : [0];
+  });
 
   useEffect(() => {
     const activeIdx = getActiveCategory();
-    if (!expandedCats.includes(activeIdx)) {
+    if (activeIdx !== -1 && !expandedCats.includes(activeIdx)) {
       setExpandedCats(prev => [...prev, activeIdx]);
     }
   }, [location.pathname]);
@@ -67,7 +69,7 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
       {/* Decorative Red Cinema Glow */}
       <div className="absolute top-0 left-0 w-full h-56 bg-gradient-to-b from-rose-900/25 to-transparent blur-[80px] pointer-events-none" />
 
-      <div className="p-6 pb-4 z-10 shrink-0">
+      <div className="p-6 pb-3 z-10 shrink-0">
         <div className="flex justify-between items-center mb-5">
           <Link to="/" onClick={onClose} className="group">
             <div className="flex items-center gap-2">
@@ -94,7 +96,7 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
             onOpenSearch?.();
             onClose?.();
           }}
-          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-red-500/50 text-gray-300 hover:text-white transition-all shadow-inner group cursor-pointer"
+          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-red-500/50 text-gray-300 hover:text-white transition-all shadow-inner group cursor-pointer mb-2"
         >
           <div className="flex items-center gap-2.5">
             <Search size={16} className="text-red-400 group-hover:scale-110 transition-transform" />
@@ -104,7 +106,38 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
             Ctrl+K
           </kbd>
         </button>
+
+        {/* Standalone Pinned Beranda */}
+        <Link
+          to="/"
+          onClick={onClose}
+          className={`relative flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden ${
+            location.pathname === "/"
+              ? "text-white shadow-lg shadow-rose-950/40 bg-gradient-to-r from-red-600/30 to-rose-600/10 border border-red-500/30 font-semibold"
+              : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+          }`}
+        >
+          <span
+            className={`relative z-10 transition-transform duration-300 ${location.pathname === "/" ? "text-red-400 scale-110" : "group-hover:scale-110 group-hover:text-red-300"}`}
+          >
+            <Home size={20} />
+          </span>
+          <span
+            className={`tracking-wide relative z-10 text-sm ${location.pathname === "/" ? "text-white font-medium" : ""}`}
+          >
+            Beranda
+          </span>
+
+          {location.pathname === "/" && (
+            <motion.div
+              layoutId="active-pill"
+              className="absolute right-3 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)]"
+            />
+          )}
+        </Link>
       </div>
+
+      <div className="h-px bg-white/5 mx-6 mb-3 shrink-0" />
 
       <div className="flex-1 overflow-y-auto px-5 space-y-6 pb-6 z-10 custom-scrollbar">
         {menuCategories.map((category, idx) => {
