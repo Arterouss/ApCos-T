@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { getCavPornDetail } from "../services/cavpornService";
 import Hls from "hls.js";
 import { useFavorites } from "../hooks/useFavorites";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 import {
   ArrowLeft,
   Download,
@@ -322,13 +323,13 @@ export default function CavPornDetailPage() {
         </div>
 
         {/* Tags */}
-        {data.tags && data.tags.length > 0 && (
+        {data.tags && filterBlockedTags(data.tags).length > 0 && (
           <div className="mb-8">
             <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-2">
               <Tag size={14} /> Tags
             </h3>
             <div className="flex flex-wrap gap-2">
-              {data.tags.map((tag) => (
+              {filterBlockedTags(data.tags).map((tag) => (
                 <Link
                   key={tag.hash}
                   to="/cavporn"
@@ -346,13 +347,13 @@ export default function CavPornDetailPage() {
         )}
 
         {/* Related Videos */}
-        {data.relatedVideos && data.relatedVideos.length > 0 && (
+        {data.relatedVideos && filterBlockedItems(data.relatedVideos).length > 0 && (
           <div className="mt-12">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <Play size={20} className="text-red-500" /> Related Videos
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {data.relatedVideos.map((rel) => (
+              {filterBlockedItems(data.relatedVideos).map((rel) => (
                 <Link
                   key={rel.id}
                   to={`/cavporn/${rel.id}/${rel.slug}`}

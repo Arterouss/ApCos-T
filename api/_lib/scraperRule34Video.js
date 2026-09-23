@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
+import { filterBlockedItems, filterBlockedTags } from "./contentFilter.js";
 
 const BASE_URL = "https://rule34video.com";
 
@@ -59,7 +60,7 @@ export const scrapeRule34VideoList = async (page = 1, searchQuery = "") => {
     const nextBtn = $('.pagination .next, a[data-parameters*="from_videos"]');
     const hasMore = nextBtn.length > 0 || videos.length >= 20;
 
-    return { videos, hasMore };
+    return { videos: filterBlockedItems(videos), hasMore };
   } catch (error) {
     console.error("[Rule34Video Scraper Error]", error.message);
     throw error;
@@ -114,7 +115,7 @@ export const scrapeRule34VideoDetail = async (slug) => {
       title,
       video_url: videoUrl,
       iframe_url: iframeUrl,
-      tags,
+      tags: filterBlockedTags(tags),
       original_url: url
     };
   } catch (error) {

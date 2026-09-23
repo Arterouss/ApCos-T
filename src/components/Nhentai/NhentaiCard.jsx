@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BookOpen, Heart, CheckCircle2 } from "lucide-react";
 import { isNhentaiRead } from "./NhentaiViewer";
+import { filterBlockedTags } from "../../utils/contentFilter";
 
 export default function NhentaiCard({ gallery, onClick }) {
   const rawThumbUrl = `https://t.nhentai.net/${gallery.thumbnail}`;
@@ -8,8 +9,8 @@ export default function NhentaiCard({ gallery, onClick }) {
 
   const title = gallery.english_title || gallery.japanese_title || "Unknown Title";
 
-  // Get first 3 tags for display (using resolved tags)
-  const displayTags = gallery.tags ? gallery.tags.slice(0, 3) : [];
+  // Get first 3 tags for display (using resolved tags filtered of BL/Gay)
+  const displayTags = gallery.tags ? filterBlockedTags(gallery.tags).slice(0, 3) : [];
 
   // Check read status from localStorage (re-check when card re-renders)
   const [read, setRead] = useState(() => isNhentaiRead(gallery.id));

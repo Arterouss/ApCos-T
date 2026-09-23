@@ -24,8 +24,9 @@ import { getHanimeSearch } from "../services/hanimeTvService";
 import { fetchNhentaiGalleries } from "../services/nhentaiService";
 import { getDoujinList } from "../services/doujinService";
 import { getCavPornSearch } from "../services/cavpornService";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
-const QUICK_TAGS = [
+const QUICK_TAGS = filterBlockedTags([
   "Genshin",
   "Cosplay",
   "Milf",
@@ -35,7 +36,7 @@ const QUICK_TAGS = [
   "Honkai",
   "3D",
   "#mygoon",
-];
+]);
 
 const SOURCE_CONFIG = {
   all: { label: "Semua", color: "from-red-600 to-rose-600", text: "text-white" },
@@ -281,7 +282,8 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
       settled.forEach((res) => {
         if (res.status === "fulfilled" && Array.isArray(res.value)) {
-          res.value.forEach((item) => {
+          const safeItems = filterBlockedItems(res.value);
+          safeItems.forEach((item) => {
             combined.push(item);
             counts[item.source] = (counts[item.source] || 0) + 1;
           });

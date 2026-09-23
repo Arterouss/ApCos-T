@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { fetchNhentaiGalleries, fetchNhentaiDetail } from "../services/nhentaiService";
+import { filterBlockedItems } from "../utils/contentFilter";
 
 export const useNhentai = () => {
   const [galleries, setGalleries] = useState([]);
@@ -19,7 +20,8 @@ export const useNhentai = () => {
       setCurrentSort(sort);
 
       const data = await fetchNhentaiGalleries(1, query, sort);
-      setGalleries(data.result || data.data || []);
+      const rawList = data.result || data.data || [];
+      setGalleries(filterBlockedItems(rawList));
       
       // Calculate hasMore based on num_pages
       setHasMore(data.num_pages > 1);
@@ -38,8 +40,8 @@ export const useNhentai = () => {
       setLoading(true);
       
       const data = await fetchNhentaiGalleries(newPage, currentSearch, currentSort);
-      
-      setGalleries(data.result || data.data || []);
+      const rawList = data.result || data.data || [];
+      setGalleries(filterBlockedItems(rawList));
       setHasMore(newPage < data.num_pages);
       setPage(newPage);
       

@@ -4,12 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Film, Image, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { getPorn3dxList } from "../services/porn3dxService";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
-const TAGS = [
+const TAGS = filterBlockedTags([
   "3d porn", "blender", "anime", "big tits", "ass", "hentai", "game porn",
   "overwatch", "futanari", "sfm", "mmd", "fortnite", "naruto", "ahegao",
   "lesbian", "creampie", "cumshot", "facial", "milf", "teen"
-];
+]);
 
 const Porn3dxCard = ({ item, onClick }) => {
   const [imgError, setImgError] = useState(false);
@@ -93,7 +94,7 @@ export default function Porn3dxPage({ onOpenSidebar }) {
     setError(null);
     try {
       const data = await getPorn3dxList(page, search, activeTag);
-      setItems(data || []);
+      setItems(filterBlockedItems(data || []));
     } catch (e) {
       setError("Gagal memuat konten Porn3dx. " + (e.response?.data?.error || e.message));
     } finally {

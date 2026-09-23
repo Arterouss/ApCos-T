@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { filterBlockedItems } from "../utils/contentFilter";
 
 const API_BASE = "http://localhost:3001/api/rule34video";
 
@@ -21,7 +22,7 @@ export const useRule34Video = () => {
       if (!res.ok) throw new Error("Failed to fetch videos");
       
       const data = await res.json();
-      setVideos(data.videos || []);
+      setVideos(filterBlockedItems(data.videos || []));
       setHasMore(data.hasMore);
     } catch (err) {
       setError(err.message);
@@ -42,7 +43,7 @@ export const useRule34Video = () => {
       
       const data = await res.json();
       
-      setVideos(data.videos || []);
+      setVideos(filterBlockedItems(data.videos || []));
       setHasMore(data.hasMore);
       setPage(newPage);
       

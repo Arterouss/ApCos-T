@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { getDoujinDetail } from "../services/doujinService";
 import { useReadProgress } from "../hooks/useReadProgress";
 import { ArrowLeft, BookOpen, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { filterBlockedTags } from "../utils/contentFilter";
 
 export default function DoujinDetailPage() {
   const params = useParams();
@@ -94,7 +95,7 @@ export default function DoujinDetailPage() {
             </h1>
             
             <div className="flex flex-wrap gap-2 mb-6">
-              {data.genres && data.genres.map(g => {
+              {data.genres && filterBlockedTags(data.genres).map(g => {
                 const isNtr = g.toLowerCase().includes('ntr') || g.toLowerCase().includes('netorare');
                 return (
                   <span 

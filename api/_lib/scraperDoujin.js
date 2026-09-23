@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import axios from "axios";
+import { filterBlockedItems, filterBlockedTags } from "./contentFilter.js";
 
 const BASE_URL = "https://doujin.desu.xxx";
 const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
@@ -93,8 +94,8 @@ export const scrapeDoujinList = async ({ page = 1, type = "", genre = "", search
     });
   });
 
-  // Filter out banner slider items which mess up the grid
-  return results.filter(r => !r.cover_url || !r.cover_url.includes('/banner/'));
+  // Filter out banner slider items and blocked BL/Gay content
+  return filterBlockedItems(results.filter(r => !r.cover_url || !r.cover_url.includes('/banner/')));
 };
 
 export const scrapeDoujinDetail = async (slug) => {
@@ -126,6 +127,8 @@ export const scrapeDoujinDetail = async (slug) => {
     genres.push($(el).text().trim());
   });
   
+  genres = filterBlockedTags(genres);
+
   // Sort genres to put NTR first!
   genres = genres.sort((a, b) => {
     const aIsNtr = a.toLowerCase().includes('ntr') || a.toLowerCase().includes('netorare');

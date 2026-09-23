@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
 import { getHanimeVideo } from "../services/hanimeTvService";
 import Hls from "hls.js";
+import { filterBlockedTags } from "../utils/contentFilter";
 import {
   ArrowLeft,
   ExternalLink,
@@ -307,13 +308,13 @@ export default function HanimeTvDetailPage() {
           </div>
         )}
 
-        {data.hentai_tags && data.hentai_tags.length > 0 && (
+        {data.hentai_tags && filterBlockedTags(data.hentai_tags).length > 0 && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
               <Tag size={13}/> Tags
             </h3>
             <div className="flex flex-wrap gap-2">
-              {data.hentai_tags.map((tag, i) => (
+              {filterBlockedTags(data.hentai_tags).map((tag, i) => (
                 <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:border-red-500/40 hover:text-red-300 transition-colors cursor-default">
                   {tag.text}
                 </span>

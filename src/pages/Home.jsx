@@ -24,6 +24,7 @@ import axios from "axios";
 import { getHentaiPlayList } from "../services/hentaiPlayService";
 import { getPorn3dxList } from "../services/porn3dxService";
 import { getDoujinList } from "../services/doujinService";
+import { filterBlockedItems } from "../utils/contentFilter";
 
 // Helper Carousel Component for smooth horizontal scrolling
 const MediaCarousel = ({ title, icon: Icon, tagColor = "text-red-400", viewAllLink, children }) => {
@@ -110,7 +111,7 @@ export default function Home({ onOpenSidebar }) {
         if (isMounted) {
           // HentaiPlay Data
           if (hpRes.status === "fulfilled" && hpRes.value?.videos) {
-            const vids = hpRes.value.videos;
+            const vids = filterBlockedItems(hpRes.value.videos);
             setHentaiPlayVideos(vids);
             if (vids.length > 0) {
               // Pick first or a random popular item for Hero Banner
@@ -120,13 +121,15 @@ export default function Home({ onOpenSidebar }) {
 
           // Porn3dx Data
           if (p3dxRes.status === "fulfilled") {
-            const list = Array.isArray(p3dxRes.value) ? p3dxRes.value : p3dxRes.value?.items || [];
+            const rawList = Array.isArray(p3dxRes.value) ? p3dxRes.value : p3dxRes.value?.items || [];
+            const list = filterBlockedItems(rawList);
             setPorn3dxItems(list);
           }
 
           // Doujin Data
           if (doujinRes.status === "fulfilled") {
-            const dList = doujinRes.value?.data || (Array.isArray(doujinRes.value) ? doujinRes.value : []);
+            const rawDList = doujinRes.value?.data || (Array.isArray(doujinRes.value) ? doujinRes.value : []);
+            const dList = filterBlockedItems(rawDList);
             setDoujinList(dList);
           }
 

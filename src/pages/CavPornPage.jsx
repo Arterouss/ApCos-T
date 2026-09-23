@@ -10,6 +10,7 @@ import {
 import { Menu, Play, Clock, ThumbsUp, Tag, Grid, Filter } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
 export default function CavPornPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
@@ -40,8 +41,8 @@ export default function CavPornPage({ onOpenSidebar }) {
         getCavPornCategories(),
         getCavPornTags(),
       ]);
-      setCategories(Array.isArray(cats) ? cats : []);
-      setTags(Array.isArray(tgs) ? tgs : []);
+      setCategories(filterBlockedTags(Array.isArray(cats) ? cats : []));
+      setTags(filterBlockedTags(Array.isArray(tgs) ? tgs : []));
     };
     loadMeta();
   }, []);
@@ -59,7 +60,7 @@ export default function CavPornPage({ onOpenSidebar }) {
         } else {
           results = await getCavPornLatest(page);
         }
-        setData(Array.isArray(results) ? results : []);
+        setData(filterBlockedItems(Array.isArray(results) ? results : []));
       } catch (error) {
         console.error("Failed to load CavPorn data", error);
         setData([]);

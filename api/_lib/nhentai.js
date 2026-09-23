@@ -1,5 +1,6 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import { filterBlockedItems } from './contentFilter.js';
 
 const router = express.Router();
 const NHENTAI_API_KEY = 'nhk_XfrrpwobmaHgAhlndWpsv5hNQZI_CJIUBD7EULG0Nd9QROs3';
@@ -95,10 +96,17 @@ router.get('/galleries', async (req, res) => {
 
           return { ...gallery, tags: fullTags };
         });
+
+        // Filter out BL/Gay galleries
+        data.result = filterBlockedItems(data.result);
       } catch (tagErr) {
         console.error('Error resolving tags:', tagErr.message);
         // Continue even if tag resolution fails
       }
+    }
+
+    if (data && data.result && Array.isArray(data.result)) {
+      data.result = filterBlockedItems(data.result);
     }
 
     res.json(data);

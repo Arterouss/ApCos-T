@@ -4,12 +4,13 @@ import { getHanimeTrending, getHanimeSearch } from "../services/hanimeTvService"
 import { Menu, Play, Tag } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 import GlassCard from "../components/GlassCard";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
-const POPULAR_TAGS = [
+const POPULAR_TAGS = filterBlockedTags([
   "Uncensored", "Creampie", "MILF", "Schoolgirl", "Maid", "Incest",
   "Anal", "Big Tits", "Cosplay", "Threesome", "Ahegao", "NTR",
   "Tentacles", "Lesbian", "Blowjob", "Masturbation", "Amateur", "Mature"
-];
+]);
 
 export default function HanimeTvPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
@@ -42,7 +43,7 @@ export default function HanimeTvPage({ onOpenSidebar }) {
         else if (results && results.videos) newHits = results.videos;
         else if (Array.isArray(results)) newHits = results;
 
-        setData(newHits);
+        setData(filterBlockedItems(newHits));
       } catch (error) {
         console.error("Failed to load hanime data", error);
         setData([]);

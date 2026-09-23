@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { getDoujinList } from "../services/doujinService";
 import { Book, Search, X, ChevronDown, ChevronUp, Tag, AlertTriangle } from "lucide-react";
 import GlassCard from "../components/GlassCard";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
 // ── All available genre/tag chips ────────────────────────────────────────
-const ALL_TAGS = [
+const ALL_TAGS = filterBlockedTags([
   // Type
   { label: "🔥 NTR",        value: "ntr",         color: "red"    },
   { label: "💕 Gyaru",      value: "gyaru",        color: "pink"   },
@@ -35,7 +36,7 @@ const ALL_TAGS = [
   { label: "🦄 Monster Girl", value: "monster-girl", color: "green" },
   { label: "😴 Somnophilia", value: "somnophilia", color: "indigo" },
   { label: "🔗 BDSM",      value: "bdsm",          color: "red"    },
-];
+]);
 
 const TAG_COLORS = {
   red:    "bg-red-600/20 border-red-500/40 text-red-300 hover:bg-red-600/40",
@@ -104,7 +105,7 @@ export default function DoujinPage() {
     try {
       // API call to backend
       const results = await getDoujinList(pageNum, activeType, activeGenre, debouncedQuery);
-      setData(results || []);
+      setData(filterBlockedItems(results || []));
     } catch (err) {
       console.error("Failed to load Doujin data", err);
       setError("Gagal menghubungkan ke server Doujin. Kemungkinan terhalang Cloudflare.");

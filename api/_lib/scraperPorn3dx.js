@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import axios from "axios";
+import { filterBlockedItems, filterBlockedTags } from "./contentFilter.js";
 
 const BASE_URL = "https://porn3dx.com";
 const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
@@ -70,7 +71,7 @@ export const scrapePorn3dxList = async ({ page = 1, search = "", tag = "" }) => 
     });
   });
 
-  return results;
+  return filterBlockedItems(results);
 };
 
 export const scrapePorn3dxDetail = async (slug) => {
@@ -130,7 +131,7 @@ export const scrapePorn3dxDetail = async (slug) => {
     video_url,
     video_type,
     images: [...new Set(images)],
-    tags,
+    tags: filterBlockedTags(tags),
     description,
     original_url: url,
     slug,

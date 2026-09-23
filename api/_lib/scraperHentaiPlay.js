@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { filterBlockedItems, filterBlockedTags } from './contentFilter.js';
 
 const BASE_URL = 'https://hentaiplay.net';
 const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
@@ -70,7 +71,7 @@ export const scrapeHentaiPlayList = async (page = 1, search = '') => {
   const totalPagesMatch = paginationText.match(/of\s+(\d+)/i);
   const totalPages = totalPagesMatch ? parseInt(totalPagesMatch[1]) : 1;
 
-  return { videos, page, totalPages };
+  return { videos: filterBlockedItems(videos), page, totalPages };
 };
 
 // Scrape detail page for a video
@@ -127,7 +128,7 @@ export const scrapeHentaiPlayVideo = async (slug) => {
     title,
     cover_url: cover,
     embed_url: embedUrl,
-    tags,
+    tags: filterBlockedTags(tags),
     description,
     original_url: url,
   };

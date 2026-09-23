@@ -12,6 +12,7 @@ import * as cheerio from "cheerio";
 import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./_lib/scraperRule34Video.js";
 import { scrapePorn3dxList, scrapePorn3dxDetail } from "./_lib/scraperPorn3dx.js";
 import { scrapeFapelloList, scrapeFapelloModel } from "./_lib/scraperFapello.js";
+import { filterBlockedItems, filterBlockedTags } from "./_lib/contentFilter.js";
 
 
 try {
@@ -1906,7 +1907,8 @@ app.get("/api/hanime/trending", async (req, res) => {
       }
     });
     
-    res.json({ hits: videos, hentai_videos: videos, videos: videos, page: pageNum });
+    const safeVideos = filterBlockedItems(videos);
+    res.json({ hits: safeVideos, hentai_videos: safeVideos, videos: safeVideos, page: pageNum });
   } catch (error) {
     console.error("[JavGuru Trending Error]", error);
     res.status(500).json({ error: error.message, hentai_videos: [], hits: [] });
@@ -1946,7 +1948,8 @@ app.get("/api/hanime/search", async (req, res) => {
       }
     });
     
-    res.json({ hits: videos, hentai_videos: videos, videos: videos, page: pageNum });
+    const safeVideos = filterBlockedItems(videos);
+    res.json({ hits: safeVideos, hentai_videos: safeVideos, videos: safeVideos, page: pageNum });
   } catch (error) {
     console.error("[JavGuru Search Error]", error);
     res.status(500).json({ error: error.message, hentai_videos: [], hits: [] });
@@ -2227,6 +2230,7 @@ app.get("/api/cavporn/latest", async (req, res) => {
     console.log(`[CavPorn] Fetching latest page ${page}`);
     const html = await fastFetch(fullPageUrl, { Referer: CAVPORN_BASE + "/", "Accept-Language": "en-US,en;q=0.9" });
     let videos = parseCavPornVideos(html);
+    videos = filterBlockedItems(videos);
     console.log(`[CavPorn] Found ${videos.length} videos`);
     res.json(videos);
   } catch (error) {
@@ -2246,7 +2250,8 @@ app.get("/api/cavporn/search", async (req, res) => {
     console.log(`[CavPorn] Searching "${q}" page ${page}`);
     const html = await fastFetch(url, { Referer: CAVPORN_BASE + "/" });
 
-    const videos = parseCavPornVideos(html);
+    let videos = parseCavPornVideos(html);
+    videos = filterBlockedItems(videos);
     console.log(`[CavPorn] Search "${q}" found ${videos.length} results`);
     res.json(videos);
   } catch (error) {
@@ -2301,8 +2306,9 @@ app.get("/api/cavporn/categories", async (req, res) => {
       }
     });
 
-    console.log(`[CavPorn] Found ${categories.length} categories`);
-    res.json(categories);
+    const safeCategories = filterBlockedTags(categories);
+    console.log(`[CavPorn] Found ${safeCategories.length} categories`);
+    res.json(safeCategories);
   } catch (error) {
     console.error("[CavPorn] Categories Error:", error.message);
     res.status(500).json({ error: "Failed to fetch categories" });
@@ -2323,7 +2329,8 @@ app.get("/api/cavporn/category", async (req, res) => {
       Referer: `${CAVPORN_BASE}/categories/${hash}/`,
     });
 
-    const videos = parseCavPornVideos(html);
+    let videos = parseCavPornVideos(html);
+    videos = filterBlockedItems(videos);
     console.log(`[CavPorn] Category ${hash} found ${videos.length} videos`);
     res.json(videos);
   } catch (error) {
@@ -2364,8 +2371,9 @@ app.get("/api/cavporn/tags", async (req, res) => {
       }
     });
 
-    console.log(`[CavPorn] Found ${tags.length} tags`);
-    res.json(tags);
+    const safeTags = filterBlockedTags(tags);
+    console.log(`[CavPorn] Found ${safeTags.length} tags`);
+    res.json(safeTags);
   } catch (error) {
     console.error("[CavPorn] Tags Error:", error.message);
     res.status(500).json({ error: "Failed to fetch tags" });
@@ -2607,9 +2615,9 @@ app.get("/api/cavporn/detail", async (req, res) => {
       videoSrc: proxiedVideoSrc,
       rawVideoSrc: videoSrc,
       embedUrl,
-      tags,
+      tags: filterBlockedTags(tags),
       category,
-      relatedVideos,
+      relatedVideos: filterBlockedItems(relatedVideos),
       downloadUrl,
       originalUrl: url,
     });

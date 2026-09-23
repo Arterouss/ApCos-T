@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Film, Image, Tag, ExternalLink, Loader2, Play, Share2, X, Heart } from "lucide-react";
 import { getPorn3dxDetail } from "../services/porn3dxService";
 import { useFavorites } from "../hooks/useFavorites";
+import { filterBlockedTags } from "../utils/contentFilter";
 
 export default function Porn3dxDetailPage() {
   const { slug } = useParams();
@@ -174,13 +175,13 @@ export default function Porn3dxDetailPage() {
         </div>
 
         {/* Tags */}
-        {data?.tags?.length > 0 && (
+        {data?.tags?.length > 0 && filterBlockedTags(data.tags).length > 0 && (
           <div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <Tag size={12} /> Tags
             </h3>
             <div className="flex flex-wrap gap-2">
-              {data.tags.map((tag) => (
+              {filterBlockedTags(data.tags).map((tag) => (
                 <button
                   key={tag}
                   onClick={() => navigate(`/porn3dx?tag=${encodeURIComponent(tag)}`)}

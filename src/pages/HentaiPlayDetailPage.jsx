@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ExternalLink, Loader2, AlertCircle, Film, Tag, Heart } from "lucide-react";
 import { getHentaiPlayVideo } from "../services/hentaiPlayService";
 import { useFavorites } from "../hooks/useFavorites";
+import { filterBlockedTags } from "../utils/contentFilter";
 
 export default function HentaiPlayDetailPage() {
   const { slug } = useParams();
@@ -169,14 +170,14 @@ export default function HentaiPlayDetailPage() {
         </div>
 
         {/* Tags */}
-        {data.tags?.length > 0 && (
+        {filterBlockedTags(data.tags).length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Tag size={14} className="text-rose-400" />
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tags</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {data.tags.map((tag, i) => (
+              {filterBlockedTags(data.tags).map((tag, i) => (
                 <span
                   key={i}
                   className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-400 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-300 transition-colors cursor-default"

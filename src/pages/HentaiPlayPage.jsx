@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { getHentaiPlayList } from "../services/hentaiPlayService";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
+import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
-const HENTAI_TAGS = [
+const HENTAI_TAGS = filterBlockedTags([
   { label: "Semua", value: "" },
   { label: "👙 Milf", value: "milf" },
   { label: "💕 Gyaru", value: "gyaru" },
@@ -37,7 +38,7 @@ const HENTAI_TAGS = [
   { label: "🎭 Cosplay", value: "cosplay" },
   { label: "🧊 3D Animation", value: "3d" },
   { label: "🔓 Uncensored", value: "uncensored" },
-];
+]);
 
 export default function HentaiPlayPage({ onOpenSidebar }) {
   const navigate = useNavigate();
@@ -59,7 +60,8 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const data = await getHentaiPlayList(pageNum, searchQuery);
-      setVideos(data.videos || []);
+      const rawList = data.videos || [];
+      setVideos(filterBlockedItems(rawList));
       setTotalPages(data.totalPages || 1);
     } catch (e) {
       setError("Gagal memuat video. Coba lagi beberapa saat lagi.");

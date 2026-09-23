@@ -11,6 +11,7 @@ import { useRule34Video } from "../hooks/useRule34Video";
 import Rule34VideoCard from "../components/Rule34/Rule34VideoCard";
 import Rule34VideoViewer from "../components/Rule34/Rule34VideoViewer";
 import { useModalBack } from "../hooks/useModalBack";
+import { filterBlockedTags } from "../utils/contentFilter";
 
 export default function Rule34Page({ onOpenSidebar }) {
   const [mode, setMode] = useState("images"); // 'images' | 'videos'
@@ -43,7 +44,7 @@ export default function Rule34Page({ onOpenSidebar }) {
   const loadTags = async () => {
     try {
       const t = await getRule34Tags(15);
-      setTagsList(t);
+      setTagsList(filterBlockedTags(t));
     } catch (e) {
       console.error("Failed to load tags", e);
     }

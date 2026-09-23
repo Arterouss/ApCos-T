@@ -1,14 +1,16 @@
 import React from "react";
+import { filterBlockedTags } from "../../utils/contentFilter";
 
 export default function TagList({ tags, onTagClick }) {
-  if (!tags || tags.length === 0) return null;
+  const safeTags = filterBlockedTags(tags || []);
+  if (!safeTags || safeTags.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider mr-2">
         Trending:
       </span>
-      {tags.slice(0, 8).map((tag) => (
+      {safeTags.slice(0, 8).map((tag) => (
         <button
           key={tag.label || tag.tag}
           onClick={() => onTagClick(tag.label || tag.tag)}

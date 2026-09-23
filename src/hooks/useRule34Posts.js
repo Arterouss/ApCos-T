@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { getRule34Posts } from "../services/rule34Service";
+import { filterBlockedItems } from "../utils/contentFilter";
 
 export const useRule34Posts = () => {
   const [posts, setPosts] = useState([]);
@@ -11,7 +12,8 @@ export const useRule34Posts = () => {
   const loadPosts = useCallback(async (pageNum, tags) => {
     setLoading(true);
     try {
-      const newPosts = await getRule34Posts(pageNum, tags);
+      const rawPosts = await getRule34Posts(pageNum, tags);
+      const newPosts = filterBlockedItems(rawPosts || []);
       if (!newPosts || newPosts.length === 0) {
         setHasMore(false);
         if (pageNum === 0) setPosts([]);
