@@ -178,6 +178,7 @@ export default function DoujinReaderPage() {
                 alt={`Panel ${idx + 1}`}
                 className="w-full h-auto object-contain block"
                 loading="lazy"
+                referrerPolicy="no-referrer"
               />
             ))}
 

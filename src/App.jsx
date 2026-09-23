@@ -83,6 +83,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           path="/rule34"
           element={<Rule34Page onOpenSidebar={onOpenSidebar} />}
         />
+        <Route path="/rule34video" element={<Navigate to="/rule34" replace />} />
         
         <Route
           path="/fapello"

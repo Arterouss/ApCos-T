@@ -267,50 +267,57 @@ export default function Home({ onOpenSidebar }) {
         tagColor="text-red-500"
         viewAllLink="/hentaiplay"
       >
-        {hentaiPlayVideos.length > 0
-          ? hentaiPlayVideos.slice(0, 12).map((item) => (
-              <motion.div
-                key={item.slug}
-                whileHover={{ scale: 1.04, y: -4 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/hentaiplay/video/${encodeURIComponent(item.slug)}`)}
-                className="w-48 sm:w-60 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-red-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-              >
-                <div className="relative aspect-video bg-black/60 overflow-hidden">
-                  {item.cover_url || item.thumbnail ? (
-                    <img
-                      src={item.cover_url || item.thumbnail}
-                      alt={item.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-neutral-800">
-                      <Film size={28} className="text-gray-600" />
-                    </div>
-                  )}
-                  {item.categories?.length > 0 && (
-                    <span className="absolute top-2 left-2 bg-red-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
-                      {item.categories[0]}
-                    </span>
-                  )}
-                  {/* Play Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-600/50">
-                      <Play size={18} className="fill-white translate-x-0.5" />
-                    </div>
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="w-48 sm:w-60 h-36 bg-white/5 animate-pulse rounded-xl shrink-0" />
+          ))
+        ) : hentaiPlayVideos.length > 0 ? (
+          hentaiPlayVideos.slice(0, 12).map((item) => (
+            <motion.div
+              key={item.slug}
+              whileHover={{ scale: 1.04, y: -4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(`/hentaiplay/video/${encodeURIComponent(item.slug)}`)}
+              className="w-48 sm:w-60 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-red-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
+            >
+              <div className="relative aspect-video bg-black/60 overflow-hidden">
+                {item.cover_url || item.thumbnail ? (
+                  <img
+                    src={item.cover_url || item.thumbnail}
+                    alt={item.title}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-neutral-800">
+                    <Film size={28} className="text-gray-600" />
+                  </div>
+                )}
+                {item.categories?.length > 0 && (
+                  <span className="absolute top-2 left-2 bg-red-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
+                    {item.categories[0]}
+                  </span>
+                )}
+                {/* Play Overlay */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-600/50">
+                    <Play size={18} className="fill-white translate-x-0.5" />
                   </div>
                 </div>
-                <div className="p-3">
-                  <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">
-                    {item.title}
-                  </p>
-                </div>
-              </motion.div>
-            ))
-          : Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="w-48 sm:w-60 h-36 bg-white/5 animate-pulse rounded-xl shrink-0" />
-            ))}
+              </div>
+              <div className="p-3">
+                <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">
+                  {item.title}
+                </p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="w-full py-4 px-6 bg-neutral-900/60 border border-white/10 rounded-xl text-gray-400 text-xs">
+            Belum ada video HentaiPlay yang termuat.
+          </div>
+        )}
       </MediaCarousel>
 
       {/* ── 4. CAROUSEL: TOP ANIMASI 3D DI PORN3DX ───────────────────────────── */}
@@ -320,47 +327,80 @@ export default function Home({ onOpenSidebar }) {
         tagColor="text-cyan-400"
         viewAllLink="/porn3dx"
       >
-        {porn3dxItems.length > 0
-          ? porn3dxItems.slice(0, 12).map((item, i) => (
-              <motion.div
-                key={item.id || i}
-                whileHover={{ scale: 1.04, y: -4 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/porn3dx/${encodeURIComponent(item.slug)}`)}
-                className="w-44 sm:w-56 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-cyan-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-              >
-                <div className="relative aspect-[4/3] bg-black/60 overflow-hidden">
-                  <img
-                    src={item.cover_url}
-                    alt={item.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {item.duration && (
-                    <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white">
-                      {item.duration}
-                    </span>
-                  )}
-                  <span className="absolute top-2 left-2 bg-cyan-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
-                    {item.type === "video" ? "3D Video" : "3D Render"}
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="w-44 sm:w-56 h-40 bg-white/5 animate-pulse rounded-xl shrink-0" />
+          ))
+        ) : porn3dxItems.length > 0 ? (
+          porn3dxItems.slice(0, 12).map((item, i) => (
+            <motion.div
+              key={item.id || i}
+              whileHover={{ scale: 1.04, y: -4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(`/porn3dx/${encodeURIComponent(item.slug)}`)}
+              className="w-44 sm:w-56 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-cyan-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
+            >
+              <div className="relative aspect-[4/3] bg-black/60 overflow-hidden">
+                <img
+                  src={item.cover_url}
+                  alt={item.title}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                {item.duration && (
+                  <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white">
+                    {item.duration}
                   </span>
-                  {/* Play Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/50">
-                      <Play size={18} className="fill-white translate-x-0.5" />
-                    </div>
+                )}
+                <span className="absolute top-2 left-2 bg-cyan-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
+                  {item.type === "video" ? "3D Video" : "3D Render"}
+                </span>
+                {/* Play Overlay */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/50">
+                    <Play size={18} className="fill-white translate-x-0.5" />
                   </div>
                 </div>
-                <div className="p-3">
-                  <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-cyan-300 transition-colors">
-                    {item.title}
-                  </p>
-                </div>
-              </motion.div>
-            ))
-          : Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="w-44 sm:w-56 h-40 bg-white/5 animate-pulse rounded-xl shrink-0" />
-            ))}
+              </div>
+              <div className="p-3">
+                <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-cyan-300 transition-colors">
+                  {item.title}
+                </p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="w-full py-5 px-6 bg-gradient-to-r from-neutral-900/90 via-neutral-900/60 to-cyan-950/40 border border-cyan-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                <Video size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  Server Porn3dx Sedang Pemeliharaan (503)
+                </h4>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Server pusat Porn3dx sedang offline/maintenance. Silakan coba kembali nanti atau tonton animasi 3D di Rule34.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                to="/porn3dx"
+                className="px-3.5 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 text-cyan-200 text-xs font-semibold transition-all"
+              >
+                Cek Status
+              </Link>
+              <Link
+                to="/rule34"
+                className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold transition-all"
+              >
+                Lihat Rule34 3D
+              </Link>
+            </div>
+          </div>
+        )}
       </MediaCarousel>
 
       {/* ── 5. CAROUSEL: MANGA & DOUJINSHI PILIHAN ──────────────────────────── */}
@@ -370,43 +410,64 @@ export default function Home({ onOpenSidebar }) {
         tagColor="text-amber-400"
         viewAllLink="/doujin"
       >
-        {doujinList.length > 0
-          ? doujinList.slice(0, 12).map((item) => (
-              <motion.div
-                key={item.slug}
-                whileHover={{ scale: 1.04, y: -4 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/doujin/${encodeURIComponent(item.slug)}`)}
-                className="w-36 sm:w-44 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-amber-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-              >
-                <div className="relative aspect-[3/4] bg-black/60 overflow-hidden">
-                  <img
-                    src={item.thumbnail}
-                    alt={item.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {item.score && (
-                    <span className="absolute top-2 left-2 bg-black/70 backdrop-blur text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5">
-                      ⭐ {item.score}
-                    </span>
-                  )}
-                  {item.type && (
-                    <span className="absolute bottom-2 right-2 bg-amber-600/90 text-white px-1.5 py-0.5 rounded text-[9px] font-bold">
-                      {item.type}
-                    </span>
-                  )}
-                </div>
-                <div className="p-2.5 sm:p-3">
-                  <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-amber-300 transition-colors">
-                    {item.title}
-                  </p>
-                </div>
-              </motion.div>
-            ))
-          : Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="w-36 sm:w-44 h-48 bg-white/5 animate-pulse rounded-xl shrink-0" />
-            ))}
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="w-36 sm:w-44 h-48 bg-white/5 animate-pulse rounded-xl shrink-0" />
+          ))
+        ) : doujinList.length > 0 ? (
+          doujinList.slice(0, 12).map((item) => (
+            <motion.div
+              key={item.slug}
+              whileHover={{ scale: 1.04, y: -4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(`/doujin/${encodeURIComponent(item.slug)}`)}
+              className="w-36 sm:w-44 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-amber-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
+            >
+              <div className="relative aspect-[3/4] bg-black/60 overflow-hidden">
+                <img
+                  src={item.cover_url || item.thumbnail}
+                  alt={item.title}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                {item.score && (
+                  <span className="absolute top-2 left-2 bg-black/70 backdrop-blur text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5">
+                    ⭐ {item.score}
+                  </span>
+                )}
+                {item.type && (
+                  <span className="absolute bottom-2 right-2 bg-amber-600/90 text-white px-1.5 py-0.5 rounded text-[9px] font-bold">
+                    {item.type}
+                  </span>
+                )}
+              </div>
+              <div className="p-2.5 sm:p-3">
+                <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-amber-300 transition-colors">
+                  {item.title}
+                </p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="w-full py-5 px-6 bg-gradient-to-r from-neutral-900/90 via-neutral-900/60 to-amber-950/40 border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <Book size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">Manga & Doujin Sedang Disinkronkan</h4>
+                <p className="text-xs text-gray-400 mt-0.5">Belum ada preview yang termuat atau server sedang memuat ulang.</p>
+              </div>
+            </div>
+            <Link
+              to="/doujin"
+              className="px-3.5 py-1.5 rounded-lg bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/40 text-amber-200 text-xs font-semibold transition-all shrink-0"
+            >
+              Buka DoujinDesu
+            </Link>
+          </div>
+        )}
       </MediaCarousel>
 
       {/* ── 6. CAROUSEL: FOTO TELEGRAM TERBARU (MONGODB ATLAS) ──────────────── */}

@@ -81,6 +81,7 @@ export default function DoujinDetailPage() {
                 src={data.cover_url} 
                 alt={data.title}
                 className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
               />
               <div className="absolute top-2 left-2 px-3 py-1 bg-black/70 backdrop-blur rounded text-xs font-bold text-indigo-400 uppercase">
                 {data.status}

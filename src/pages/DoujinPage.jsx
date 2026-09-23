@@ -311,6 +311,7 @@ export default function DoujinPage() {
                       alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
+                      referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-80" />
                     <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">

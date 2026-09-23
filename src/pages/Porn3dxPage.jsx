@@ -289,11 +289,11 @@ export default function Porn3dxPage({ onOpenSidebar }) {
                 <p className="text-xs text-gray-500 mb-3 font-medium">Sementara itu, Anda dapat menikmati alternatif video & 3D lainnya:</p>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <button
-                    onClick={() => navigate("/rule34video")}
+                    onClick={() => navigate("/rule34")}
                     className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/30 text-gray-300 hover:text-white text-xs rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
                   >
                     <Film size={13} className="text-violet-400" />
-                    <span>Rule34Video (3D & SFM)</span>
+                    <span>Rule34 Video (3D & SFM)</span>
                     <ArrowRight size={11} className="text-gray-500" />
                   </button>
                   <button
