@@ -1,6 +1,59 @@
 import axios from 'axios';
+import { connectDB } from './telegramDb.js';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_DRIVE_API_KEY;
+
+/**
+ * Mengambil link Google Drive folder yang tersimpan di MongoDB atau env.
+ */
+export async function getSavedDriveFolderLink() {
+  try {
+    const db = await connectDB();
+    const doc = await db.collection("settings").findOne({ key: "drive_folder_link" });
+    if (doc && doc.value) {
+      return doc.value;
+    }
+  } catch (err) {
+    console.error("Gagal membaca link Drive dari MongoDB:", err.message);
+  }
+
+  if (process.env.GOOGLE_DRIVE_FOLDER_LINK) {
+    return process.env.GOOGLE_DRIVE_FOLDER_LINK;
+  }
+
+  return "";
+}
+
+/**
+ * Menyimpan link Google Drive folder ke MongoDB settings agar permanen.
+ */
+export async function saveDriveFolderLink(link) {
+  if (!link || typeof link !== 'string' || !link.trim()) {
+    throw new Error('Link folder Google Drive tidak boleh kosong.');
+  }
+
+  const cleanLink = link.trim();
+  // Validasi format link / folder ID
+  extractFolderId(cleanLink);
+
+  const db = await connectDB();
+  await db.collection("settings").updateOne(
+    { key: "drive_folder_link" },
+    { $set: { key: "drive_folder_link", value: cleanLink, updatedAt: new Date() } },
+    { upsert: true }
+  );
+
+  return cleanLink;
+}
+
+/**
+ * Menghapus link Google Drive folder dari database.
+ */
+export async function deleteDriveFolderLink() {
+  const db = await connectDB();
+  await db.collection("settings").deleteOne({ key: "drive_folder_link" });
+  return true;
+}
 
 /**
  * Mengekstrak Folder ID dari berbagai format link Google Drive.
@@ -31,7 +84,16 @@ export async function getDriveVideos(folderLinkOrId) {
     throw new Error("API_KEY_NOT_SET: GOOGLE_DRIVE_API_KEY belum diatur di Environment Variables!");
   }
 
-  const folderId = extractFolderId(folderLinkOrId);
+  let target = folderLinkOrId;
+  if (!target) {
+    target = await getSavedDriveFolderLink();
+  }
+
+  if (!target) {
+    throw new Error('Link folder Google Drive belum diatur. Silakan masukkan link folder terlebih dahulu.');
+  }
+
+  const folderId = extractFolderId(target);
 
   // Query ke Google Drive API v3: ambil semua file video di dalam folder
   const query = `'${folderId}' in parents and mimeType contains 'video/' and trashed = false`;

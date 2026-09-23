@@ -2789,15 +2789,55 @@ app.get("/api/telegram/image", async (req, res) => {
 // ==========================================
 // PERSONAL VIDEO ROUTE (GOOGLE DRIVE)
 // ==========================================
-app.get("/api/personal/drive", async (req, res) => {
-  const { folderLink } = req.query;
-  if (!folderLink) {
-    return res.status(400).json({ success: false, error: 'Parameter folderLink wajib diisi.' });
-  }
+app.get("/api/personal/drive/config", async (req, res) => {
   try {
-    const { getDriveVideos } = await import('./_lib/driveFolder.js');
+    const { getSavedDriveFolderLink } = await import('./_lib/driveFolder.js');
+    const folderLink = await getSavedDriveFolderLink();
+    res.json({ success: true, folderLink });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/personal/drive/config", async (req, res) => {
+  try {
+    const { folderLink } = req.body || {};
+    if (!folderLink) {
+      return res.status(400).json({ success: false, error: "Link folder Google Drive wajib diisi." });
+    }
+    const { saveDriveFolderLink } = await import('./_lib/driveFolder.js');
+    const saved = await saveDriveFolderLink(folderLink);
+    res.json({ success: true, folderLink: saved, message: "Link folder Google Drive berhasil disimpan permanen." });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.delete("/api/personal/drive/config", async (req, res) => {
+  try {
+    const { deleteDriveFolderLink } = await import('./_lib/driveFolder.js');
+    await deleteDriveFolderLink();
+    res.json({ success: true, message: "Link folder Google Drive berhasil dihapus." });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/api/personal/drive", async (req, res) => {
+  try {
+    const { getDriveVideos, getSavedDriveFolderLink } = await import('./_lib/driveFolder.js');
+    let folderLink = req.query.folderLink;
+    if (!folderLink) {
+      folderLink = await getSavedDriveFolderLink();
+    }
+    if (!folderLink) {
+      return res.status(400).json({
+        success: false,
+        error: 'Link folder Google Drive belum diatur. Masukkan link folder atau simpan konfigurasi terlebih dahulu.'
+      });
+    }
     const videos = await getDriveVideos(folderLink);
-    res.json({ success: true, data: videos });
+    res.json({ success: true, data: videos, folderLink });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
