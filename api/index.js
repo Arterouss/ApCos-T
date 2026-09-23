@@ -628,6 +628,8 @@ app.get(/^\/api\/doujin\/chapter\/(.*)$/, async (req, res) => {
     console.error("[Doujin Chapter Error]", error);
     res.status(500).json({ error: error.message });
   }
+});
+
 app.get("/api/doujin/image-proxy", async (req, res) => {
   try {
     const { url } = req.query;
