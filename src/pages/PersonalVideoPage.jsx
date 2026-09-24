@@ -14,7 +14,9 @@ import {
   Check, 
   Database,
   RefreshCw,
-  Trash2
+  Trash2,
+  ExternalLink,
+  Download
 } from "lucide-react";
 
 const STORAGE_KEY = "apicos_drive_folder_link";
@@ -29,8 +31,27 @@ export default function PersonalVideoPage() {
   const [error, setError] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [playingVideo, setPlayingVideo] = useState(null);
+  const [isPlayerLoading, setIsPlayerLoading] = useState(true);
   const [showInput, setShowInput] = useState(!localStorage.getItem(STORAGE_KEY));
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setPlayingVideo(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Reset player loading when a video is clicked
+  useEffect(() => {
+    if (playingVideo) {
+      setIsPlayerLoading(true);
+    }
+  }, [playingVideo]);
 
   // Load server-saved config on mount
   useEffect(() => {
@@ -150,41 +171,98 @@ export default function PersonalVideoPage() {
       <AnimatePresence>
         {playingVideo && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-black/95 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-md"
+            onClick={() => setPlayingVideo(null)}
           >
             {/* Absolute Close Button */}
             <button
               onClick={() => setPlayingVideo(null)}
-              className="absolute top-4 right-4 md:top-6 md:right-6 z-[110] p-3 rounded-full bg-white/10 hover:bg-red-500 text-white transition-all backdrop-blur-md"
+              className="absolute top-3 right-3 sm:top-5 sm:right-5 z-[120] p-2.5 sm:p-3 rounded-full bg-white/10 hover:bg-red-600 text-white transition-all backdrop-blur-md shadow-lg group active:scale-95"
+              title="Tutup (Esc)"
             >
-              <X size={24} />
+              <X size={20} className="sm:w-6 sm:h-6" />
             </button>
             
-            <div className="w-full max-w-5xl flex flex-col bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0 pr-16">
-                <h3 className="font-bold text-white line-clamp-1 text-sm md:text-base">{playingVideo.title}</h3>
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-5xl flex flex-col bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative z-10"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-white/10 shrink-0 pr-12 sm:pr-16 bg-neutral-900/90">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                    <Film size={16} />
+                  </div>
+                  <h3 className="font-bold text-white truncate text-sm sm:text-base">{playingVideo.title}</h3>
+                </div>
               </div>
-              <div className="aspect-video bg-black relative">
-                <video
-                  src={playingVideo.stream_url}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-contain"
+
+              {/* Video Player Box */}
+              <div className="aspect-video bg-neutral-950 relative flex items-center justify-center overflow-hidden">
+                {isPlayerLoading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-950 text-gray-400 z-0">
+                    <Loader2 size={36} className="animate-spin text-indigo-500" />
+                    <span className="text-xs text-gray-400 font-medium animate-pulse">Memuat player Google Drive...</span>
+                  </div>
+                )}
+                
+                <iframe
+                  key={playingVideo.id}
+                  src={`https://drive.google.com/file/d/${playingVideo.id}/preview`}
+                  title={playingVideo.title}
+                  className="w-full h-full border-0 relative z-10"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                  onLoad={() => setIsPlayerLoading(false)}
                 />
               </div>
-              <div className="p-3 flex items-center justify-between text-xs text-gray-500 shrink-0">
+
+              {/* Modal Footer */}
+              <div className="p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-400 border-t border-white/5 bg-neutral-900/95 shrink-0">
                 <div className="flex items-center gap-4">
-                  {playingVideo.duration && <span className="flex items-center gap-1"><Clock size={12}/> {playingVideo.duration}</span>}
-                  {playingVideo.size && <span className="flex items-center gap-1"><HardDrive size={12}/> {playingVideo.size}</span>}
+                  {playingVideo.duration && (
+                    <span className="flex items-center gap-1.5 text-gray-400 font-medium">
+                      <Clock size={13} className="text-gray-500" /> {playingVideo.duration}
+                    </span>
+                  )}
+                  {playingVideo.size && (
+                    <span className="flex items-center gap-1.5 text-gray-400 font-medium">
+                      <HardDrive size={13} className="text-gray-500" /> {playingVideo.size}
+                    </span>
+                  )}
                 </div>
-                <a href={playingVideo.download_url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition-colors">
-                  Buka di Drive
-                </a>
+
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <a 
+                    href={`https://drive.google.com/file/d/${playingVideo.id}/view`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 font-medium transition-all active:scale-95"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Buka di Google Drive</span>
+                  </a>
+                  {playingVideo.download_url && (
+                    <a 
+                      href={playingVideo.download_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 font-medium transition-all active:scale-95"
+                    >
+                      <Download size={13} />
+                      <span>Download</span>
+                    </a>
+                  )}
+                </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
