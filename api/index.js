@@ -2938,6 +2938,24 @@ app.get("/api/anime/watch/:slug", async (req, res) => {
   }
 });
 
+app.all("/api/anime/stream-source", async (req, res) => {
+  try {
+    const params = req.method === "POST" ? req.body : req.query;
+    const { id, i, q, nonceAction, streamAction } = params;
+
+    if (!id || i === undefined || !q) {
+      return res.status(400).json({ error: "Parameter id, i, dan q diperlukan" });
+    }
+
+    const { fetchStreamUrl } = await import('./_lib/scraperOtakudesu.js');
+    const data = await fetchStreamUrl({ id, i, q, nonceAction, streamAction });
+    res.json(data);
+  } catch (err) {
+    console.error('[Otakudesu] Stream Source Error:', err.message);
+    res.status(500).json({ error: 'Gagal memuat mirror resolusi', details: err.message });
+  }
+});
+
 app.use(express.static(distPath));
 
 app.get(/.*/, (req, res) => {

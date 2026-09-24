@@ -84,7 +84,7 @@ export const scrapeOngoingAnime = async (page = 1) => {
   const animeList = [];
 
   // Ongoing list uses .venz ul li structure
-  $('.venz ul li, .detpost').each((_, el) => {
+  $('.venz ul li').each((_, el) => {
     const card = parseAnimeCard($, el);
     if (card.title) animeList.push(card);
   });
@@ -109,7 +109,7 @@ export const scrapeCompletedAnime = async (page = 1) => {
   const $ = await fetchPage(url);
   const animeList = [];
 
-  $('.venz ul li, .detpost').each((_, el) => {
+  $('.venz ul li').each((_, el) => {
     const card = parseAnimeCard($, el);
     if (card.title) animeList.push(card);
   });
@@ -257,77 +257,157 @@ export const scrapeAnimeDetail = async (slug) => {
   };
 };
 
+// Simple in-memory cache for resolved stream URLs
+const streamCache = new Map();
+
+// Helper to fetch stream iframe URL via Otakudesu admin-ajax
+export const fetchStreamUrl = async ({ id, i, q, nonceAction, streamAction }) => {
+  const cacheKey = `${id}_${q}_${i}`;
+  if (streamCache.has(cacheKey)) {
+    return { url: streamCache.get(cacheKey), cached: true };
+  }
+
+  const nAction = nonceAction || 'aa1208d27f29ca340c92c66d1926f13f';
+  const sAction = streamAction || '2a3505c93b0035d3f455df82bf976b84';
+
+  // 1. Get nonce
+  const nonceRes = await axios.post(
+    `${BASE_URL}/wp-admin/admin-ajax.php`,
+    new URLSearchParams({ action: nAction }),
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      timeout: 10000,
+    }
+  );
+
+  const nonce = nonceRes.data?.data;
+  if (!nonce) throw new Error('Gagal mendapatkan nonce token');
+
+  // 2. Fetch stream iframe
+  const streamRes = await axios.post(
+    `${BASE_URL}/wp-admin/admin-ajax.php`,
+    new URLSearchParams({
+      id: String(id),
+      i: String(i),
+      q: String(q),
+      nonce: nonce,
+      action: sAction,
+    }),
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      timeout: 10000,
+    }
+  );
+
+  const base64Data = streamRes.data?.data;
+  if (!base64Data) throw new Error('Gagal mendapatkan data stream iframe');
+
+  const decodedHtml = Buffer.from(base64Data, 'base64').toString('utf-8');
+  const $ = cheerio.load(decodedHtml);
+  let iframeSrc = $('iframe').attr('src') || '';
+  if (iframeSrc.startsWith('//')) iframeSrc = 'https:' + iframeSrc;
+
+  if (iframeSrc) {
+    streamCache.set(cacheKey, iframeSrc);
+  }
+
+  return {
+    url: iframeSrc,
+    html: decodedHtml,
+  };
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 5. EPISODE STREAMING
 // ═══════════════════════════════════════════════════════════════════════════
 export const scrapeEpisodeStreaming = async (slug) => {
   const url = `${BASE_URL}/episode/${slug}/`;
   const $ = await fetchPage(url);
+  const rawHtml = $.html();
 
   const title = $('h1.posttl, h1').first().text().trim();
 
-  // ── Streaming mirrors ────────────────────────────────────────────────
-  const mirrors = [];
-  
-  // Primary: check #embed_holder iframe
+  // ── Extract actions for ajax streaming ───────────────────────────────
+  const nonceMatch = rawHtml.match(/data:\s*\{\s*action:\s*['"]([a-f0-9]{32})['"]\s*\}/);
+  const nonceAction = nonceMatch ? nonceMatch[1] : 'aa1208d27f29ca340c92c66d1926f13f';
+
+  const allActions = [...rawHtml.matchAll(/action:\s*['"]([a-f0-9]{32})['"]/g)].map(m => m[1]);
+  const streamAction = allActions.find(a => a !== nonceAction) || '2a3505c93b0035d3f455df82bf976b84';
+
+  // ── Parse Qualities and Mirrors ──────────────────────────────────────
+  const qualities = {};
+  $('.mirrorstream ul').each((_, ul) => {
+    const $ul = $(ul);
+    const className = $ul.attr('class') || '';
+    const qMatch = className.match(/m(\d+p)/i);
+    const quality = qMatch ? qMatch[1] : 'unknown';
+
+    if (!qualities[quality]) {
+      qualities[quality] = [];
+    }
+
+    $ul.find('li a').each((_, a) => {
+      const $a = $(a);
+      const name = $a.text().trim();
+      const dataContent = $a.attr('data-content');
+      if (dataContent) {
+        try {
+          const payload = JSON.parse(Buffer.from(dataContent, 'base64').toString('utf-8'));
+          qualities[quality].push({
+            name,
+            quality,
+            id: payload.id,
+            i: payload.i,
+            q: payload.q,
+          });
+        } catch (e) {}
+      }
+    });
+  });
+
+  // Default fallback iframe
+  let defaultStreamUrl = '';
   const mainIframe = $('#embed_holder iframe, .responsive-embed-stream iframe').first();
   if (mainIframe.length) {
     const src = mainIframe.attr('src') || mainIframe.attr('data-src') || '';
     if (src) {
-      mirrors.push({
-        name: 'Default',
-        url: src.startsWith('//') ? 'https:' + src : src,
-        quality: 'auto',
-      });
+      defaultStreamUrl = src.startsWith('//') ? 'https:' + src : src;
     }
   }
 
-  // Secondary: .mirrorstream buttons/links
-  $('.mirrorstream ul li a, .mirrorstream ul li').each((_, el) => {
-    const $el = $(el);
-    const name = $el.text().trim();
-    const dataContent = $el.attr('data-content') || '';
-    
-    // data-content may contain base64-encoded iframe HTML
-    if (dataContent) {
-      try {
-        const decoded = Buffer.from(dataContent, 'base64').toString('utf-8');
-        const $decoded = cheerio.load(decoded);
-        const iframeSrc = $decoded('iframe').attr('src') || '';
-        if (iframeSrc) {
-          mirrors.push({
-            name: name || 'Mirror',
-            url: iframeSrc.startsWith('//') ? 'https:' + iframeSrc : iframeSrc,
-            quality: name,
-          });
-        }
-      } catch (e) {
-        // Not base64, try direct href
-        const href = $el.attr('href') || '';
-        if (href && href !== '#') {
-          mirrors.push({
-            name: name || 'Mirror',
-            url: href,
-            quality: name,
-          });
-        }
-      }
-    }
+  // Determine available resolutions sorted descending (720p, 480p, 360p)
+  const qualityKeys = Object.keys(qualities).sort((a, b) => {
+    const numA = parseInt(a) || 0;
+    const numB = parseInt(b) || 0;
+    return numB - numA;
   });
 
-  // Fallback: look for iframe in scripts
-  if (mirrors.length === 0) {
-    $('script').each((_, el) => {
-      const text = $(el).html() || '';
-      const iframeMatch = text.match(/iframe[^>]*src=['"]([^'"]+)['"]/i);
-      if (iframeMatch) {
-        mirrors.push({
-          name: 'Extracted',
-          url: iframeMatch[1].startsWith('//') ? 'https:' + iframeMatch[1] : iframeMatch[1],
-          quality: 'auto',
-        });
+  // Try to resolve the highest quality (e.g. 720p) first mirror immediately
+  let selectedQuality = qualityKeys[0] || '360p';
+  let selectedServer = qualities[selectedQuality]?.[0]?.name || 'Default';
+
+  if (qualityKeys.length > 0 && qualities[selectedQuality]?.[0]) {
+    try {
+      const firstMirror = qualities[selectedQuality][0];
+      const streamRes = await fetchStreamUrl({
+        id: firstMirror.id,
+        i: firstMirror.i,
+        q: firstMirror.q,
+        nonceAction,
+        streamAction,
+      });
+      if (streamRes.url) {
+        defaultStreamUrl = streamRes.url;
       }
-    });
+    } catch (e) {
+      console.warn('[Otakudesu] Pre-fetch stream failed, fallback to default embed:', e.message);
+    }
   }
 
   // ── Download links ───────────────────────────────────────────────────
@@ -352,7 +432,6 @@ export const scrapeEpisodeStreaming = async (slug) => {
   let nextEpisode = null;
   let animeSlug = null;
 
-  // Previous
   const prevLink = $('.fleft a, .prevnav a').first();
   if (prevLink.length) {
     const prevHref = prevLink.attr('href') || '';
@@ -360,7 +439,6 @@ export const scrapeEpisodeStreaming = async (slug) => {
     if (prevMatch) prevEpisode = prevMatch[1];
   }
 
-  // Next
   const nextLink = $('.fright a, .nextnav a').first();
   if (nextLink.length) {
     const nextHref = nextLink.attr('href') || '';
@@ -368,7 +446,6 @@ export const scrapeEpisodeStreaming = async (slug) => {
     if (nextMatch) nextEpisode = nextMatch[1];
   }
 
-  // All episodes link → extract anime slug
   const allEpLink = $('a[href*="/anime/"]').first();
   if (allEpLink.length) {
     const allHref = allEpLink.attr('href') || '';
@@ -379,7 +456,13 @@ export const scrapeEpisodeStreaming = async (slug) => {
   return {
     slug,
     title,
-    mirrors,
+    qualities,
+    qualityKeys,
+    selectedQuality,
+    selectedServer,
+    defaultStreamUrl,
+    nonceAction,
+    streamAction,
     downloads,
     prevEpisode,
     nextEpisode,
