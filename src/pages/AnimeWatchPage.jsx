@@ -349,12 +349,22 @@ export default function AnimeWatchPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {availableServers.map((server, i) => {
-                  const isActive = i === activeServerIndex;
+                {[...availableServers].sort((a, b) => {
+                  const aIsOd = a.name.toLowerCase().startsWith('od') || a.name.toLowerCase().includes('desu');
+                  const bIsOd = b.name.toLowerCase().startsWith('od') || b.name.toLowerCase().includes('desu');
+                  if (aIsOd && !bIsOd) return -1;
+                  if (!aIsOd && bIsOd) return 1;
+                  return 0;
+                }).map((server, i) => {
+                  // Find original index in availableServers
+                  const origIdx = availableServers.findIndex(s => s.name === server.name);
+                  const isActive = origIdx === activeServerIndex;
+                  const isRecommended = server.name.toLowerCase().startsWith('od') || server.name.toLowerCase().includes('desu');
+
                   return (
                     <button
-                      key={i}
-                      onClick={() => handleServerChange(i)}
+                      key={server.name}
+                      onClick={() => handleServerChange(origIdx)}
                       disabled={changingStream}
                       className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 capitalize ${
                         isActive
@@ -364,15 +374,25 @@ export default function AnimeWatchPage() {
                     >
                       <Play size={10} fill="currentColor" />
                       <span>{server.name}</span>
+                      {isRecommended && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">
+                          ⭐ Rekomendasi
+                        </span>
+                      )}
                       {isActive && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 ml-0.5" />}
                     </button>
                   );
                 })}
               </div>
 
-              <p className="text-[11px] text-white/40 mt-2.5">
-                💡 <span className="text-white/60">Tips:</span> Jika video lemot atau tidak bisa diputar di resolusi tinggi (720p), ganti ke <span className="text-cyan-300 font-medium">480p</span> atau ganti server di atas.
-              </p>
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-white/50 space-y-1 mt-2.5">
+                <p>
+                  💡 <strong className="text-white/80">Kenapa ada server yang "Not Found" / tidak bisa dibuka?</strong>
+                </p>
+                <p className="text-white/40 leading-relaxed">
+                  Server anime disediakan oleh beberapa pihak ketiga gratisan (seperti Mega, Vidhide, Filedon). File di server luar bisa sewaktu-waktu <em>terhapus (DMCA/hak cipta)</em> atau <em>diblokir operator internet</em>. Jika salah satu server error, cukup klik <strong>server lain di sebelahnya</strong> (disarankan yang berlabel <strong>⭐ Rekomendasi / Odstream</strong>).
+                </p>
+              </div>
             </div>
           )}
         </motion.div>
