@@ -13,6 +13,14 @@ import { scrapeRule34VideoList, scrapeRule34VideoDetail } from "./_lib/scraperRu
 import { scrapePorn3dxList, scrapePorn3dxDetail } from "./_lib/scraperPorn3dx.js";
 import { scrapeFapelloList, scrapeFapelloModel } from "./_lib/scraperFapello.js";
 import { filterBlockedItems, filterBlockedTags } from "./_lib/contentFilter.js";
+import {
+  scrapeOngoingAnime,
+  scrapeCompletedAnime,
+  searchAnime,
+  scrapeAnimeDetail,
+  scrapeEpisodeStreaming,
+  fetchStreamUrl
+} from "./_lib/scraperOtakudesu.js";
 
 
 try {
@@ -2880,7 +2888,6 @@ app.get("/api/personal/drive", async (req, res) => {
 app.get("/api/anime/ongoing", async (req, res) => {
   try {
     const { page = 1 } = req.query;
-    const { scrapeOngoingAnime } = await import('./_lib/scraperOtakudesu.js');
     const data = await scrapeOngoingAnime(parseInt(page));
     res.json(data);
   } catch (err) {
@@ -2892,7 +2899,6 @@ app.get("/api/anime/ongoing", async (req, res) => {
 app.get("/api/anime/completed", async (req, res) => {
   try {
     const { page = 1 } = req.query;
-    const { scrapeCompletedAnime } = await import('./_lib/scraperOtakudesu.js');
     const data = await scrapeCompletedAnime(parseInt(page));
     res.json(data);
   } catch (err) {
@@ -2905,7 +2911,6 @@ app.get("/api/anime/search", async (req, res) => {
   try {
     const { q = '' } = req.query;
     if (!q.trim()) return res.json({ animeList: [], query: '' });
-    const { searchAnime } = await import('./_lib/scraperOtakudesu.js');
     const data = await searchAnime(q.trim());
     res.json(data);
   } catch (err) {
@@ -2917,7 +2922,6 @@ app.get("/api/anime/search", async (req, res) => {
 app.get("/api/anime/detail/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
-    const { scrapeAnimeDetail } = await import('./_lib/scraperOtakudesu.js');
     const data = await scrapeAnimeDetail(slug);
     res.json(data);
   } catch (err) {
@@ -2929,7 +2933,6 @@ app.get("/api/anime/detail/:slug", async (req, res) => {
 app.get("/api/anime/watch/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
-    const { scrapeEpisodeStreaming } = await import('./_lib/scraperOtakudesu.js');
     const data = await scrapeEpisodeStreaming(slug);
     res.json(data);
   } catch (err) {
@@ -2947,7 +2950,6 @@ app.all("/api/anime/stream-source", async (req, res) => {
       return res.status(400).json({ error: "Parameter id, i, dan q diperlukan" });
     }
 
-    const { fetchStreamUrl } = await import('./_lib/scraperOtakudesu.js');
     const data = await fetchStreamUrl({ id, i, q, nonceAction, streamAction });
     res.json(data);
   } catch (err) {

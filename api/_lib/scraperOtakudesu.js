@@ -1,22 +1,76 @@
 import axios from 'axios';
+import https from 'https';
 import * as cheerio from 'cheerio';
 
 const BASE_URL = 'https://otakudesu.blog';
+const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
+
+const sslAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
 const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml',
-  'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
   'Referer': BASE_URL + '/',
 };
 
+// In-memory HTML cache (TTL: 10 minutes)
+const pageCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000;
+
 const fetchPage = async (url) => {
-  console.log(`[Otakudesu] Fetching: ${url}`);
-  const { data } = await axios.get(url, {
-    headers: HEADERS,
-    timeout: 15000,
-  });
-  return cheerio.load(data);
+  const cached = pageCache.get(url);
+  if (cached && (Date.now() - cached.time < CACHE_TTL)) {
+    console.log(`[Otakudesu Cache] Serving ${url} from cache`);
+    return cheerio.load(cached.data);
+  }
+
+  // 1. Try Direct request (fast)
+  try {
+    console.log(`[Otakudesu Direct] Fetching: ${url}`);
+    const { data } = await axios.get(url, {
+      headers: HEADERS,
+      httpsAgent: sslAgent,
+      timeout: 8000,
+    });
+
+    if (typeof data === 'string' && (data.includes('venz') || data.includes('episodelist') || data.includes('posttl') || data.includes('chi_lst'))) {
+      pageCache.set(url, { data, time: Date.now() });
+      return cheerio.load(data);
+    }
+
+    if (typeof data === 'string' && (data.includes('Just a moment...') || data.includes('cf-browser-verification') || data.includes('Cloudflare'))) {
+      throw new Error('Cloudflare challenge detected');
+    }
+
+    pageCache.set(url, { data, time: Date.now() });
+    return cheerio.load(data);
+  } catch (directErr) {
+    console.warn(`[Otakudesu Direct] Failed (${directErr.message}), falling back to ZenRows proxy...`);
+  }
+
+  // 2. Fallback to ZenRows proxy (handles Vercel / Cloudflare blocks)
+  try {
+    const proxyUrl = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(url)}&premium_proxy=true`;
+    console.log(`[Otakudesu ZenRows] Fetching: ${url}`);
+    const { data } = await axios.get(proxyUrl, {
+      httpsAgent: sslAgent,
+      timeout: 30000,
+    });
+
+    pageCache.set(url, { data, time: Date.now() });
+    return cheerio.load(data);
+  } catch (proxyErr) {
+    console.error(`[Otakudesu ZenRows] Proxy error: ${proxyErr.message}`);
+    // If we have stale cached data, use it as last resort
+    if (cached) {
+      console.warn(`[Otakudesu Fallback] Serving stale cache for ${url}`);
+      return cheerio.load(cached.data);
+    }
+    throw new Error(`Gagal memuat halaman anime dari Otakudesu (${proxyErr.message})`);
+  }
 };
 
 // ─── Helper: parse anime card from list pages ────────────────────────────
