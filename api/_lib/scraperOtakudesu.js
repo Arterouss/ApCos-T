@@ -16,9 +16,9 @@ const HEADERS = {
   'Referer': BASE_URL + '/',
 };
 
-// In-memory HTML cache (TTL: 10 minutes)
+// In-memory HTML cache (TTL: 15 minutes)
 const pageCache = new Map();
-const CACHE_TTL = 10 * 60 * 1000;
+const CACHE_TTL = 15 * 60 * 1000;
 
 const fetchPage = async (url) => {
   const cached = pageCache.get(url);
@@ -27,13 +27,16 @@ const fetchPage = async (url) => {
     return cheerio.load(cached.data);
   }
 
-  // 1. Try Direct request (fast)
+  const isVercel = Boolean(process.env.VERCEL);
+  const directTimeout = isVercel ? 2500 : 6000;
+
+  // 1. Try Direct request (fast in local environment)
   try {
     console.log(`[Otakudesu Direct] Fetching: ${url}`);
     const { data } = await axios.get(url, {
       headers: HEADERS,
       httpsAgent: sslAgent,
-      timeout: 8000,
+      timeout: directTimeout,
     });
 
     if (typeof data === 'string' && (data.includes('venz') || data.includes('episodelist') || data.includes('posttl') || data.includes('chi_lst'))) {
@@ -51,13 +54,13 @@ const fetchPage = async (url) => {
     console.warn(`[Otakudesu Direct] Failed (${directErr.message}), falling back to ZenRows proxy...`);
   }
 
-  // 2. Fallback to ZenRows proxy (handles Vercel / Cloudflare blocks)
+  // 2. Fallback to ZenRows proxy (bypasses Cloudflare block on Vercel)
   try {
     const proxyUrl = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(url)}&premium_proxy=true`;
-    console.log(`[Otakudesu ZenRows] Fetching: ${url}`);
+    console.log(`[Otakudesu ZenRows] Fetching via proxy: ${url}`);
     const { data } = await axios.get(proxyUrl, {
       httpsAgent: sslAgent,
-      timeout: 30000,
+      timeout: 45000,
     });
 
     pageCache.set(url, { data, time: Date.now() });
