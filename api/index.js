@@ -21,6 +21,19 @@ import {
   scrapeEpisodeStreaming,
   fetchStreamUrl
 } from "./_lib/scraperOtakudesu.js";
+import {
+  getOngoingFromDb, saveOngoingToDb,
+  getCompletedFromDb, saveCompletedToDb,
+  getDetailFromDb, saveDetailToDb,
+  getEpisodeFromDb, saveEpisodeToDb,
+  searchAnimeFromDb,
+  getLastSyncLog,
+  setupIndexes,
+} from "./_lib/animeDb.js";
+import { runSync } from "./_lib/syncOtakudesu.js";
+
+// Setup MongoDB indexes on startup
+setupIndexes().catch(e => console.warn('[AnimeDb] setupIndexes error:', e.message));
 
 
 try {
@@ -2883,13 +2896,24 @@ app.get("/api/personal/drive", async (req, res) => {
 });
 
 // ==========================================
-// OTAKUDESU ANIME ROUTES (Mode HUB / General)
+// OTAKUDESU ANIME ROUTES — DB-First (Cache → Scrape → Save)
 // ==========================================
+
 app.get("/api/anime/ongoing", async (req, res) => {
   try {
-    const { page = 1 } = req.query;
-    const data = await scrapeOngoingAnime(parseInt(page));
-    res.json(data);
+    const page = parseInt(req.query.page) || 1;
+    // 1. Coba ambil dari DB
+    let data = await getOngoingFromDb(page);
+    let source = 'db';
+    // 2. Cache miss → scrape live
+    if (!data) {
+      console.log(`[Anime] Ongoing p${page}: cache miss, scraping...`);
+      data = await scrapeOngoingAnime(page);
+      // 3. Simpan ke DB (non-blocking)
+      saveOngoingToDb(page, data).catch(e => console.warn('[AnimeDb] save ongoing error:', e.message));
+      source = 'live';
+    }
+    res.json({ ...data, _source: source });
   } catch (err) {
     console.error('[Otakudesu] Ongoing Error:', err.message);
     res.status(500).json({ error: 'Gagal mengambil daftar anime ongoing', details: err.message });
@@ -2898,9 +2922,16 @@ app.get("/api/anime/ongoing", async (req, res) => {
 
 app.get("/api/anime/completed", async (req, res) => {
   try {
-    const { page = 1 } = req.query;
-    const data = await scrapeCompletedAnime(parseInt(page));
-    res.json(data);
+    const page = parseInt(req.query.page) || 1;
+    let data = await getCompletedFromDb(page);
+    let source = 'db';
+    if (!data) {
+      console.log(`[Anime] Completed p${page}: cache miss, scraping...`);
+      data = await scrapeCompletedAnime(page);
+      saveCompletedToDb(page, data).catch(e => console.warn('[AnimeDb] save completed error:', e.message));
+      source = 'live';
+    }
+    res.json({ ...data, _source: source });
   } catch (err) {
     console.error('[Otakudesu] Completed Error:', err.message);
     res.status(500).json({ error: 'Gagal mengambil daftar anime completed', details: err.message });
@@ -2909,10 +2940,20 @@ app.get("/api/anime/completed", async (req, res) => {
 
 app.get("/api/anime/search", async (req, res) => {
   try {
-    const { q = '' } = req.query;
-    if (!q.trim()) return res.json({ animeList: [], query: '' });
-    const data = await searchAnime(q.trim());
-    res.json(data);
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json({ animeList: [], query: '' });
+
+    // 1. Coba DB search (dari cache detail yang sudah ada)
+    const dbResults = await searchAnimeFromDb(q);
+    if (dbResults && dbResults.length > 0) {
+      console.log(`[Anime] Search "${q}": ${dbResults.length} results from DB`);
+      return res.json({ animeList: dbResults, query: q, _source: 'db' });
+    }
+
+    // 2. Fallback: scrape live
+    console.log(`[Anime] Search "${q}": DB empty, scraping...`);
+    const data = await searchAnime(q);
+    res.json({ ...data, _source: 'live' });
   } catch (err) {
     console.error('[Otakudesu] Search Error:', err.message);
     res.status(500).json({ error: 'Gagal mencari anime', details: err.message });
@@ -2922,8 +2963,15 @@ app.get("/api/anime/search", async (req, res) => {
 app.get("/api/anime/detail/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
-    const data = await scrapeAnimeDetail(slug);
-    res.json(data);
+    let data = await getDetailFromDb(slug);
+    let source = 'db';
+    if (!data) {
+      console.log(`[Anime] Detail ${slug}: cache miss, scraping...`);
+      data = await scrapeAnimeDetail(slug);
+      saveDetailToDb(slug, data).catch(e => console.warn('[AnimeDb] save detail error:', e.message));
+      source = 'live';
+    }
+    res.json({ ...data, _source: source });
   } catch (err) {
     console.error('[Otakudesu] Detail Error:', err.message);
     res.status(500).json({ error: 'Gagal mengambil detail anime', details: err.message });
@@ -2933,8 +2981,15 @@ app.get("/api/anime/detail/:slug", async (req, res) => {
 app.get("/api/anime/watch/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
-    const data = await scrapeEpisodeStreaming(slug);
-    res.json(data);
+    let data = await getEpisodeFromDb(slug);
+    let source = 'db';
+    if (!data) {
+      console.log(`[Anime] Watch ${slug}: cache miss, scraping...`);
+      data = await scrapeEpisodeStreaming(slug);
+      saveEpisodeToDb(slug, data).catch(e => console.warn('[AnimeDb] save episode error:', e.message));
+      source = 'live';
+    }
+    res.json({ ...data, _source: source });
   } catch (err) {
     console.error('[Otakudesu] Watch Error:', err.message);
     res.status(500).json({ error: 'Gagal mengambil streaming episode', details: err.message });
@@ -2955,6 +3010,48 @@ app.all("/api/anime/stream-source", async (req, res) => {
   } catch (err) {
     console.error('[Otakudesu] Stream Source Error:', err.message);
     res.status(500).json({ error: 'Gagal memuat mirror resolusi', details: err.message });
+  }
+});
+
+// ─── Sync trigger endpoint ─────────────────────────────────────────────────────
+app.post("/api/anime/sync", async (req, res) => {
+  try {
+    const { mode = 'ongoing', forceUpdate = false, secret } = req.body || {};
+    // Simple secret check (opsional — set env SYNC_SECRET)
+    const syncSecret = process.env.SYNC_SECRET;
+    if (syncSecret && secret !== syncSecret) {
+      return res.status(401).json({ error: 'Unauthorized: invalid sync secret' });
+    }
+
+    const validModes = ['ongoing', 'completed', 'details', 'full'];
+    if (!validModes.includes(mode)) {
+      return res.status(400).json({ error: `Mode tidak valid. Pilih: ${validModes.join(', ')}` });
+    }
+
+    // Run sync async (jangan tunggu, langsung return)
+    console.log(`[Sync API] Triggered: mode=${mode} force=${forceUpdate}`);
+    res.json({ success: true, message: `Sync "${mode}" dimulai di background. Cek /api/anime/sync/status.` });
+
+    // Background execution
+    runSync({ mode, forceUpdate }).then(result => {
+      console.log('[Sync API] Completed:', result);
+    }).catch(err => {
+      console.error('[Sync API] Failed:', err.message);
+    });
+
+  } catch (err) {
+    console.error('[Sync API] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/anime/sync/status", async (req, res) => {
+  try {
+    const log = await getLastSyncLog();
+    if (!log) return res.json({ message: 'Belum ada sync yang pernah dijalankan.' });
+    res.json(log);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
