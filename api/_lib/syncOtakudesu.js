@@ -34,7 +34,7 @@ async function syncOngoing(maxPages = 5) {
   const slugSet = new Set();
   for (let page = 1; page <= maxPages; page++) {
     try {
-      console.log([Sync] Ongoing page /...);
+      console.log(`[Sync] Ongoing page ${page}/${maxPages}...`);
       const data = await scrapeOngoingAnime(page);
       await saveOngoingToDb(page, data);
 
@@ -49,7 +49,7 @@ async function syncOngoing(maxPages = 5) {
 
       await sleep(1500);
     } catch (e) {
-      console.error([Sync] Ongoing page  error:, e.message);
+      console.error(`[Sync] Ongoing page ${page} error:`, e.message);
       break;
     }
   }
@@ -61,7 +61,7 @@ async function syncCompleted(maxPages = 10) {
   const slugSet = new Set();
   for (let page = 1; page <= maxPages; page++) {
     try {
-      console.log([Sync] Completed page /...);
+      console.log(`[Sync] Completed page ${page}/${maxPages}...`);
       const data = await scrapeCompletedAnime(page);
       await saveCompletedToDb(page, data);
 
@@ -74,7 +74,7 @@ async function syncCompleted(maxPages = 10) {
 
       await sleep(1500);
     } catch (e) {
-      console.error([Sync] Completed page  error:, e.message);
+      console.error(`[Sync] Completed page ${page} error:`, e.message);
       break;
     }
   }
@@ -92,18 +92,18 @@ async function syncDetails(slugs, forceUpdate = false) {
       if (!forceUpdate) {
         const existing = await getDetailFromDb(slug);
         if (existing) {
-          console.log([Sync] Detail  already cached, skip.);
+          console.log(`[Sync] Detail ${slug} already cached, skip.`);
           continue;
         }
       }
 
-      console.log([Sync] Detail fetching: );
+      console.log(`[Sync] Detail fetching: ${slug}`);
       const data = await scrapeAnimeDetail(slug);
       await saveDetailToDb(slug, data);
       synced++;
       await sleep(2000); // Sopan ke server
     } catch (e) {
-      console.error([Sync] Detail  error:, e.message);
+      console.error(`[Sync] Detail ${slug} error:`, e.message);
       errors.push({ slug, error: e.message });
     }
   }
@@ -119,7 +119,7 @@ export async function runSync({ mode = 'ongoing', forceUpdate = false } = {}) {
   const allErrors = [];
 
   try {
-    console.log([Sync] Starting sync mode="" force=);
+    console.log(`[Sync] Starting sync mode="${mode}" force=${forceUpdate}`);
 
     let slugs = [];
 
@@ -147,11 +147,11 @@ export async function runSync({ mode = 'ongoing', forceUpdate = false } = {}) {
       finishedAt: new Date(),
       totalSynced,
       errors: allErrors,
-      duration: ${duration}s,
+      duration: `${duration}s`,
     });
 
-    console.log([Sync] Done! synced= errors= time=s);
-    return { success: true, totalSynced, errors: allErrors, duration: ${duration}s };
+    console.log(`[Sync] Done! synced=${totalSynced} errors=${allErrors.length} time=${duration}s`);
+    return { success: true, totalSynced, errors: allErrors, duration: `${duration}s` };
 
   } catch (e) {
     console.error('[Sync] Fatal error:', e.message);
