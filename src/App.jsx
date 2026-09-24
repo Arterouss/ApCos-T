@@ -36,6 +36,9 @@ import HentaiPlayDetailPage from "./pages/HentaiPlayDetailPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import PersonalVideoPage from "./pages/PersonalVideoPage";
 import PersonalPhotoPage from "./pages/PersonalPhotoPage";
+import AnimePage from "./pages/AnimePage";
+import AnimeDetailPage from "./pages/AnimeDetailPage";
+import AnimeWatchPage from "./pages/AnimeWatchPage";
 
 import { PortalProvider, usePortalMode } from "./context/PortalContext";
 
@@ -122,6 +125,11 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
           path="/nhentai"
           element={<NhentaiPage onOpenSidebar={onOpenSidebar} />}
         />
+
+        {/* Anime Routes (HUB Mode) */}
+        <Route path="/anime" element={<AnimePage onOpenSidebar={onOpenSidebar} />} />
+        <Route path="/anime/detail/:slug" element={<AnimeDetailPage />} />
+        <Route path="/anime/watch/:slug" element={<AnimeWatchPage />} />
       </Routes>
     </AnimatePresence>
   );

@@ -2874,6 +2874,69 @@ app.get("/api/personal/drive", async (req, res) => {
   }
 });
 
+// ==========================================
+// OTAKUDESU ANIME ROUTES (Mode HUB / General)
+// ==========================================
+app.get("/api/anime/ongoing", async (req, res) => {
+  try {
+    const { page = 1 } = req.query;
+    const { scrapeOngoingAnime } = await import('./_lib/scraperOtakudesu.js');
+    const data = await scrapeOngoingAnime(parseInt(page));
+    res.json(data);
+  } catch (err) {
+    console.error('[Otakudesu] Ongoing Error:', err.message);
+    res.status(500).json({ error: 'Gagal mengambil daftar anime ongoing', details: err.message });
+  }
+});
+
+app.get("/api/anime/completed", async (req, res) => {
+  try {
+    const { page = 1 } = req.query;
+    const { scrapeCompletedAnime } = await import('./_lib/scraperOtakudesu.js');
+    const data = await scrapeCompletedAnime(parseInt(page));
+    res.json(data);
+  } catch (err) {
+    console.error('[Otakudesu] Completed Error:', err.message);
+    res.status(500).json({ error: 'Gagal mengambil daftar anime completed', details: err.message });
+  }
+});
+
+app.get("/api/anime/search", async (req, res) => {
+  try {
+    const { q = '' } = req.query;
+    if (!q.trim()) return res.json({ animeList: [], query: '' });
+    const { searchAnime } = await import('./_lib/scraperOtakudesu.js');
+    const data = await searchAnime(q.trim());
+    res.json(data);
+  } catch (err) {
+    console.error('[Otakudesu] Search Error:', err.message);
+    res.status(500).json({ error: 'Gagal mencari anime', details: err.message });
+  }
+});
+
+app.get("/api/anime/detail/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { scrapeAnimeDetail } = await import('./_lib/scraperOtakudesu.js');
+    const data = await scrapeAnimeDetail(slug);
+    res.json(data);
+  } catch (err) {
+    console.error('[Otakudesu] Detail Error:', err.message);
+    res.status(500).json({ error: 'Gagal mengambil detail anime', details: err.message });
+  }
+});
+
+app.get("/api/anime/watch/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { scrapeEpisodeStreaming } = await import('./_lib/scraperOtakudesu.js');
+    const data = await scrapeEpisodeStreaming(slug);
+    res.json(data);
+  } catch (err) {
+    console.error('[Otakudesu] Watch Error:', err.message);
+    res.status(500).json({ error: 'Gagal mengambil streaming episode', details: err.message });
+  }
+});
 
 app.use(express.static(distPath));
 

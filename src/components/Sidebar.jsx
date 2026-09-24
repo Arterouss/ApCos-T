@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search, Home, Tv, BookOpen, Globe, Shield, Star, Compass, Bookmark } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search, Home, Tv, BookOpen, Globe, Shield, Star, Compass, Bookmark, CheckCircle } from "lucide-react";
 import { usePortalMode } from "../context/PortalContext";
 
 // ── Menu untuk Mode 18+ (ApiCos Cinema) ─────────────────────────────────
@@ -45,9 +45,9 @@ const generalMenuCategories = [
   {
     title: "Anime Series",
     items: [
-      { name: "Anime Ongoing", path: "/anime-ongoing", icon: <Tv size={20} /> },
-      { name: "Anime Populer", path: "/anime-popular", icon: <Star size={20} /> },
-      { name: "Jadwal Mingguan", path: "/anime-schedule", icon: <Compass size={20} /> },
+      { name: "Nonton Anime", path: "/anime", icon: <Tv size={20} /> },
+      { name: "Anime Ongoing", path: "/anime?tab=ongoing", icon: <Tv size={20} /> },
+      { name: "Anime Completed", path: "/anime?tab=completed", icon: <CheckCircle size={20} /> },
     ]
   },
   {
