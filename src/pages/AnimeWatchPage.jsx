@@ -256,12 +256,14 @@ export default function AnimeWatchPage() {
             {currentStreamUrl ? (
               <iframe
                 key={currentStreamUrl}
-                src={currentStreamUrl}
-                className="absolute inset-0 w-full h-full"
+                src={
+                  currentStreamUrl.includes("desustream.net")
+                    ? `/api/anime/stream-player?url=${encodeURIComponent(currentStreamUrl)}`
+                    : currentStreamUrl
+                }
+                className="absolute inset-0 w-full h-full border-0"
                 allowFullScreen
-                allow="autoplay; encrypted-media; picture-in-picture"
-                sandbox="allow-scripts allow-same-origin allow-popups"
-                referrerPolicy="no-referrer"
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
@@ -335,7 +337,11 @@ export default function AnimeWatchPage() {
             <div className="flex items-center gap-2 flex-shrink-0">
               {currentStreamUrl && (
                 <a
-                  href={currentStreamUrl}
+                  href={
+                    currentStreamUrl.includes("desustream.net")
+                      ? `/api/anime/stream-player?url=${encodeURIComponent(currentStreamUrl)}`
+                      : currentStreamUrl
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-cyan-300 hover:border-cyan-500/30 transition-all text-xs font-medium"

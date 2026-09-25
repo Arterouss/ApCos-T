@@ -3017,6 +3017,67 @@ app.all("/api/anime/stream-source", async (req, res) => {
   }
 });
 
+// ─── Stream Player Proxy (Unblocks DesuStream CSP frame-ancestors) ────────────
+app.get("/api/anime/stream-player", async (req, res) => {
+  try {
+    const targetUrl = req.query.url;
+    if (!targetUrl) {
+      return res.status(400).send("Parameter url diperlukan");
+    }
+
+    const embedRes = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': 'https://otakudesu.blog/',
+      },
+    });
+
+    const html = await embedRes.text();
+    const fileMatch = html.match(/file:\s*["']([^"']+)["']/);
+    const videoUrl = fileMatch ? fileMatch[1] : null;
+
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Content-Security-Policy', "frame-ancestors *");
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+    if (videoUrl) {
+      const playerHtml = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    video { width: 100%; height: 100%; max-height: 100vh; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <video
+    id="player"
+    src="${videoUrl}"
+    controls
+    autoplay
+    playsinline
+    preload="auto"
+  ></video>
+</body>
+</html>`;
+      return res.send(playerHtml);
+    }
+
+    const baseDomain = new URL(targetUrl).origin;
+    const modifiedHtml = html
+      .replace(/<head>/i, `<head><base href="${baseDomain}/">`)
+      .replace(/content-security-policy/gi, 'csp-off');
+    return res.send(modifiedHtml);
+  } catch (err) {
+    console.error('[Stream Player Error]:', err.message);
+    res.status(500).send(`<html><body style="background:#000;color:#fff;display:flex;align-items:center;justify-content:center;height:100%;font-family:sans-serif;"><p>Gagal memuat video player: ${err.message}</p></body></html>`);
+  }
+});
+
 // ─── Sync trigger endpoint ─────────────────────────────────────────────────────
 app.post("/api/anime/sync", async (req, res) => {
   try {
