@@ -12,7 +12,7 @@ try {
 const uri = process.env.MONGODB_URI || "mongodb+srv://weirdxx2_db_user:03cXYaSrUa92bo8d@cluster0.4oo5epz.mongodb.net/?retryWrites=true&w=majority";
 
 const client = new MongoClient(uri, {
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 15000,
 });
 
 let dbInstance = null;
