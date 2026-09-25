@@ -27,7 +27,7 @@ const isExpired = (doc, ttl) => {
 export async function getOngoingFromDb(page = 1) {
   const db = await connectDB();
   const doc = await db.collection(COL_ONGOING).findOne({ page });
-  if (!doc || isExpired(doc, TTL_ONGOING)) return null;
+  if (!doc) return null;
   return doc.data;
 }
 
@@ -43,7 +43,7 @@ export async function saveOngoingToDb(page, data) {
 export async function getCompletedFromDb(page = 1) {
   const db = await connectDB();
   const doc = await db.collection(COL_COMPLETED).findOne({ page });
-  if (!doc || isExpired(doc, TTL_COMPLETED)) return null;
+  if (!doc) return null;
   return doc.data;
 }
 
@@ -59,7 +59,7 @@ export async function saveCompletedToDb(page, data) {
 export async function getDetailFromDb(slug) {
   const db = await connectDB();
   const doc = await db.collection(COL_DETAIL).findOne({ slug });
-  if (!doc || isExpired(doc, TTL_DETAIL)) return null;
+  if (!doc) return null;
   return doc.data;
 }
 
@@ -75,7 +75,7 @@ export async function saveDetailToDb(slug, data) {
 export async function getEpisodeFromDb(slug) {
   const db = await connectDB();
   const doc = await db.collection(COL_EPISODE).findOne({ slug });
-  if (!doc || isExpired(doc, TTL_EPISODE)) return null;
+  if (!doc) return null;
   return doc.data;
 }
 

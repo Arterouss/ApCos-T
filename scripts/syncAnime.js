@@ -20,6 +20,8 @@ import {
   saveCompletedToDb,
   saveDetailToDb,
   saveEpisodeToDb,
+  getOngoingFromDb,
+  getCompletedFromDb,
   getDetailFromDb,
   getEpisodeFromDb,
   setupIndexes,
@@ -43,10 +45,13 @@ async function main() {
     console.log(`✅ Terhubung ke database: ${db.databaseName}`);
     await setupIndexes();
 
-    // 2. Sync Ongoing Anime (halaman 1 s/d 3)
+    // 2. Sync Ongoing Anime (halaman 1)
     console.log('\n[2/4] Mengambil Anime Ongoing (Sedang Tayang)...');
+    const isFullSync = process.argv.includes('--full');
+    const maxOngoingPages = isFullSync ? 3 : 1;
     const ongoingSlugs = [];
-    for (let page = 1; page <= 3; page++) {
+
+    for (let page = 1; page <= maxOngoingPages; page++) {
       try {
         process.stdout.write(`   Mengambil Ongoing Halaman ${page}... `);
         const data = await scrapeOngoingAnime(page);
@@ -60,71 +65,102 @@ async function main() {
           console.log(`⚠️ Halaman kosong`);
           break;
         }
-        await sleep(1000);
+        await sleep(1500);
       } catch (err) {
         console.log(`❌ Gagal: ${err.message}`);
+        // Jika gagal tapi DB sudah ada data lama, tetap gunakan data DB
+        const existingOngoing = await getOngoingFromDb(page);
+        if (existingOngoing && existingOngoing.animeList) {
+          console.log(`   ℹ️ Menggunakan data existing dari DB (${existingOngoing.animeList.length} anime)`);
+          existingOngoing.animeList.forEach((item) => {
+            if (item.slug) ongoingSlugs.push(item.slug);
+          });
+        }
         break;
       }
     }
 
-    // 3. Sync Completed Anime (halaman 1 s/d 2)
-    console.log('\n[3/4] Mengambil Anime Completed (Tamat)...');
+    // 3. Sync Completed Anime (hanya jika DB kosong atau mode --full)
+    console.log('\n[3/4] Memeriksa Anime Completed (Tamat)...');
+    const existingCompleted = await getCompletedFromDb(1);
     const completedSlugs = [];
-    for (let page = 1; page <= 2; page++) {
-      try {
-        process.stdout.write(`   Mengambil Completed Halaman ${page}... `);
-        const data = await scrapeCompletedAnime(page);
-        if (data && data.animeList && data.animeList.length > 0) {
-          await saveCompletedToDb(page, data);
-          data.animeList.forEach((item) => {
-            if (item.slug) completedSlugs.push(item.slug);
-          });
-          console.log(`✅ Berhasil (${data.animeList.length} anime)`);
-        } else {
-          console.log(`⚠️ Halaman kosong`);
+
+    if (!existingCompleted || isFullSync) {
+      const maxCompletedPages = isFullSync ? 2 : 1;
+      for (let page = 1; page <= maxCompletedPages; page++) {
+        try {
+          process.stdout.write(`   Mengambil Completed Halaman ${page}... `);
+          const data = await scrapeCompletedAnime(page);
+          if (data && data.animeList && data.animeList.length > 0) {
+            await saveCompletedToDb(page, data);
+            data.animeList.forEach((item) => {
+              if (item.slug) completedSlugs.push(item.slug);
+            });
+            console.log(`✅ Berhasil (${data.animeList.length} anime)`);
+          } else {
+            console.log(`⚠️ Halaman kosong`);
+            break;
+          }
+          await sleep(1500);
+        } catch (err) {
+          console.log(`❌ Gagal: ${err.message}`);
           break;
         }
-        await sleep(1000);
-      } catch (err) {
-        console.log(`❌ Gagal: ${err.message}`);
-        break;
+      }
+    } else {
+      console.log(`   ⏭️ Sudah ada ${existingCompleted.animeList?.length || 25} anime tamat di MongoDB (skip agar hemat kuota)`);
+      if (existingCompleted.animeList) {
+        existingCompleted.animeList.forEach((item) => {
+          if (item.slug) completedSlugs.push(item.slug);
+        });
       }
     }
 
-    // 4. Sync Detail & Streaming Links untuk Anime Ongoing Terpopuler
-    console.log('\n[4/4] Mengambil Detail Anime & Link Streaming Video...');
-    const targetSlugs = [...new Set(ongoingSlugs)].slice(0, 15); // Ambil 15 anime ongoing terdepan
+    // 4. Sync Detail & Streaming Links (Smart Diff: hanya scrape yang belum ada di DB)
+    console.log('\n[4/4] Mengambil Detail Anime & Link Streaming Video (Smart Diff)...');
+    const targetSlugs = [...new Set(ongoingSlugs)].slice(0, 15); // 15 anime ongoing terdepan
     console.log(`   Total target: ${targetSlugs.length} anime ongoing terbaru\n`);
 
     let detailCount = 0;
     let streamCount = 0;
+    let skipCount = 0;
 
     for (let i = 0; i < targetSlugs.length; i++) {
       const slug = targetSlugs[i];
       process.stdout.write(`   [${i + 1}/${targetSlugs.length}] ${slug} ... `);
 
       try {
-        // Ambil detail anime
-        const detail = await scrapeAnimeDetail(slug);
-        await saveDetailToDb(slug, detail);
-        detailCount++;
+        // Cek apakah detail dan stream sudah tersimpan di MongoDB
+        let detail = await getDetailFromDb(slug);
+        let needDetailScrape = !detail;
 
-        // Ambil streaming untuk episode terbaru (episode pertama di list)
-        if (detail.episodes && detail.episodes.length > 0) {
-          const latestEp = detail.episodes[0];
-          try {
-            const stream = await scrapeEpisodeStreaming(latestEp.slug);
-            await saveEpisodeToDb(latestEp.slug, stream);
-            streamCount++;
-            console.log(`✅ Detail & Stream (${latestEp.slug}) Tersimpan!`);
-          } catch (e) {
-            console.log(`✅ Detail OK (Stream skip: ${e.message})`);
-          }
-        } else {
-          console.log(`✅ Detail OK (Tanpa episode)`);
+        if (needDetailScrape) {
+          detail = await scrapeAnimeDetail(slug);
+          await saveDetailToDb(slug, detail);
+          detailCount++;
         }
 
-        await sleep(1200); // Delay sopan
+        if (detail && detail.episodes && detail.episodes.length > 0) {
+          const latestEp = detail.episodes[0];
+          const existingStream = await getEpisodeFromDb(latestEp.slug);
+
+          if (existingStream && (existingStream.defaultStreamUrl || existingStream.streamUrl)) {
+            skipCount++;
+            console.log(`⏭️ Sudah up-to-date di DB (${latestEp.slug})`);
+          } else {
+            try {
+              const stream = await scrapeEpisodeStreaming(latestEp.slug);
+              await saveEpisodeToDb(latestEp.slug, stream);
+              streamCount++;
+              console.log(`✅ Episode Baru Tersimpan! (${latestEp.slug})`);
+            } catch (e) {
+              console.log(`⚠️ Stream skip (${e.message})`);
+            }
+            await sleep(1500);
+          }
+        } else {
+          console.log(`ℹ️ Detail tersimpan (tanpa episode)`);
+        }
       } catch (err) {
         console.log(`❌ Gagal: ${err.message}`);
       }
@@ -133,11 +169,12 @@ async function main() {
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log('\n====================================================');
     console.log('🎉 SINKRONISASI SELESAI DENGAN SUKSES!');
-    console.log(`⏱️ Waktu proses : ${duration} detik`);
-    console.log(`📚 Anime Ongoing: ${ongoingSlugs.length} anime terdata`);
-    console.log(`🏆 Anime Tamat  : ${completedSlugs.length} anime terdata`);
-    console.log(`📝 Detail Anime : ${detailCount} anime tersimpan di MongoDB`);
-    console.log(`🎬 Stream Video : ${streamCount} episode siap tonton instan!`);
+    console.log(`⏱️ Waktu proses  : ${duration} detik`);
+    console.log(`📚 Anime Ongoing : ${ongoingSlugs.length} anime`);
+    console.log(`🏆 Anime Tamat   : ${completedSlugs.length} anime`);
+    console.log(`📝 Detail Baru   : ${detailCount} anime tersimpan`);
+    console.log(`🎬 Stream Baru   : ${streamCount} episode baru siap tonton`);
+    console.log(`⏭️ Up-to-Date    : ${skipCount} anime tidak perlu request ulang`);
     console.log('====================================================\n');
     console.log('👉 Sekarang web kamu di Vercel sudah terisi data dan siap dibuka!\n');
 

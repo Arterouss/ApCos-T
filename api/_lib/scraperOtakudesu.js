@@ -54,10 +54,10 @@ const fetchPage = async (url) => {
     console.warn(`[Otakudesu Direct] Failed (${directErr.message}), falling back to ZenRows proxy...`);
   }
 
-  // 2. Fallback to ZenRows proxy (bypasses Cloudflare block on Vercel)
+  // 2. Fallback to ZenRows proxy (with Indonesian IP to bypass Cloudflare block on Vercel & GitHub Actions)
   try {
-    const proxyUrl = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(url)}&premium_proxy=true`;
-    console.log(`[Otakudesu ZenRows] Fetching via proxy: ${url}`);
+    const proxyUrl = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(url)}&premium_proxy=true&proxy_country=id`;
+    console.log(`[Otakudesu ZenRows] Fetching via proxy (ID): ${url}`);
     const { data } = await axios.get(proxyUrl, {
       httpsAgent: sslAgent,
       timeout: 45000,
