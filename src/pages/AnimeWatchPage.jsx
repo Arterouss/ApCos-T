@@ -26,11 +26,12 @@ export default function AnimeWatchPage() {
 
   // Resolution & Server states
   const [currentStreamUrl, setCurrentStreamUrl] = useState("");
-  const [activeQuality, setActiveQuality] = useState("");
+  const [activeQuality, setActiveQuality] = useState("720p");
   const [activeServerIndex, setActiveServerIndex] = useState(0);
   const [changingStream, setChangingStream] = useState(false);
   const [streamError, setStreamError] = useState(null);
   const [showDownloads, setShowDownloads] = useState(false);
+  const [cachedStreamUrls, setCachedStreamUrls] = useState({});
 
   // ── Fetch Episode Data ────────────────────────────────────────────────
   useEffect(() => {
@@ -44,18 +45,37 @@ export default function AnimeWatchPage() {
         const data = await res.json();
         setEpisode(data);
 
-        // Set initial stream URL, quality and server
-        const initialQ = data.selectedQuality || (data.qualityKeys && data.qualityKeys[0]) || "360p";
+        // Sort qualities descending (720p > 480p > 360p)
+        const sortedKeys = (
+          data.qualityKeys || Object.keys(data.qualities || {})
+        ).sort((a, b) => (parseInt(b) || 0) - (parseInt(a) || 0));
+
+        // Default to 720p if available, otherwise highest available
+        const initialQ =
+          sortedKeys.find((k) => k.includes("720")) ||
+          data.selectedQuality ||
+          sortedKeys[0] ||
+          "720p";
+
         setActiveQuality(initialQ);
         setActiveServerIndex(0);
 
+        // Pre-fill cached streams map from DB data
+        const streamMap = { ...(data.streamUrls || {}) };
         if (data.defaultStreamUrl) {
+          const defaultQ = data.selectedQuality || initialQ;
+          streamMap[defaultQ] = data.defaultStreamUrl;
+        }
+        setCachedStreamUrls(streamMap);
+
+        if (streamMap[initialQ]) {
+          setCurrentStreamUrl(streamMap[initialQ]);
+        } else if (data.defaultStreamUrl) {
           setCurrentStreamUrl(data.defaultStreamUrl);
         } else {
-          // If default url is not pre-resolved, fetch it
           const firstMirror = data.qualities?.[initialQ]?.[0];
           if (firstMirror) {
-            loadMirror(firstMirror, data);
+            loadMirror(firstMirror, data, initialQ);
           }
         }
       } catch (err) {
@@ -71,7 +91,7 @@ export default function AnimeWatchPage() {
   }, [slug]);
 
   // ── Switch Mirror / Resolution ────────────────────────────────────────
-  const loadMirror = async (mirror, epData = episode) => {
+  const loadMirror = async (mirror, epData = episode, targetQ = activeQuality) => {
     if (!mirror || !epData) return;
     setChangingStream(true);
     setStreamError(null);
@@ -86,6 +106,7 @@ export default function AnimeWatchPage() {
           q: mirror.q,
           nonceAction: epData.nonceAction,
           streamAction: epData.streamAction,
+          episodeSlug: slug,
         }),
       });
 
@@ -94,12 +115,14 @@ export default function AnimeWatchPage() {
 
       if (data.url) {
         setCurrentStreamUrl(data.url);
+        const resolvedQ = targetQ || mirror.q;
+        setCachedStreamUrls((prev) => ({ ...prev, [resolvedQ]: data.url }));
       } else {
         throw new Error("Link stream tidak ditemukan pada server ini.");
       }
     } catch (err) {
       console.error("Change stream error:", err);
-      setStreamError(`Gagal memuat server ${mirror.name} (${mirror.q}). Silakan pilih server lain.`);
+      setStreamError(`Gagal memuat server ${mirror.name} (${mirror.q}). Coba klik server lain di bawah.`);
     } finally {
       setChangingStream(false);
     }
@@ -107,13 +130,20 @@ export default function AnimeWatchPage() {
 
   // Change quality tab
   const handleQualityChange = (q) => {
-    if (q === activeQuality || changingStream) return;
+    if (changingStream) return;
     setActiveQuality(q);
     setActiveServerIndex(0);
 
+    // Instant switch if already cached (0ms delay)
+    if (cachedStreamUrls[q]) {
+      setCurrentStreamUrl(cachedStreamUrls[q]);
+      setStreamError(null);
+      return;
+    }
+
     const mirrorsForQ = episode?.qualities?.[q];
     if (mirrorsForQ && mirrorsForQ[0]) {
-      loadMirror(mirrorsForQ[0]);
+      loadMirror(mirrorsForQ[0], episode, q);
     }
   };
 
@@ -124,7 +154,7 @@ export default function AnimeWatchPage() {
 
     const mirror = episode?.qualities?.[activeQuality]?.[index];
     if (mirror) {
-      loadMirror(mirror);
+      loadMirror(mirror, episode, activeQuality);
     }
   };
 
@@ -266,6 +296,69 @@ export default function AnimeWatchPage() {
             </AnimatePresence>
           </div>
 
+          {/* Quick Resolution & Action Bar directly below video */}
+          <div className="mt-3 p-3 sm:p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-3 shadow-xl shadow-black/40">
+            {/* Quick Quality Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-white/50 flex items-center gap-1.5 mr-1">
+                <Sliders size={13} className="text-cyan-400" />
+                <span>Pilih Resolusi:</span>
+              </span>
+
+              {qualityKeys.map((q) => {
+                const isActive = q === activeQuality;
+                const isHD = parseInt(q) >= 720;
+                return (
+                  <button
+                    key={`quick-${q}`}
+                    onClick={() => handleQualityChange(q)}
+                    disabled={changingStream}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all duration-200 disabled:opacity-50 cursor-pointer ${
+                      isActive
+                        ? "bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-md shadow-cyan-500/30 scale-105 border border-white/30"
+                        : "bg-white/5 border border-white/10 text-white/70 hover:bg-white/15 hover:text-white hover:border-cyan-500/40"
+                    }`}
+                  >
+                    <span>{q}</span>
+                    {isHD && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/25 text-amber-300 font-extrabold border border-amber-400/40">
+                        HD
+                      </span>
+                    )}
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions (External link & Server reload) */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {currentStreamUrl && (
+                <a
+                  href={currentStreamUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-cyan-300 hover:border-cyan-500/30 transition-all text-xs font-medium"
+                  title="Buka Player di Tab Baru"
+                >
+                  <ExternalLink size={12} />
+                  <span>Tab Baru</span>
+                </a>
+              )}
+              {availableServers[activeServerIndex] && (
+                <button
+                  onClick={() => loadMirror(availableServers[activeServerIndex], episode, activeQuality)}
+                  disabled={changingStream}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-xs font-medium cursor-pointer"
+                  title="Muat Ulang Server Ini"
+                >
+                  <Sparkles size={12} className="text-violet-400" />
+                  <span>Reload Server</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Stream error alert */}
           {streamError && (
             <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-300 text-xs">
@@ -296,37 +389,52 @@ export default function AnimeWatchPage() {
               <div className="flex items-center gap-2">
                 <Sliders size={15} className="text-cyan-400" />
                 <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                  Pilih Resolusi Video
+                  Pilihan Resolusi Video
                 </h3>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] font-bold">
                 <Sparkles size={11} />
-                <span>Aktif: {activeQuality}</span>
+                <span>Resolusi Aktif: {activeQuality}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {qualityKeys.map((q) => {
                 const isActive = q === activeQuality;
-                const isHD = parseInt(q) >= 720;
+                const is720 = q.includes("720");
+                const is480 = q.includes("480");
+
+                let label = "Hemat Kuota & Cepat";
+                if (is720) label = "HD - Jernih & Paling Tajam";
+                else if (is480) label = "SD - Standar & Lancar";
+
                 return (
                   <button
                     key={q}
                     onClick={() => handleQualityChange(q)}
                     disabled={changingStream}
-                    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 disabled:opacity-50 ${
+                    className={`relative flex items-center justify-between p-3.5 rounded-xl font-bold text-sm transition-all duration-300 disabled:opacity-50 text-left cursor-pointer ${
                       isActive
-                        ? "bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-lg shadow-cyan-500/30 scale-105 border border-white/20"
+                        ? "bg-gradient-to-r from-cyan-500/30 via-violet-500/30 to-purple-500/30 border-2 border-cyan-400 text-white shadow-lg shadow-cyan-500/20"
                         : "bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:border-cyan-500/40 hover:text-white"
                     }`}
                   >
-                    <span>{q}</span>
-                    {isHD && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/30">
-                        HD
-                      </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-extrabold">{q}</span>
+                        {is720 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-400/20 text-cyan-300 font-extrabold border border-cyan-400/30 uppercase">
+                            ⭐ HD
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-white/50 font-normal mt-0.5">{label}</p>
+                    </div>
+                    {isActive ? (
+                      <CheckCircle2 size={18} className="text-cyan-400 flex-shrink-0" />
+                    ) : (
+                      <span className="text-xs text-white/30 font-normal">Pilih</span>
                     )}
-                    {isActive && <CheckCircle2 size={14} className="text-white" />}
                   </button>
                 );
               })}

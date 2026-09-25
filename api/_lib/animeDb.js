@@ -81,11 +81,30 @@ export async function getEpisodeFromDb(slug) {
 
 export async function saveEpisodeToDb(slug, data) {
   const db = await connectDB();
+  if (data) {
+    data.streamUrls = data.streamUrls || {};
+    if (data.defaultStreamUrl && data.selectedQuality) {
+      data.streamUrls[data.selectedQuality] = data.defaultStreamUrl;
+    }
+  }
   await db.collection(COL_EPISODE).updateOne(
     { slug },
     { $set: { slug, data, updatedAt: new Date() } },
     { upsert: true }
   );
+}
+
+export async function saveResolvedMirror(slug, quality, streamUrl) {
+  if (!slug || !quality || !streamUrl) return;
+  try {
+    const db = await connectDB();
+    await db.collection(COL_EPISODE).updateOne(
+      { slug },
+      { $set: { [`data.streamUrls.${quality}`]: streamUrl, updatedAt: new Date() } }
+    );
+  } catch (e) {
+    console.warn('[AnimeDb] saveResolvedMirror error:', e.message);
+  }
 }
 
 export async function searchAnimeFromDb(query) {

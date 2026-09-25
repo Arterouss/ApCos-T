@@ -28,6 +28,7 @@ import {
   getEpisodeFromDb, saveEpisodeToDb,
   searchAnimeFromDb,
   getLastSyncLog,
+  saveResolvedMirror,
   setupIndexes,
 } from "./_lib/animeDb.js";
 import { runSync } from "./_lib/syncOtakudesu.js";
@@ -2999,13 +3000,16 @@ app.get("/api/anime/watch/:slug", async (req, res) => {
 app.all("/api/anime/stream-source", async (req, res) => {
   try {
     const params = req.method === "POST" ? req.body : req.query;
-    const { id, i, q, nonceAction, streamAction } = params;
+    const { id, i, q, nonceAction, streamAction, episodeSlug } = params;
 
     if (!id || i === undefined || !q) {
       return res.status(400).json({ error: "Parameter id, i, dan q diperlukan" });
     }
 
     const data = await fetchStreamUrl({ id, i, q, nonceAction, streamAction });
+    if (episodeSlug && data?.url) {
+      saveResolvedMirror(episodeSlug, q, data.url).catch(e => console.warn('[AnimeDb] saveResolvedMirror error:', e.message));
+    }
     res.json(data);
   } catch (err) {
     console.error('[Otakudesu] Stream Source Error:', err.message);
