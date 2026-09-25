@@ -141,23 +141,34 @@ async function main() {
         }
 
         if (detail && detail.episodes && detail.episodes.length > 0) {
-          const latestEp = detail.episodes[0];
-          const existingStream = await getEpisodeFromDb(latestEp.slug);
-
-          if (existingStream && (existingStream.defaultStreamUrl || existingStream.streamUrl)) {
-            skipCount++;
-            console.log(`⏭️ Sudah up-to-date di DB (${latestEp.slug})`);
-          } else {
-            try {
-              const stream = await scrapeEpisodeStreaming(latestEp.slug);
-              await saveEpisodeToDb(latestEp.slug, stream);
-              streamCount++;
-              console.log(`✅ Episode Baru Tersimpan! (${latestEp.slug})`);
-            } catch (e) {
-              console.log(`⚠️ Stream skip (${e.message})`);
+          // Sync Episode Terbaru & Episode 1 (paling dicari penonton awal)
+          const targetEps = [detail.episodes[0]];
+          if (detail.episodes.length > 1) {
+            const firstEp = detail.episodes[detail.episodes.length - 1];
+            if (firstEp.slug !== detail.episodes[0].slug) {
+              targetEps.push(firstEp);
             }
-            await sleep(1500);
           }
+
+          const epStatuses = [];
+          for (const ep of targetEps) {
+            const existingStream = await getEpisodeFromDb(ep.slug);
+            if (existingStream && (existingStream.defaultStreamUrl || existingStream.streamUrl)) {
+              skipCount++;
+              epStatuses.push(`⏭️ ${ep.slug} (cached)`);
+            } else {
+              try {
+                const stream = await scrapeEpisodeStreaming(ep.slug);
+                await saveEpisodeToDb(ep.slug, stream);
+                streamCount++;
+                epStatuses.push(`✅ ${ep.slug} (saved)`);
+              } catch (e) {
+                epStatuses.push(`⚠️ ${ep.slug} (${e.message})`);
+              }
+              await sleep(1200);
+            }
+          }
+          console.log(epStatuses.join(' | '));
         } else {
           console.log(`ℹ️ Detail tersimpan (tanpa episode)`);
         }

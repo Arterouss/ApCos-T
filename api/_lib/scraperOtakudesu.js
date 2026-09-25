@@ -317,6 +317,39 @@ export const scrapeAnimeDetail = async (slug) => {
 // Simple in-memory cache for resolved stream URLs
 const streamCache = new Map();
 
+// Helper to post to Otakudesu admin-ajax (with proxy fallback for Vercel)
+const postAdminAjax = async (params) => {
+  const body = new URLSearchParams(params).toString();
+
+  // 1. Try Direct first
+  try {
+    const res = await axios.post(`${BASE_URL}/wp-admin/admin-ajax.php`, body, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': HEADERS['User-Agent'],
+        'Referer': BASE_URL + '/',
+      },
+      timeout: 6000,
+    });
+    if (res.data?.data) return res.data.data;
+  } catch (directErr) {
+    console.warn(`[Otakudesu Stream Direct] Failed (${directErr.message}), falling back to ZenRows proxy...`);
+  }
+
+  // 2. Fallback to ZenRows proxy (with Indonesian IP to bypass Cloudflare)
+  const proxyUrl = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(`${BASE_URL}/wp-admin/admin-ajax.php`)}&premium_proxy=true&proxy_country=id`;
+  const res = await axios.post(proxyUrl, body, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': HEADERS['User-Agent'],
+    },
+    timeout: 30000,
+  });
+
+  if (res.data?.data) return res.data.data;
+  throw new Error('Gagal mendapatkan respon dari server streaming');
+};
+
 // Helper to fetch stream iframe URL via Otakudesu admin-ajax
 export const fetchStreamUrl = async ({ id, i, q, nonceAction, streamAction }) => {
   const cacheKey = `${id}_${q}_${i}`;
@@ -328,41 +361,17 @@ export const fetchStreamUrl = async ({ id, i, q, nonceAction, streamAction }) =>
   const sAction = streamAction || '2a3505c93b0035d3f455df82bf976b84';
 
   // 1. Get nonce
-  const nonceRes = await axios.post(
-    `${BASE_URL}/wp-admin/admin-ajax.php`,
-    new URLSearchParams({ action: nAction }),
-    {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 10000,
-    }
-  );
-
-  const nonce = nonceRes.data?.data;
+  const nonce = await postAdminAjax({ action: nAction });
   if (!nonce) throw new Error('Gagal mendapatkan nonce token');
 
   // 2. Fetch stream iframe
-  const streamRes = await axios.post(
-    `${BASE_URL}/wp-admin/admin-ajax.php`,
-    new URLSearchParams({
-      id: String(id),
-      i: String(i),
-      q: String(q),
-      nonce: nonce,
-      action: sAction,
-    }),
-    {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 10000,
-    }
-  );
-
-  const base64Data = streamRes.data?.data;
+  const base64Data = await postAdminAjax({
+    id: String(id),
+    i: String(i),
+    q: String(q),
+    nonce: nonce,
+    action: sAction,
+  });
   if (!base64Data) throw new Error('Gagal mendapatkan data stream iframe');
 
   const decodedHtml = Buffer.from(base64Data, 'base64').toString('utf-8');
