@@ -7,7 +7,7 @@ import {
   Navigate
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, Globe, Shield } from "lucide-react";
 import GlobalSearchModal from "./components/GlobalSearchModal";
 import Home from "./pages/Home";
 import GeneralHome from "./pages/GeneralHome";
@@ -25,7 +25,6 @@ import DoujinDetailPage from "./pages/DoujinDetailPage";
 import DoujinReaderPage from "./pages/DoujinReaderPage";
 import NhentaiPage from "./pages/NhentaiPage";
 import Sidebar from "./components/Sidebar";
-import FloatingModeSwitcher from "./components/FloatingModeSwitcher";
 
 import Porn3dxPage from "./pages/Porn3dxPage";
 import Porn3dxDetailPage from "./pages/Porn3dxDetailPage";
@@ -173,7 +172,7 @@ function App() {
 
 // Inner component that can use PortalContext (inside PortalProvider)
 function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSearch, isGlobalSearchOpen, onCloseSearch }) {
-  const { isAdultMode } = usePortalMode();
+  const { isAdultMode, togglePortalMode } = usePortalMode();
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden bg-[#070709]">
@@ -220,13 +219,19 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
               }`}>
                 ApiCos
               </span>
-              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border tracking-wider transition-all duration-500 ${
-                isAdultMode
-                  ? "bg-red-600/30 text-red-400 border-red-500/40"
-                  : "bg-cyan-600/30 text-cyan-300 border-cyan-500/40"
-              }`}>
-                {isAdultMode ? "CINEMA" : "HUB"}
-              </span>
+              <button
+                onClick={togglePortalMode}
+                className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border tracking-wider transition-all duration-300 flex items-center gap-1 cursor-pointer active:scale-95 ${
+                  isAdultMode
+                    ? "bg-red-600/30 text-red-400 border-red-500/40 hover:bg-red-600/50"
+                    : "bg-cyan-600/30 text-cyan-300 border-cyan-500/40 hover:bg-cyan-600/50"
+                }`}
+                title={`Beralih ke ${isAdultMode ? "Mode Anime (HUB)" : "Mode Cinema (18+)"}`}
+                aria-label="Ganti Mode Portal"
+              >
+                {isAdultMode ? <Shield size={10} /> : <Globe size={10} />}
+                <span>{isAdultMode ? "CINEMA" : "HUB"}</span>
+              </button>
             </div>
             <button
               onClick={onOpenSearch}
@@ -243,9 +248,6 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
           <AnimatedRoutes onOpenSidebar={onOpenSidebar} />
         </main>
       </div>
-
-      {/* Floating Mode Switcher */}
-      <FloatingModeSwitcher />
 
       {/* Global Search Modal */}
       <GlobalSearchModal

@@ -155,29 +155,32 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
 
       <div className="p-6 pb-3 z-10 shrink-0">
         <div className="flex justify-between items-center mb-5">
-          <Link to="/" onClick={onClose} className="group">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Link to="/" onClick={onClose} className="group">
               <span className={`text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${accent.logoGradient} group-hover:brightness-125 transition-all duration-300`}>
                 ApiCos
               </span>
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={accent.badge}
-                  initial={{ opacity: 0, scale: 0.7, y: -5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.7, y: 5 }}
-                  transition={{ duration: 0.3 }}
-                  className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border tracking-wider ${accent.badgeBg}`}
-                >
-                  {accent.badge}
-                </motion.span>
-              </AnimatePresence>
-            </div>
-            <div className={`h-1 w-10 bg-gradient-to-r ${accent.decorLine} rounded-full mt-1.5 group-hover:w-full transition-all duration-500`} />
-          </Link>
+              <div className={`h-1 w-10 bg-gradient-to-r ${accent.decorLine} rounded-full mt-1.5 group-hover:w-full transition-all duration-500`} />
+            </Link>
+            <AnimatePresence mode="wait">
+              <motion.button
+                key={accent.badge}
+                onClick={togglePortalMode}
+                initial={{ opacity: 0, scale: 0.7, y: -5 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.7, y: 5 }}
+                transition={{ duration: 0.3 }}
+                className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border tracking-wider flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-all ${accent.badgeBg}`}
+                title={`Klik untuk beralih ke ${isAdultMode ? "Mode Anime (HUB)" : "Mode Cinema (18+)"}`}
+              >
+                {isAdultMode ? <Shield size={10} /> : <Globe size={10} />}
+                <span>{accent.badge}</span>
+              </motion.button>
+            </AnimatePresence>
+          </div>
           <button
             onClick={onClose}
-            className="md:hidden text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
+            className="md:hidden text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full cursor-pointer"
           >
             <X size={24} />
           </button>
