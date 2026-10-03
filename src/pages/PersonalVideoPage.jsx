@@ -612,7 +612,7 @@ export default function PersonalVideoPage() {
           <Film size={48} className="text-gray-700" />
           <h3 className="text-gray-300 font-bold text-lg">Folder Kosong</h3>
           <p className="text-gray-500 text-sm max-w-sm">
-            Tidak ada file video ditemukan di folder yang terhubung. Pastikan folder berisi file video (.mp4, .mkv, .webm) dan link diset ke "Anyone with the link can view".
+            Tidak ada file video ditemukan di folder yang terhubung. Pastikan folder berisi file video (.mp4, .mov, .mkv, .webm) dan link diset ke "Anyone with the link can view".
           </p>
           <button
             onClick={() => setShowManageModal(true)}
