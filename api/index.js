@@ -2840,13 +2840,18 @@ app.get("/api/telegram/image", async (req, res) => {
 });
 
 // ==========================================
-// PERSONAL VIDEO ROUTE (GOOGLE DRIVE)
+// PERSONAL VIDEO ROUTE (GOOGLE DRIVE — MULTI-FOLDER SUPPORT)
 // ==========================================
 app.get("/api/personal/drive/config", async (req, res) => {
   try {
-    const { getSavedDriveFolderLink } = await import('./_lib/driveFolder.js');
-    const folderLink = await getSavedDriveFolderLink();
-    res.json({ success: true, folderLink });
+    const { getSavedDriveFolderLinks } = await import('./_lib/driveFolder.js');
+    const folderLinks = await getSavedDriveFolderLinks();
+    res.json({
+      success: true,
+      folderLinks,
+      folderLink: folderLinks[0] || "",
+      totalFolders: folderLinks.length
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -2854,13 +2859,27 @@ app.get("/api/personal/drive/config", async (req, res) => {
 
 app.post("/api/personal/drive/config", async (req, res) => {
   try {
-    const { folderLink } = req.body || {};
-    if (!folderLink) {
+    const { folderLink, folderLinks, action = "save" } = req.body || {};
+    const { saveDriveFolderLinks, addDriveFolderLink } = await import('./_lib/driveFolder.js');
+
+    let updatedLinks = [];
+    if (action === "add" && folderLink) {
+      updatedLinks = await addDriveFolderLink(folderLink);
+    } else if (Array.isArray(folderLinks) && folderLinks.length > 0) {
+      updatedLinks = await saveDriveFolderLinks(folderLinks);
+    } else if (folderLink) {
+      updatedLinks = await saveDriveFolderLinks([folderLink]);
+    } else {
       return res.status(400).json({ success: false, error: "Link folder Google Drive wajib diisi." });
     }
-    const { saveDriveFolderLink } = await import('./_lib/driveFolder.js');
-    const saved = await saveDriveFolderLink(folderLink);
-    res.json({ success: true, folderLink: saved, message: "Link folder Google Drive berhasil disimpan permanen." });
+
+    res.json({
+      success: true,
+      folderLinks: updatedLinks,
+      folderLink: updatedLinks[0] || "",
+      totalFolders: updatedLinks.length,
+      message: "Daftar link folder Google Drive berhasil disimpan."
+    });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
@@ -2868,9 +2887,15 @@ app.post("/api/personal/drive/config", async (req, res) => {
 
 app.delete("/api/personal/drive/config", async (req, res) => {
   try {
+    const { link } = req.query;
     const { deleteDriveFolderLink } = await import('./_lib/driveFolder.js');
-    await deleteDriveFolderLink();
-    res.json({ success: true, message: "Link folder Google Drive berhasil dihapus." });
+    const updatedLinks = await deleteDriveFolderLink(link);
+    res.json({
+      success: true,
+      folderLinks: updatedLinks,
+      totalFolders: updatedLinks.length,
+      message: link ? "Folder Google Drive berhasil dihapus." : "Semua folder Google Drive berhasil dihapus."
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -2878,19 +2903,27 @@ app.delete("/api/personal/drive/config", async (req, res) => {
 
 app.get("/api/personal/drive", async (req, res) => {
   try {
-    const { getDriveVideos, getSavedDriveFolderLink } = await import('./_lib/driveFolder.js');
-    let folderLink = req.query.folderLink;
-    if (!folderLink) {
-      folderLink = await getSavedDriveFolderLink();
+    const { getDriveVideos, getSavedDriveFolderLinks } = await import('./_lib/driveFolder.js');
+    let targets = req.query.folderLinks || req.query.folderLink;
+    if (!targets) {
+      targets = await getSavedDriveFolderLinks();
     }
-    if (!folderLink) {
+
+    if (!targets || (Array.isArray(targets) && targets.length === 0)) {
       return res.status(400).json({
         success: false,
         error: 'Link folder Google Drive belum diatur. Masukkan link folder atau simpan konfigurasi terlebih dahulu.'
       });
     }
-    const videos = await getDriveVideos(folderLink);
-    res.json({ success: true, data: videos, folderLink });
+
+    const result = await getDriveVideos(targets);
+    res.json({
+      success: true,
+      data: result.videos,
+      totalFolders: result.totalFolders,
+      folderStats: result.folderStats,
+      folderLinks: targets
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
