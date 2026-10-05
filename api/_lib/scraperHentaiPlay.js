@@ -1,16 +1,8 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { filterBlockedItems, filterBlockedTags } from './contentFilter.js';
+import { fetchWithProxy } from './fetchProxy.js';
 
 const BASE_URL = 'https://hentaiplay.net';
-const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
-
-const fetchZenRows = async (targetUrl) => {
-  const url = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(targetUrl)}&premium_proxy=true`;
-  console.log(`[HentaiPlay ZenRows] Fetching ${targetUrl}`);
-  const response = await axios.get(url, { timeout: 60000 });
-  return response.data;
-};
 
 // Scrape list: latest, search, or page
 export const scrapeHentaiPlayList = async (page = 1, search = '') => {
@@ -21,7 +13,7 @@ export const scrapeHentaiPlayList = async (page = 1, search = '') => {
     url = page > 1 ? `${BASE_URL}/page/${page}/` : `${BASE_URL}/`;
   }
 
-  const html = await fetchZenRows(url);
+  const html = await fetchWithProxy(url, { js: false });
   const $ = cheerio.load(html);
 
   const videos = [];
@@ -77,41 +69,63 @@ export const scrapeHentaiPlayList = async (page = 1, search = '') => {
 // Scrape detail page for a video
 export const scrapeHentaiPlayVideo = async (slug) => {
   const url = `${BASE_URL}/${slug}/`;
-  const html = await fetchZenRows(url);
+  const html = await fetchWithProxy(url, { js: false });
   const $ = cheerio.load(html);
 
   const title = $('h1.entry-title, h1').first().text().trim();
-  const cover = $('meta[property="og:image"]').attr('content') || '';
+  let cover = $('meta[property="og:image"]').attr('content') || '';
+  if (!cover) {
+    cover = $('video').attr('poster') || '';
+  }
+  if (!cover) {
+    $('script').each((_, el) => {
+      const text = $(el).html() || '';
+      const posterMatch = text.match(/posterImage:\s*['"](https?:\/\/[^'"]+)['"]/i);
+      if (posterMatch && !cover) cover = posterMatch[1];
+    });
+  }
+  if (!cover) {
+    cover = $('.entry-content img, .post-thumbnail img').first().attr('src') || '';
+  }
 
-  // Find iframe embed
   let embedUrl = null;
-  $('iframe').each((_, el) => {
+
+  // 1. Direct video source from <source> or <video> tags
+  $('video source, source, video').each((_, el) => {
     const src = $(el).attr('src') || $(el).attr('data-src') || '';
-    if (src && (src.includes('embed') || src.includes('player') || src.includes('video') || src.includes('hentaiplay'))) {
-      embedUrl = embedUrl || src;
+    if (src && (src.includes('.mp4') || src.includes('.m3u8') || src.includes('hentaiplanet'))) {
+      if (!embedUrl) embedUrl = src;
     }
   });
 
-  // Fallback: look in scripts for embed URL or stream URL
+  // 2. Look in scripts for fluidPlayer or direct video urls
   if (!embedUrl) {
     $('script').each((_, el) => {
       const text = $(el).html() || '';
+      const mp4Match = text.match(/https?:\/\/[^"'\s\\]+\.mp4/i);
+      if (mp4Match && !embedUrl) embedUrl = mp4Match[0];
+
+      const m3u8Match = text.match(/https?:\/\/[^"'\s\\]+\.m3u8/i);
+      if (m3u8Match && !embedUrl) embedUrl = m3u8Match[0];
+
       const iframeMatch = text.match(/iframe[^>]*src=['"](https?:\/\/[^'"]+)['"]/i);
       if (iframeMatch && !embedUrl) embedUrl = iframeMatch[1];
-      
-      const streamMatch = text.match(/['"]?(https?:\/\/[^'"]+\.m3u8[^'"]*)['"]/);
-      if (streamMatch && !embedUrl) embedUrl = streamMatch[1];
     });
   }
 
-  // Fallback 2: look for direct mp4 video source
+  // 3. Iframe embed
   if (!embedUrl) {
-    $('video source').each((_, el) => {
-      const src = $(el).attr('src') || '';
-      if (src && src.includes('.mp4')) {
+    $('iframe').each((_, el) => {
+      const src = $(el).attr('src') || $(el).attr('data-src') || '';
+      if (src && src !== '//' && src.length > 5 && !src.includes('ads') && !src.includes('banner')) {
         embedUrl = embedUrl || src;
       }
     });
+  }
+
+  // Normalize hentaiplanet to http since port 443 times out on their server
+  if (embedUrl && embedUrl.includes('hentaiplanet.info')) {
+    embedUrl = embedUrl.replace(/^https:\/\//i, 'http://');
   }
 
   // Tags

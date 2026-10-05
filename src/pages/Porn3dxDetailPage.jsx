@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import Hls from "hls.js";
 import { ArrowLeft, Film, Image, Tag, ExternalLink, Loader2, Play, Share2, X, Heart, Wrench } from "lucide-react";
 import { getPorn3dxDetail } from "../services/porn3dxService";
 import { useFavorites } from "../hooks/useFavorites";
@@ -15,6 +16,7 @@ export default function Porn3dxDetailPage() {
   const [error, setError] = useState(null);
   const [selectedImg, setSelectedImg] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -32,6 +34,33 @@ export default function Porn3dxDetailPage() {
     };
     fetchDetail();
   }, [slug]);
+
+  useEffect(() => {
+    if (!isPlaying || !data?.video_url || !videoRef.current) return;
+
+    const streamUrl = `/api/porn3dx/stream?url=${encodeURIComponent(data.video_url)}`;
+
+    if (data.video_type === "m3u8" || data.video_url.includes(".m3u8")) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+        });
+        hls.loadSource(streamUrl);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoRef.current?.play().catch(() => {});
+        });
+        return () => hls.destroy();
+      } else if (videoRef.current.canPlayType("application/vnd.apple.mpegurl")) {
+        videoRef.current.src = streamUrl;
+        videoRef.current.play().catch(() => {});
+      }
+    } else if (data.video_type === "video") {
+      videoRef.current.src = streamUrl;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isPlaying, data?.video_url, data?.video_type]);
 
   if (loading) {
     return (
@@ -128,21 +157,22 @@ export default function Porn3dxDetailPage() {
             </motion.div>
           ) : (
             <div className="rounded-xl overflow-hidden aspect-video bg-black border border-white/10 relative">
-              {data.video_type === "video" ? (
-                <video
-                  src={data.video_url}
-                  className="w-full h-full object-contain"
-                  controls
-                  autoPlay
-                  controlsList="nodownload"
-                ></video>
-              ) : (
+              {data.video_type === "bunny" ? (
                 <iframe
                   src={data.video_url}
                   className="w-full h-full border-0"
                   allowFullScreen
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 ></iframe>
+              ) : (
+                <video
+                  ref={videoRef}
+                  poster={data.cover_url}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  playsInline
+                ></video>
               )}
             </div>
           )

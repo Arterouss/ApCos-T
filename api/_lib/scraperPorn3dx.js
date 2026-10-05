@@ -1,9 +1,9 @@
 import * as cheerio from "cheerio";
 import axios from "axios";
 import { filterBlockedItems, filterBlockedTags } from "./contentFilter.js";
+import { fetchWithProxy } from "./fetchProxy.js";
 
 const BASE_URL = "https://porn3dx.com";
-const ZENROWS_API_KEY = "fd59cc48a92c0890bdf3aad5a12a0008d042f551";
 
 /**
  * Memeriksa status kesehatan server target Porn3dx
@@ -33,37 +33,16 @@ async function checkPorn3dxServer() {
 }
 
 /**
- * Fetch HTML dari Porn3dx dengan multi-strategy:
- * 1. Direct request (cepat & hemat kuota proxy jika server tidak memblokir)
- * 2. ZenRows Web Scraper Proxy jika diperlukan bypass cloudflare
+ * Fetch HTML dari Porn3dx dengan proxy fallback.
  */
 const fetchPorn3dxHtml = async (targetUrl) => {
-  // 1. Cek apakah server target sedang maintenance
-  const checkRes = await checkPorn3dxServer();
-  if (checkRes && checkRes.status === 200 && typeof checkRes.data === "string") {
-    // Jika respon langsung mengandung post list, gunakan langsung tanpa ZenRows
-    if (checkRes.data.includes("wire:key") || checkRes.data.includes("/post/")) {
-      console.log(`[Porn3dx Direct] Sukses mengambil data langsung dari ${targetUrl}`);
-      return checkRes.data;
-    }
+  const html = await fetchWithProxy(targetUrl, { js: false });
+  if (typeof html === "string" && html.includes("down for a bit of maintenance")) {
+    const err = new Error("MAINTENANCE: Server pusat Porn3dx (porn3dx.com) saat ini sedang dalam pemeliharaan (Maintenance Mode) oleh pengelola aslinya. Konten akan otomatis muncul kembali setelah pemeliharaan selesai.");
+    err.isMaintenance = true;
+    throw err;
   }
-
-  // 2. Gunakan ZenRows Proxy
-  const url = `https://api.zenrows.com/v1/?apikey=${ZENROWS_API_KEY}&url=${encodeURIComponent(targetUrl)}&js_render=true`;
-  console.log(`[Porn3dx ZenRows] Fetching ${targetUrl}`);
-  try {
-    const r = await axios.get(url, { timeout: 45000 });
-    if (typeof r.data === "string" && r.data.includes("down for a bit of maintenance")) {
-      const err = new Error("MAINTENANCE: Server pusat Porn3dx saat ini sedang dalam pemeliharaan (Maintenance Mode).");
-      err.isMaintenance = true;
-      throw err;
-    }
-    return r.data;
-  } catch (e) {
-    if (e.isMaintenance) throw e;
-    console.error(`[Porn3dx ZenRows] Failed: ${e.message}`);
-    throw new Error("Gagal mengambil data dari server Porn3dx. Server pusat sedang mengalami kendala atau pemeliharaan.");
-  }
+  return html;
 };
 
 export const scrapePorn3dxList = async ({ page = 1, search = "", tag = "" }) => {
@@ -207,20 +186,31 @@ export const scrapePorn3dxDetail = async (slug) => {
     }
   });
 
-  // Get video embed (Bunny CDN iframe)
+  // 1. Look for HLS master playlist in scripts
   let video_url = "";
-  let video_type = "image"; // "image" or "video" or "bunny"
-  const $iframe = $("iframe[src*='iframe.mediadelivery']").first();
-  if ($iframe.length) {
-    video_url = $iframe.attr("src") || "";
-    video_type = "bunny";
+  let video_type = "image"; // "m3u8" | "video" | "bunny" | "image"
+
+  $("script").each((_, el) => {
+    const text = $(el).html() || "";
+    const m3u8Match = text.match(/https?:\/\/[^"'\s\\]+master\.m3u8/i);
+    if (m3u8Match && !video_url) {
+      video_url = m3u8Match[0];
+      video_type = "m3u8";
+    }
+  });
+
+  // 2. Check for Bunny CDN iframe
+  if (!video_url) {
+    const $iframe = $("iframe[src*='iframe.mediadelivery']").first();
+    if ($iframe.length) {
+      video_url = $iframe.attr("src") || "";
+      video_type = "bunny";
+    }
   }
 
-  // Check for direct video
-  const $video = $("video source").first();
-  if ($video.length) {
-    video_url = $video.attr("src") || "";
-    video_type = "video";
+  // If cover_url is still empty and we have a master.m3u8, use its poster.jpg
+  if (!cover_url && video_url.includes("master.m3u8")) {
+    cover_url = video_url.replace("/master.m3u8", "/poster.jpg");
   }
 
   // Get all gallery images (for image posts)

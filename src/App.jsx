@@ -28,8 +28,8 @@ import Sidebar from "./components/Sidebar";
 
 import Porn3dxPage from "./pages/Porn3dxPage";
 import Porn3dxDetailPage from "./pages/Porn3dxDetailPage";
-import FapelloPage from "./pages/FapelloPage";
-import FapelloDetailPage from "./pages/FapelloDetailPage";
+import CoomerPage from "./pages/CoomerPage";
+import CoomerDetailPage from "./pages/CoomerDetailPage";
 import HentaiPlayPage from "./pages/HentaiPlayPage";
 import HentaiPlayDetailPage from "./pages/HentaiPlayDetailPage";
 import FavoritesPage from "./pages/FavoritesPage";
@@ -98,10 +98,12 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         <Route path="/rule34video" element={<Navigate to="/rule34" replace />} />
         
         <Route
-          path="/fapello"
-          element={<FapelloPage onOpenSidebar={onOpenSidebar} />}
+          path="/coomer"
+          element={<CoomerPage onOpenSidebar={onOpenSidebar} />}
         />
-        <Route path="/fapello/:slug" element={<FapelloDetailPage />} />
+        <Route path="/coomer/:service/:id" element={<CoomerDetailPage />} />
+        <Route path="/fapello" element={<Navigate to="/coomer" replace />} />
+        <Route path="/fapello/*" element={<Navigate to="/coomer" replace />} />
         
         <Route
           path="/cosplay"

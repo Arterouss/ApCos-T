@@ -122,13 +122,14 @@ export default function HentaiPlayDetailPage() {
             </motion.div>
           ) : (
             <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative">
-              {data.embed_url.endsWith(".mp4") ? (
+              {data.embed_url && (data.embed_url.includes(".mp4") || !data.embed_url.includes("embed")) ? (
                 <video
-                  src={data.embed_url}
+                  src={`/api/hentaiplay/stream?url=${encodeURIComponent(data.embed_url)}`}
+                  poster={data.cover_url}
                   className="w-full h-full object-contain"
                   controls
                   autoPlay
-                  controlsList="nodownload"
+                  playsInline
                 ></video>
               ) : (
                 <iframe

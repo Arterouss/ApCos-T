@@ -90,6 +90,43 @@ app.get(/^\/api\/hentaiplay\/video\/(.*)$/, async (req, res) => {
   }
 });
 
+// HentaiPlay Video Streaming Proxy with HTTP Range (Seek) support
+app.get("/api/hentaiplay/stream", async (req, res) => {
+  let { url } = req.query;
+  if (!url) return res.status(400).send("Missing url");
+
+  try {
+    if (url.includes("hentaiplanet.info")) {
+      url = url.replace(/^https:\/\//i, "http://");
+    }
+
+    const { fetchWithDoH } = await import("./_lib/dohAgent.js");
+
+    const reqHeaders = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Referer": "https://hentaiplay.net/",
+    };
+    if (req.headers.range) {
+      reqHeaders["Range"] = req.headers.range;
+    }
+
+    const upstream = await fetchWithDoH(url, { headers: reqHeaders });
+
+    res.status(upstream.status);
+    for (const [key, value] of upstream.headers.entries()) {
+      if (["content-type", "content-length", "content-range", "accept-ranges"].includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    }
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error("[HentaiPlay Stream Error]", err.message);
+    res.status(500).send("Gagal streaming video");
+  }
+});
+
 // --- CONSTANTS ---
 const HANIME_API = "https://hanime.tv/api/v8";
 const HANIME_SEARCH_API = "https://search.htv-services.com";
@@ -708,29 +745,154 @@ app.get(/^\/api\/porn3dx\/detail\/(.*)$/, async (req, res) => {
   }
 });
 
-// ==========================================
-// FAPELLO API ROUTES
-// ==========================================
-app.get("/api/fapello/list", async (req, res) => {
+// Porn3dx Video & HLS Streaming Proxy
+app.get("/api/porn3dx/stream", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing url");
+
   try {
-    const { page = 1, search = "", sort = "trending" } = req.query;
-    const data = await scrapeFapelloList({ page: parseInt(page), search, sort });
-    res.json(data);
-  } catch (error) {
-    console.error("[Fapello API Error]", error);
-    res.status(500).json({ error: error.message });
+    const { fetchWithDoH } = await import("./_lib/dohAgent.js");
+
+    const reqHeaders = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Referer": "https://porn3dx.com/",
+    };
+    if (req.headers.range) {
+      reqHeaders["Range"] = req.headers.range;
+    }
+
+    const upstream = await fetchWithDoH(url, { headers: reqHeaders });
+
+    const contentType = upstream.headers.get("content-type") || "";
+    // If it's an M3U8 playlist, rewrite relative URLs to go through this proxy
+    if (url.includes(".m3u8") || contentType.includes("mpegurl")) {
+      const text = await upstream.text();
+      const baseUrl = url.substring(0, url.lastIndexOf("/") + 1);
+
+      const rewritten = text.replace(/^(?!#)(\S+)/gm, (match) => {
+        const full = match.startsWith("http") ? match : baseUrl + match;
+        return `/api/porn3dx/stream?url=${encodeURIComponent(full)}`;
+      }).replace(/URI="([^"]+)"/g, (match, p1) => {
+        const full = p1.startsWith("http") ? p1 : baseUrl + p1;
+        return `URI="/api/porn3dx/stream?url=${encodeURIComponent(full)}"`;
+      });
+
+      res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.send(rewritten);
+    }
+
+    // Binary chunks (.m4s, .ts, .mp4)
+    res.status(upstream.status);
+    for (const [key, value] of upstream.headers.entries()) {
+      if (["content-type", "content-length", "content-range", "accept-ranges"].includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    }
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error("[Porn3dx Stream Error]", err.message);
+    res.status(500).send("Gagal streaming Porn3dx");
   }
 });
 
-app.get(/^\/api\/fapello\/model\/(.*)$/, async (req, res) => {
+// ==========================================
+// COOMER.SU API ROUTES (Replacing Fapello)
+// ==========================================
+app.get("/api/coomer/creators", async (req, res) => {
   try {
-    const slug = req.params[0];
-    const data = await scrapeFapelloModel(slug);
+    const { service = "", page = 1, limit = 40, search = "" } = req.query;
+    const { getCoomerCreators } = await import("./_lib/scraperCoomer.js");
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const data = await getCoomerCreators({ service, offset, limit: parseInt(limit), search });
     res.json(data);
-  } catch (error) {
-    console.error("[Fapello Model Error]", error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error("[Coomer Creators Error]", err.message);
+    res.status(500).json({ error: err.message });
   }
+});
+
+app.get("/api/coomer/posts", async (req, res) => {
+  try {
+    const { offset = 0 } = req.query;
+    const { getCoomerRecentPosts } = await import("./_lib/scraperCoomer.js");
+    const data = await getCoomerRecentPosts({ offset: parseInt(offset) });
+    res.json(data);
+  } catch (err) {
+    console.error("[Coomer Posts Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/coomer/creator/:service/:id/posts", async (req, res) => {
+  try {
+    const { service, id } = req.params;
+    const { offset = 0 } = req.query;
+    const { getCoomerCreatorPosts } = await import("./_lib/scraperCoomer.js");
+    const data = await getCoomerCreatorPosts({ service, creatorId: id, offset: parseInt(offset) });
+    res.json(data);
+  } catch (err) {
+    console.error("[Coomer Creator Posts Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/coomer/creator/:service/:id/profile", async (req, res) => {
+  try {
+    const { service, id } = req.params;
+    const { getCoomerCreatorProfile } = await import("./_lib/scraperCoomer.js");
+    const data = await getCoomerCreatorProfile({ service, creatorId: id });
+    res.json(data);
+  } catch (err) {
+    console.error("[Coomer Profile Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Coomer Media Proxy (for thumbnails and creator avatars)
+app.get("/api/coomer/media", async (req, res) => {
+  const { path: mediaPath, icon, service, id } = req.query;
+
+  try {
+    const { fetchWithDoH } = await import("./_lib/dohAgent.js");
+    let targetUrl;
+
+    if (icon && service && id) {
+      targetUrl = `https://img.coomer.st/icons/${encodeURIComponent(service)}/${encodeURIComponent(id)}`;
+    } else if (mediaPath) {
+      targetUrl = `https://img.coomer.st/thumbnail/data${mediaPath}`;
+    } else {
+      return res.status(400).send("Missing path or icon parameters");
+    }
+
+    const upstream = await fetchWithDoH(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Referer": "https://coomer.st/",
+      },
+      timeout: 15000,
+    });
+
+    if (!upstream.ok) {
+      return res.status(upstream.status).send("Media not found");
+    }
+
+    const contentType = upstream.headers.get("content-type") || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    upstream.body.pipe(res);
+  } catch (err) {
+    res.status(500).send("Proxy media error: " + err.message);
+  }
+});
+
+// Backwards compatibility for old Fapello links
+app.get("/api/fapello/list", (req, res) => res.redirect(301, `/api/coomer/creators?${new URLSearchParams(req.query).toString()}`));
+app.get(/^\/api\/fapello\/model\/(.*)$/, (req, res) => {
+  const slug = req.params[0];
+  res.redirect(301, `/api/coomer/creator/onlyfans/${slug}/posts`);
 });
 
 

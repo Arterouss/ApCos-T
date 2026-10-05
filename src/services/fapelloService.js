@@ -1,15 +1,31 @@
-import axios from "axios";
-
-const API_BASE = "/api/fapello";
+// Backward compatibility redirecting Fapello service calls to Coomer
+import { getCoomerCreators, getCoomerCreatorPosts } from "./coomerService";
 
 export const getFapelloList = async (page = 1, search = "", sort = "trending") => {
-  const params = { page, sort };
-  if (search) params.search = search;
-  const res = await axios.get(`${API_BASE}/list`, { params });
-  return res.data;
+  const data = await getCoomerCreators(page, "", search, 40);
+  return (data.creators || []).map(c => ({
+    name: c.name,
+    slug: `${c.service}/${c.id}`,
+    cover_url: c.avatar,
+    followers: `${c.favorited?.toLocaleString() || 0} Favorites`,
+  }));
 };
 
 export const getFapelloModel = async (slug) => {
-  const res = await axios.get(`${API_BASE}/model/${slug}`);
-  return res.data;
+  const parts = slug.split("/");
+  const service = parts.length > 1 ? parts[0] : "onlyfans";
+  const id = parts.length > 1 ? parts[1] : parts[0];
+
+  const data = await getCoomerCreatorPosts(service, id, 0);
+  return {
+    name: id,
+    avatar: `/api/coomer/media?icon=1&service=${encodeURIComponent(service)}&id=${encodeURIComponent(id)}`,
+    followers: "Verified",
+    media: (data.posts || []).flatMap(p => p.images || []).map(img => ({
+      type: "image",
+      src: img.url,
+      cover_url: img.url,
+      href: p.post_url,
+    })),
+  };
 };
