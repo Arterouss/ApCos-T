@@ -61,9 +61,10 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
+    <>
       <ScrollToTop />
-      <Routes location={location} key={location.pathname}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
         <Route
           path="/"
           element={<DynamicHome onOpenSidebar={onOpenSidebar} />}
@@ -134,7 +135,8 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         <Route path="/anime/watch/:slug" element={<AnimeWatchPage />} />
       </Routes>
     </AnimatePresence>
-  );
+  </>
+);
 };
 
 function App() {
