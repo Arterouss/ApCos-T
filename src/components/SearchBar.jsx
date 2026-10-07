@@ -1,24 +1,57 @@
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
-const SearchBar = ({ value, onChange }) => {
+const SearchBar = ({
+  value,
+  onChange,
+  placeholder = "Cari judul, tag, atau kata kunci...",
+  className = "",
+  accentColor = "neon-red",
+}) => {
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: -20 }}
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative w-full max-w-2xl mx-auto mb-12"
+      transition={{ duration: 0.3 }}
+      className={`relative w-full ${className}`}
     >
-      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-        <Search className="text-gray-400" size={24} />
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none transition-colors duration-300 text-gray-500 group-focus-within:text-neon-red">
+          <Search size={18} />
+        </div>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full py-2.5 sm:py-3 pl-10 pr-10 rounded-xl text-sm sm:text-base text-white placeholder-gray-500 transition-all duration-300 focus:outline-none"
+          style={{
+            background: 'rgba(18, 18, 28, 0.65)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255, 45, 85, 0.5)';
+            e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 45, 85, 0.15), inset 0 0 10px rgba(255, 45, 85, 0.05)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors cursor-pointer"
+            aria-label="Clear search"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search creators by name, service, or ID..."
-        className="w-full py-4 pl-14 pr-6 bg-glass backdrop-blur-md border border-glassBorder rounded-2xl text-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 shadow-xl transition-all"
-      />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-purple-500/20 to-blue-500/20 blur-xl rounded-2xl opacity-50" />
     </motion.div>
   );
 };

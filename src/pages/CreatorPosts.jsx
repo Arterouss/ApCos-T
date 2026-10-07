@@ -10,9 +10,9 @@ import {
   Image as ImageIcon,
   FileText,
   Download,
+  Sparkles,
+  Calendar,
 } from "lucide-react";
-
-
 
 const isVideo = (path = "") => {
   return /\.(mp4|webm|m4v|mov|avi|mkv)$/i.test(path);
@@ -45,6 +45,7 @@ const CreatorPosts = () => {
   const [selectedPost, setSelectedPost] = useState(null);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     const fetchPosts = async () => {
       try {
         setLoading(true);
@@ -69,7 +70,6 @@ const CreatorPosts = () => {
     const items = [post.file, ...(post.attachments || [])].filter(
       (item) => item && item.path
     );
-    // Remove duplicates based on path
     const unique = [];
     const paths = new Set();
     items.forEach((item) => {
@@ -83,39 +83,60 @@ const CreatorPosts = () => {
 
   if (loading)
     return (
-      <div className="min-h-screen flex justify-center items-center bg-neutral-950">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
+      <div className="min-h-screen flex flex-col justify-center items-center px-4">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-purple-500/20 border-t-purple-500 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles size={18} className="text-purple-400 animate-pulse" />
+          </div>
+        </div>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-purple-300">
+          Memuat Arsip Pawchive...
+        </p>
       </div>
     );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 min-h-screen">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 min-h-screen pb-24 text-white">
+      {/* Top Nav */}
       <Link
         to="/"
-        className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:border-white/30"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10 hover:border-purple-500/40 text-gray-300 hover:text-white text-xs sm:text-sm font-semibold mb-8 transition-all group shadow-md"
       >
-        <ArrowLeft className="mr-2" size={20} />
-        Back to Creators
+        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+        Kembali ke Beranda
       </Link>
 
       {error ? (
-        <div className="text-center text-red-400 text-xl mt-20 bg-red-950/20 p-8 rounded-2xl border border-red-500/30">
-          {error}
+        <div className="glass-card text-center p-8 rounded-3xl border border-red-500/30 max-w-md mx-auto my-12">
+          <p className="text-red-400 text-sm font-medium">{error}</p>
         </div>
       ) : (
         <>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-12 bg-gradient-to-r from-purple-900/20 to-blue-900/20 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-md"
-          >
-            <h1 className="text-3xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-2">
-              Posts from {service.charAt(0).toUpperCase() + service.slice(1)}{" "}
-              User
-            </h1>
-            <p className="text-lg text-gray-400 font-mono">ID: {id}</p>
-          </motion.div>
+          {/* Hero Banner Card */}
+          <div className="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl mb-10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold uppercase tracking-wider mb-2">
+                  <Sparkles size={12} className="text-purple-400" />
+                  Pawchive Archive
+                </div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-display">
+                  Postingan dari {service.charAt(0).toUpperCase() + service.slice(1)}
+                </h1>
+                <p className="text-xs text-purple-300 font-mono mt-1">ID: @{id}</p>
+              </div>
 
+              <div className="flex items-center gap-2">
+                <span className="px-3.5 py-1.5 rounded-full glass-card border border-white/10 text-xs font-semibold text-gray-300">
+                  {posts.length} Postingan
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Posts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {posts.map((post) => {
               const mediaCount =
@@ -129,7 +150,7 @@ const CreatorPosts = () => {
                   key={post.id}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-neutral-900/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 group flex flex-col"
+                  className="glass-card border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 group flex flex-col justify-between"
                 >
                   {/* Thumbnail / Preview Header */}
                   <div className="bg-neutral-950 relative aspect-video flex items-center justify-center overflow-hidden">
@@ -178,39 +199,39 @@ const CreatorPosts = () => {
                     )}
 
                     {/* Media Type Badges */}
-                    <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                    <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
                       {hasVideo && (
-                        <span className="bg-red-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow-md">
-                          <Video size={12} /> VIDEO
+                        <span className="bg-red-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-md shadow-md">
+                          <Video size={11} /> VIDEO
                         </span>
                       )}
                       {mediaCount > 1 && (
-                        <span className="bg-purple-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow-md">
-                          <ImageIcon size={12} /> +{mediaCount - 1}
+                        <span className="bg-purple-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-md shadow-md">
+                          <ImageIcon size={11} /> +{mediaCount - 1}
                         </span>
                       )}
                     </div>
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-5 flex-grow flex flex-col justify-between">
+                  <div className="p-4 sm:p-5 flex-grow flex flex-col justify-between">
                     <div>
-                      <h3 className="font-bold text-lg text-white mb-2 line-clamp-2 group-hover:text-purple-300 transition-colors">
+                      <h3 className="font-bold text-sm sm:text-base text-white mb-2 line-clamp-2 group-hover:text-purple-300 transition-colors">
                         {post.title || "Untitled Post"}
                       </h3>
 
-                      {/* Tags Section */}
+                      {/* Tags */}
                       {post.tags && (
-                        <div className="flex flex-wrap gap-1.5 mb-4">
+                        <div className="flex flex-wrap gap-1 mb-4">
                           {(Array.isArray(post.tags)
                             ? post.tags
                             : post.tags.split(/[ ,]+/).filter((t) => t)
                           )
-                            .slice(0, 4)
+                            .slice(0, 3)
                             .map((tag, idx) => (
                               <span
                                 key={idx}
-                                className="bg-white/5 text-gray-300 border border-white/5 text-[11px] px-2 py-0.5 rounded-md"
+                                className="glass-card text-gray-300 text-[10px] px-2 py-0.5 rounded-md border border-white/5"
                               >
                                 #{tag}
                               </span>
@@ -219,36 +240,37 @@ const CreatorPosts = () => {
                       )}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-                      <div className="flex justify-between items-center text-xs text-gray-400">
-                        <span>
+                    <div className="mt-4 pt-3 border-t border-white/5 space-y-3">
+                      <div className="flex justify-between items-center text-[11px] text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={11} className="text-purple-400" />
                           {new Date(post.published).toLocaleDateString("id-ID", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
                           })}
                         </span>
-                        <span className="bg-purple-950/60 text-purple-300 border border-purple-500/20 px-2 py-0.5 rounded font-medium">
-                          {mediaCount > 0 ? `${mediaCount} Files` : "Text Post"}
+                        <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/20 font-medium">
+                          {mediaCount > 0 ? `${mediaCount} Berkas` : "Teks"}
                         </span>
                       </div>
 
-                      {/* Interactive Actions */}
+                      {/* Action Buttons */}
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <button
                           onClick={() => setSelectedPost(post)}
-                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-lg shadow-purple-900/20 transition-all cursor-pointer"
+                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-purple-900/20 transition-all cursor-pointer"
                         >
-                          <Eye size={14} /> View Media
+                          <Eye size={13} /> Lihat Media
                         </button>
 
                         <a
                           href={`https://pawchive.st/${service}/user/${id}/post/${post.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-xs font-medium py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all"
+                          className="w-full glass-card hover:border-purple-500/40 text-gray-300 hover:text-white border border-white/10 text-xs font-medium py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all"
                         >
-                          <ExternalLink size={14} /> Original
+                          <ExternalLink size={13} /> Sumber
                         </a>
                       </div>
                     </div>
@@ -265,24 +287,24 @@ const CreatorPosts = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-6 bg-black/80 backdrop-blur-xl overflow-y-auto"
+                className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/85 backdrop-blur-xl overflow-y-auto"
                 onClick={() => setSelectedPost(null)}
               >
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
                   animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="bg-neutral-900 border border-white/10 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-500/10 relative"
+                  className="glass-card border border-white/10 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-500/20 relative"
                 >
                   {/* Modal Header */}
-                  <div className="p-4 md:p-6 border-b border-white/10 flex justify-between items-start gap-4 bg-neutral-950/50">
+                  <div className="p-4 md:p-6 border-b border-white/10 flex justify-between items-start gap-4 bg-neutral-950/60">
                     <div>
-                      <h2 className="text-xl md:text-2xl font-bold text-white mb-1">
+                      <h2 className="text-lg md:text-xl font-bold text-white mb-1">
                         {selectedPost.title || "Untitled Post"}
                       </h2>
                       <p className="text-xs text-gray-400">
-                        Published on{" "}
+                        Dipublikasikan pada{" "}
                         {new Date(selectedPost.published).toLocaleDateString(
                           "id-ID",
                           {
@@ -293,19 +315,19 @@ const CreatorPosts = () => {
                     </div>
                     <button
                       onClick={() => setSelectedPost(null)}
-                      className="bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white p-2 rounded-full transition-colors"
+                      className="p-2 rounded-full glass-card hover:border-purple-500/40 text-gray-400 hover:text-white transition-colors"
                     >
-                      <X size={20} />
+                      <X size={18} />
                     </button>
                   </div>
 
-                  {/* Modal Body (Scrollable) */}
-                  <div className="p-4 md:p-6 overflow-y-auto space-y-8 flex-grow">
-                    {/* HTML Content / Description if available */}
+                  {/* Modal Body */}
+                  <div className="p-4 md:p-6 overflow-y-auto space-y-6 flex-grow">
+                    {/* HTML Content */}
                     {selectedPost.content && (
-                      <div className="bg-neutral-950/80 p-4 rounded-xl border border-white/5 text-gray-300 text-sm md:text-base leading-relaxed overflow-x-auto">
+                      <div className="glass-card p-4 rounded-2xl border border-white/5 text-gray-300 text-xs sm:text-sm leading-relaxed overflow-x-auto">
                         <h4 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
-                          Post Description / Content:
+                          Deskripsi Postingan:
                         </h4>
                         <div
                           className="prose prose-invert max-w-none"
@@ -319,46 +341,36 @@ const CreatorPosts = () => {
                     {/* Media Gallery Section */}
                     <div>
                       <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                        <ImageIcon className="text-purple-400" size={18} />
-                        Attached Media & Files (
-                        {getAllMedia(selectedPost).length})
+                        <ImageIcon className="text-purple-400" size={16} />
+                        Berkas Media Lampiran ({getAllMedia(selectedPost).length})
                       </h4>
 
                       {getAllMedia(selectedPost).length === 0 ? (
-                        <div className="text-center py-12 text-gray-500 bg-neutral-950 rounded-xl border border-white/5">
-                          No media files attached to this post.
+                        <div className="text-center py-10 text-gray-500 glass-card rounded-2xl border border-white/5">
+                          Tidak ada lampiran media pada postingan ini.
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {/* Open on Pawchive banner */}
-                          <a
-                            href={`https://pawchive.st/${service}/user/${id}/post/${selectedPost.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600/30 hover:to-indigo-600/30 border border-purple-500/30 hover:border-purple-400/50 text-purple-300 hover:text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md"
-                          >
-                            <ExternalLink size={16} />
-                            Lihat halaman asli post di Pawchive.st
-                          </a>
-
-                          {/* Media Items */}
                           {getAllMedia(selectedPost).map((media, idx) => {
                             const url = getMediaUrl(media.path, "file");
                             const isVid = isVideo(media.path);
                             const isImg = isImage(media.path);
-                            const fname = media.name || media.path.split("/").pop() || `Attachment #${idx + 1}`;
+                            const fname =
+                              media.name ||
+                              media.path.split("/").pop() ||
+                              `Lampiran #${idx + 1}`;
 
                             return (
                               <div
                                 key={idx}
-                                className="bg-neutral-950 p-4 rounded-xl border border-white/10 flex flex-col items-center group shadow-xl"
+                                className="glass-card p-4 rounded-2xl border border-white/10 flex flex-col items-center group shadow-xl"
                               >
                                 {isVid ? (
                                   <div className="w-full">
                                     <video
                                       src={url}
                                       controls
-                                      className="w-full max-h-[75vh] rounded-lg bg-black mx-auto shadow-lg"
+                                      className="w-full max-h-[75vh] rounded-xl bg-black mx-auto shadow-lg"
                                       playsInline
                                       onError={(e) => {
                                         if (!e.target.dataset.fallback) {
@@ -369,11 +381,11 @@ const CreatorPosts = () => {
                                     />
                                   </div>
                                 ) : isImg ? (
-                                  <div className="w-full flex justify-center bg-black/40 rounded-lg p-2">
+                                  <div className="w-full flex justify-center bg-black/40 rounded-xl p-2">
                                     <img
                                       src={url}
                                       alt={fname}
-                                      className="max-h-[75vh] w-auto object-contain rounded-lg shadow-lg"
+                                      className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg"
                                       loading="lazy"
                                       onError={(e) => {
                                         if (!e.target.dataset.fallback) {
@@ -384,18 +396,25 @@ const CreatorPosts = () => {
                                     />
                                   </div>
                                 ) : (
-                                  <div className="w-full py-8 px-4 flex flex-col items-center justify-center gap-3 text-center bg-neutral-900/50 rounded-lg">
-                                    <FileText size={48} className="text-purple-400" />
+                                  <div className="w-full py-8 px-4 flex flex-col items-center justify-center gap-3 text-center rounded-xl bg-neutral-900/50">
+                                    <FileText size={44} className="text-purple-400" />
                                     <div>
-                                      <p className="font-semibold text-white text-sm break-all">{fname}</p>
-                                      <p className="text-xs text-gray-500 mt-0.5">Archive / Document File</p>
+                                      <p className="font-semibold text-white text-xs break-all">
+                                        {fname}
+                                      </p>
+                                      <p className="text-[11px] text-gray-500 mt-0.5">
+                                        Berkas Arsip / Dokumen
+                                      </p>
                                     </div>
                                   </div>
                                 )}
 
-                                {/* File Bar / Download & Open Link */}
+                                {/* File Bar */}
                                 <div className="w-full flex flex-wrap justify-between items-center mt-3 pt-3 border-t border-white/5 gap-2 px-1">
-                                  <span className="text-xs text-gray-400 font-mono truncate max-w-[60%]" title={fname}>
+                                  <span
+                                    className="text-xs text-gray-400 font-mono truncate max-w-[60%]"
+                                    title={fname}
+                                  >
                                     {fname}
                                   </span>
                                   <div className="flex items-center gap-2">
@@ -404,17 +423,9 @@ const CreatorPosts = () => {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       download
-                                      className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors font-medium shadow-sm"
+                                      className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors font-medium"
                                     >
-                                      <Download size={14} /> Download
-                                    </a>
-                                    <a
-                                      href={`https://pawchive.st/${service}/user/${id}/post/${selectedPost.id}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="bg-neutral-800 hover:bg-neutral-700 text-gray-300 border border-white/10 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors font-medium"
-                                    >
-                                      <ExternalLink size={14} /> Pawchive
+                                      <Download size={13} /> Unduh
                                     </a>
                                   </div>
                                 </div>
@@ -424,24 +435,6 @@ const CreatorPosts = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Modal Footer */}
-                  <div className="p-4 border-t border-white/10 bg-neutral-950/80 flex justify-between items-center">
-                    <a
-                      href={`https://pawchive.st/${service}/user/${id}/post/${selectedPost.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 underline font-medium"
-                    >
-                      <ExternalLink size={14} /> Open directly on Pawchive.st
-                    </a>
-                    <button
-                      onClick={() => setSelectedPost(null)}
-                      className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Close Viewer
-                    </button>
                   </div>
                 </motion.div>
               </motion.div>

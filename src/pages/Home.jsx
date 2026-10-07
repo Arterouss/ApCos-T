@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
   Film,
@@ -11,12 +11,14 @@ import {
   Camera,
   Flame,
   Star,
-  Info,
   Layers,
   ArrowRight,
   TrendingUp,
   Clock,
-  Video
+  Video,
+  Shield,
+  Search,
+  Zap,
 } from "lucide-react";
 import axios from "axios";
 
@@ -26,64 +28,180 @@ import { getPorn3dxList } from "../services/porn3dxService";
 import { getDoujinList } from "../services/doujinService";
 import { filterBlockedItems } from "../utils/contentFilter";
 
-// Helper Carousel Component for smooth horizontal scrolling
-const MediaCarousel = ({ title, icon: Icon, tagColor = "text-red-400", viewAllLink, children }) => {
+// Fallback high-impact hero wallpaper
+const DEFAULT_HERO_BG =
+  "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop";
+
+// ── Carousel Component ──────────────────────────────────────────────────
+const MediaCarousel = ({
+  title,
+  icon: Icon,
+  accentColor = "#ff2d55",
+  viewAllLink,
+  children,
+}) => {
   const scrollRef = useRef(null);
 
   const scroll = (direction) => {
     if (scrollRef.current) {
-      const scrollAmount = direction === "left" ? -400 : 400;
+      const scrollAmount = direction === "left" ? -450 : 450;
       scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
 
   return (
-    <div className="mb-10 sm:mb-14 relative group">
+    <div className="mb-14 sm:mb-18 relative group">
       {/* Section Header */}
-      <div className="flex items-center justify-between px-4 sm:px-8 mb-4">
-        <div className="flex items-center gap-2.5">
-          {Icon && <Icon size={20} className={tagColor} />}
-          <h2 className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
-            {title}
-          </h2>
+      <div className="flex items-center justify-between px-4 sm:px-8 mb-5">
+        <div className="flex items-center gap-3">
+          {Icon && (
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor}25, ${accentColor}08)`,
+                border: `1px solid ${accentColor}35`,
+                boxShadow: `0 0 20px ${accentColor}20`,
+              }}
+            >
+              <Icon size={18} style={{ color: accentColor }} />
+            </div>
+          )}
+          <div>
+            <h2 className="text-base sm:text-xl font-display font-black tracking-tight text-white flex items-center gap-2">
+              {title}
+            </h2>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
           {viewAllLink && (
             <Link
               to={viewAllLink}
-              className="text-xs sm:text-sm font-semibold text-gray-400 hover:text-red-400 transition-colors flex items-center gap-1 group/btn mr-2"
+              className="text-xs font-bold text-gray-400 hover:text-white transition-colors flex items-center gap-1 group/btn mr-2 px-3 py-1.5 rounded-full glass-card border border-white/5 hover:border-white/20"
             >
               <span>Lihat Semua</span>
-              <ChevronRight size={15} className="group-hover/btn:translate-x-0.5 transition-transform" />
+              <ChevronRight
+                size={14}
+                className="group-hover/btn:translate-x-0.5 transition-transform"
+              />
             </Link>
           )}
           <button
             onClick={() => scroll("left")}
-            className="hidden sm:flex p-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-gray-300 hover:text-white transition-all"
-            aria-label="Scroll Left"
+            className="w-9 h-9 rounded-full flex items-center justify-center glass-card hover:border-white/20 text-gray-400 hover:text-white transition-all shadow-md"
+            aria-label="Scroll Kiri"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => scroll("right")}
-            className="hidden sm:flex p-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-gray-300 hover:text-white transition-all"
-            aria-label="Scroll Right"
+            className="w-9 h-9 rounded-full flex items-center justify-center glass-card hover:border-white/20 text-gray-400 hover:text-white transition-all shadow-md"
+            aria-label="Scroll Kanan"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
 
-      {/* Horizontal Carousel Track */}
+      {/* Horizontal Scroll Track */}
       <div
         ref={scrollRef}
-        className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-none px-4 sm:px-8 py-2 snap-x"
+        className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-4 sm:px-8 py-3 snap-x"
       >
         {children}
       </div>
     </div>
   );
 };
+
+// ── Carousel Card ────────────────────────────────────────────────────────
+const CarouselCard = ({
+  onClick,
+  image,
+  title,
+  badge,
+  badgeColor = "#ff2d55",
+  duration,
+  hoverColor = "#ff2d55",
+  aspectClass = "aspect-video",
+  widthClass = "w-52 sm:w-64",
+}) => (
+  <motion.div
+    whileHover={{ scale: 1.03, y: -4 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={`${widthClass} shrink-0 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 group glass-card border border-white/10 hover:shadow-2xl flex flex-col justify-between`}
+    style={{
+      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.borderColor = `${hoverColor}60`;
+      e.currentTarget.style.boxShadow = `0 16px 40px rgba(0,0,0,0.6), 0 0 25px ${hoverColor}20`;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+      e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5)";
+    }}
+  >
+    <div className={`relative ${aspectClass} overflow-hidden bg-neutral-900`}>
+      {image ? (
+        <img
+          src={image}
+          alt={title}
+          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-neutral-900">
+          <Film size={32} className="text-gray-700" />
+        </div>
+      )}
+
+      {/* Dark Vignette Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+      {/* Top Badges */}
+      <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between gap-1 z-10">
+        {badge && (
+          <span
+            className="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-white backdrop-blur-md shadow-md uppercase tracking-wider"
+            style={{
+              background: `${badgeColor}dd`,
+              boxShadow: `0 2px 10px ${badgeColor}50`,
+            }}
+          >
+            {badge}
+          </span>
+        )}
+        {duration && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-gray-300 border border-white/10 ml-auto">
+            {duration}
+          </span>
+        )}
+      </div>
+
+      {/* Center Play Button Overlay */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-2xl transition-transform duration-300 group-hover:scale-110"
+          style={{
+            background: `linear-gradient(135deg, ${hoverColor}, #ff6b35)`,
+            boxShadow: `0 0 25px ${hoverColor}60`,
+          }}
+        >
+          <Play size={20} className="fill-white ml-0.5" />
+        </div>
+      </div>
+    </div>
+
+    {/* Title Box */}
+    <div className="p-3.5">
+      <h3 className="font-bold text-xs sm:text-sm text-gray-200 line-clamp-2 group-hover:text-white transition-colors leading-snug">
+        {title}
+      </h3>
+    </div>
+  </motion.div>
+);
 
 export default function Home({ onOpenSidebar }) {
   const navigate = useNavigate();
@@ -109,26 +227,29 @@ export default function Home({ onOpenSidebar }) {
         ]);
 
         if (isMounted) {
-          // HentaiPlay Data
+          // HentaiPlay
           if (hpRes.status === "fulfilled" && hpRes.value?.videos) {
             const vids = filterBlockedItems(hpRes.value.videos);
             setHentaiPlayVideos(vids);
             if (vids.length > 0) {
-              // Pick first or a random popular item for Hero Banner
               setFeaturedItem(vids[0]);
             }
           }
 
-          // Porn3dx Data
+          // Porn3dx
           if (p3dxRes.status === "fulfilled") {
-            const rawList = Array.isArray(p3dxRes.value) ? p3dxRes.value : p3dxRes.value?.items || [];
+            const rawList = Array.isArray(p3dxRes.value)
+              ? p3dxRes.value
+              : p3dxRes.value?.items || [];
             const list = filterBlockedItems(rawList);
             setPorn3dxItems(list);
           }
 
-          // Doujin Data
+          // Doujin
           if (doujinRes.status === "fulfilled") {
-            const rawDList = doujinRes.value?.data || (Array.isArray(doujinRes.value) ? doujinRes.value : []);
+            const rawDList =
+              doujinRes.value?.data ||
+              (Array.isArray(doujinRes.value) ? doujinRes.value : []);
             const dList = filterBlockedItems(rawDList);
             setDoujinList(dList);
           }
@@ -139,7 +260,7 @@ export default function Home({ onOpenSidebar }) {
           }
         }
       } catch (err) {
-        console.error("Gagal memuat showcase data:", err);
+        console.error("Gagal memuat data showcase:", err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -151,363 +272,420 @@ export default function Home({ onOpenSidebar }) {
     };
   }, []);
 
-  const categories = [
-    { name: "HentaiPlay", path: "/hentaiplay", icon: Film, color: "from-rose-600 to-red-700" },
-    { name: "Porn3dx (3D)", path: "/porn3dx", icon: Video, color: "from-indigo-600 to-cyan-600" },
-    { name: "Nhentai", path: "/nhentai", icon: Sparkles, color: "from-pink-600 to-rose-600" },
-    { name: "Doujin Desu", path: "/doujin", icon: Book, color: "from-amber-600 to-orange-600" },
-    { name: "CavPorn", path: "/cavporn", icon: Film, color: "from-cyan-600 to-blue-600" },
-    { name: "Foto Telegram", path: "/personal-photo", icon: Camera, color: "from-blue-600 to-emerald-600" },
+  // Platform Cards Definition
+  const platformCards = [
+    {
+      name: "HentaiPlay Cinema",
+      sub: "Streaming Anime Video HD Sub Indo",
+      path: "/hentaiplay",
+      icon: Film,
+      badge: "470+ Judul",
+      color: "#ff2d55",
+      gradient: "from-[#ff2d55]/20 to-[#ff6b35]/10",
+    },
+    {
+      name: "Porn3dx Studio",
+      sub: "Animasi 3D & Render 60 FPS",
+      path: "/porn3dx",
+      icon: Video,
+      badge: "3D Community",
+      color: "#00e5ff",
+      gradient: "from-[#00e5ff]/20 to-[#00b0ff]/10",
+    },
+    {
+      name: "Doujin Desu",
+      sub: "Manga, Manhwa & Doujin Lengkap",
+      path: "/doujin",
+      icon: Book,
+      badge: "Chapter Reader",
+      color: "#ffb347",
+      gradient: "from-[#ffb347]/20 to-[#ff6b35]/10",
+    },
+    {
+      name: "NHentai Vault",
+      sub: "Pustaka Doujinshi Klasik & Populer",
+      path: "/nhentai",
+      icon: Sparkles,
+      badge: "Full Color & Tag",
+      color: "#ec4899",
+      gradient: "from-[#ec4899]/20 to-[#f43f5e]/10",
+    },
+    {
+      name: "CavPorn Cinema",
+      sub: "Katalog JAV & HLS Streaming",
+      path: "/cavporn",
+      icon: Layers,
+      badge: "Direct Stream",
+      color: "#38bdf8",
+      gradient: "from-[#38bdf8]/20 to-[#0284c7]/10",
+    },
+    {
+      name: "Cosplay & Foto",
+      sub: "Galeri Cosplay Telegram HD",
+      path: "/cosplay",
+      icon: Camera,
+      badge: "Set Eksklusif",
+      color: "#a855f7",
+      gradient: "from-[#a855f7]/20 to-[#7c3aed]/10",
+    },
   ];
 
+  // Shimmer skeleton
+  const SkeletonCard = ({ w = "w-52 sm:w-64", h = "h-40" }) => (
+    <div
+      className={`${w} ${h} shrink-0 rounded-2xl overflow-hidden glass-card p-3 border border-white/5 space-y-3 animate-pulse`}
+    >
+      <div className="w-full h-24 bg-white/5 rounded-xl" />
+      <div className="w-3/4 h-3 bg-white/5 rounded-md" />
+      <div className="w-1/2 h-2.5 bg-white/5 rounded-md" />
+    </div>
+  );
+
   return (
-    <div className="min-h-screen text-white bg-[#070709] pb-24">
-      {/* ── 1. CINEMATIC HERO BANNER ────────────────────────────────────────── */}
-      <div className="relative w-full h-[58vh] sm:h-[68vh] min-h-[420px] max-h-[720px] overflow-hidden bg-neutral-950">
-        {featuredItem?.cover_url || featuredItem?.thumbnail ? (
+    <div className="min-h-screen text-white pb-28">
+      {/* ── 1. CINEMATIC HERO SPOTLIGHT ──────────────────────────────────── */}
+      <div className="relative w-full min-h-[520px] lg:h-[68vh] max-h-[750px] overflow-hidden flex items-end">
+        {/* Dynamic / Fallback Backdrop Wallpaper */}
+        <div className="absolute inset-0 z-0">
           <img
-            src={featuredItem.cover_url || featuredItem.thumbnail}
-            alt={featuredItem.title}
-            className="w-full h-full object-cover object-center scale-105 filter brightness-[0.75] contrast-[1.1] transition-transform duration-1000"
+            src={
+              featuredItem?.cover_url ||
+              featuredItem?.thumbnail ||
+              DEFAULT_HERO_BG
+            }
+            alt="Spotlight"
+            className="w-full h-full object-cover object-center filter brightness-[0.55] contrast-[1.15] scale-105 transition-transform duration-1000"
           />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-r from-red-950/40 via-neutral-900 to-black" />
-        )}
+          {/* Multi-layered Cinema Vignette Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#08080c] via-[#08080c]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#08080c] via-[#08080c]/80 to-transparent w-full lg:w-3/4" />
+          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#08080c]/90 to-transparent" />
+        </div>
 
-        {/* Cinematic Vignette Gradients */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#070709] via-[#070709]/50 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#070709] via-[#070709]/70 to-transparent w-full sm:w-2/3" />
-        <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-[#070709]/80 to-transparent" />
+        {/* Ambient Neon Glows inside Hero */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#ff2d55]/15 rounded-full blur-[140px] pointer-events-none" />
 
-        {/* Hero Content Information */}
-        <div className="absolute bottom-6 sm:bottom-12 inset-x-0 px-4 sm:px-10 max-w-4xl z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="space-y-3 sm:space-y-4"
-          >
-            {/* Top Badges */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] sm:text-xs font-black px-2 py-0.5 rounded bg-red-600 text-white uppercase tracking-widest shadow-lg shadow-red-600/40">
-                SPOTLIGHT
-              </span>
-              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-amber-300 border border-amber-500/30 backdrop-blur-md flex items-center gap-1">
-                <Star size={11} className="fill-amber-400 text-amber-400" /> 1080p ULTRA HD
-              </span>
-              {featuredItem?.duration && (
-                <span className="text-[10px] sm:text-xs text-gray-300 bg-black/50 px-2 py-0.5 rounded border border-white/10 backdrop-blur-md flex items-center gap-1">
-                  <Clock size={11} /> {featuredItem.duration}
+        {/* Hero Content Container (Split Grid) */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 pb-10 sm:pb-14 pt-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
+            {/* Left Column: Info & Action */}
+            <div className="lg:col-span-8 space-y-4 sm:space-y-5">
+              {/* Top Badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-[#ff2d55] to-[#ff6b35] text-white shadow-lg shadow-[#ff2d55]/40 animate-pulse">
+                  <Flame size={12} className="fill-white" /> SPOTLIGHT PREMIERE
                 </span>
-              )}
-            </div>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold glass-card border border-amber-500/30 text-amber-300">
+                  <Star size={11} className="fill-amber-400 text-amber-400" /> 1080p
+                  ULTRA HD
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-semibold glass-card border border-white/10 text-gray-300">
+                  <Shield size={11} className="text-emerald-400" /> Tanpa Iklan
+                </span>
+                {featuredItem?.duration && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-semibold glass-card border border-white/10 text-gray-300">
+                    <Clock size={11} /> {featuredItem.duration}
+                  </span>
+                )}
+              </div>
 
-            {/* Title */}
-            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight line-clamp-2 leading-tight drop-shadow-md">
-              {featuredItem?.title || "Selamat Datang di ApiCos Cinema"}
-            </h1>
+              {/* Title */}
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-display font-black text-white tracking-tight leading-[1.1] drop-shadow-xl line-clamp-2">
+                {featuredItem?.title || "Selamat Datang di ApiCos Cinema"}
+              </h1>
 
-            {/* Description / Subtitle */}
-            <p className="text-xs sm:text-sm text-gray-300 max-w-2xl line-clamp-2 drop-shadow">
-              Platform streaming pribadi terpadu. Nikmati ribuan koleksi video anime hentai sub Indo/Eng, animasi 3D, manga & doujinshi, hingga galeri pribadi permanen tanpa iklan.
-            </p>
+              {/* Description */}
+              <p className="text-xs sm:text-sm text-gray-300 max-w-2xl line-clamp-3 leading-relaxed drop-shadow-md">
+                {featuredItem?.description ||
+                  "Pusat hiburan multimedia pribadi terlengkap. Streaming anime video HD sub Indo, animasi 3D 60FPS, koleksi manga & doujinshi, hingga galeri cosplay premium Telegram."}
+              </p>
 
-            {/* Call to Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              {featuredItem && (
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                {featuredItem ? (
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/hentaiplay/video/${encodeURIComponent(
+                          featuredItem.slug
+                        )}`
+                      )
+                    }
+                    className="px-7 py-3.5 rounded-full bg-gradient-to-r from-[#ff2d55] via-rose-600 to-[#ff6b35] hover:from-rose-500 hover:to-orange-500 text-white font-black text-sm tracking-wide shadow-xl shadow-[#ff2d55]/40 transition-all duration-300 hover:scale-105 flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <Play size={18} className="fill-white" />
+                    <span>Putar Sekarang</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate("/hentaiplay")}
+                    className="px-7 py-3.5 rounded-full bg-gradient-to-r from-[#ff2d55] to-[#ff6b35] text-white font-black text-sm tracking-wide shadow-xl shadow-[#ff2d55]/40 transition-all duration-300 hover:scale-105 flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <Play size={18} className="fill-white" />
+                    <span>Mulai Menonton</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={() => navigate(`/hentaiplay/video/${encodeURIComponent(featuredItem.slug)}`)}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-sm sm:text-base flex items-center gap-2 shadow-xl shadow-red-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  onClick={() => navigate("/hentaiplay")}
+                  className="px-6 py-3.5 rounded-full glass-card hover:border-[#ff2d55]/50 text-white font-bold text-sm tracking-wide transition-all duration-300 hover:scale-105 flex items-center gap-2 shadow-lg"
                 >
-                  <Play size={18} className="fill-white" />
-                  <span>Tonton Sekarang</span>
+                  <Layers size={17} className="text-[#ff2d55]" />
+                  <span>Jelajahi Katalog</span>
                 </button>
-              )}
-
-              <button
-                onClick={() => navigate("/hentaiplay")}
-                className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm sm:text-base border border-white/15 backdrop-blur-md transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
-              >
-                <Layers size={18} />
-                <span>Jelajahi Katalog</span>
-              </button>
+              </div>
             </div>
-          </motion.div>
+
+            {/* Right Column: Floating 3D Teaser Card (Desktop) */}
+            <div className="hidden lg:block lg:col-span-4">
+              <div className="relative group cursor-pointer" onClick={() => {
+                if (featuredItem) navigate(`/hentaiplay/video/${encodeURIComponent(featuredItem.slug)}`);
+                else navigate("/hentaiplay");
+              }}>
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#ff2d55] to-[#ff6b35] opacity-40 blur-xl group-hover:opacity-75 transition-opacity duration-500" />
+                <div className="relative rounded-3xl overflow-hidden glass-card border border-white/20 shadow-2xl aspect-[16/10] bg-black">
+                  <img
+                    src={
+                      featuredItem?.cover_url ||
+                      featuredItem?.thumbnail ||
+                      DEFAULT_HERO_BG
+                    }
+                    alt="Featured Card"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-5">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ff2d55]/80 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider self-start mb-2">
+                      <Zap size={11} /> Sedang Populer
+                    </div>
+                    <p className="text-white text-xs font-bold line-clamp-1">
+                      {featuredItem?.title || "ApiCos Premiere Selection"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── 2. QUICK PLATFORM SHORTCUTS (PILLS BAR) ────────────────────────── */}
-      <div className="px-4 sm:px-8 -mt-4 sm:-mt-6 relative z-20 mb-8 sm:mb-12">
-        <div className="p-2 sm:p-3 rounded-2xl bg-[#0e0e12]/90 border border-white/10 shadow-2xl backdrop-blur-xl flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider border-r border-white/10 shrink-0">
-            <TrendingUp size={14} className="text-red-400" /> Platform
+      {/* ── 2. PLATFORM HUB GRID (6 Interactive Cyber-Luxe Cards) ────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-6 sm:mt-8 mb-16 relative z-20">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#ff2d55]/15 border border-[#ff2d55]/30 flex items-center justify-center text-[#ff2d55]">
+              <TrendingUp size={16} />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold font-display text-white">
+                Platform Media Terpadu
+              </h2>
+              <p className="text-xs text-gray-400">
+                Akses instan ke seluruh portal konten & arsip multimedia
+              </p>
+            </div>
           </div>
-          {categories.map((cat) => {
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {platformCards.map((cat) => {
             const Icon = cat.icon;
             return (
-              <button
+              <motion.div
                 key={cat.name}
+                whileHover={{ scale: 1.04, y: -3 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(cat.path)}
-                className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/5 hover:border-red-500/40 text-gray-200 hover:text-white transition-all text-xs sm:text-sm font-semibold group cursor-pointer"
+                className={`p-4 rounded-2xl glass-card border border-white/10 hover:border-white/30 cursor-pointer transition-all duration-300 shadow-xl group relative overflow-hidden flex flex-col justify-between min-h-[135px]`}
               >
-                <div className={`w-5 h-5 rounded-lg bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-sm`}>
-                  <Icon size={12} />
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none`}
+                />
+
+                <div className="flex items-center justify-between relative z-10">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform duration-300 group-hover:scale-110"
+                    style={{
+                      background: `linear-gradient(135deg, ${cat.color}, ${cat.color}aa)`,
+                      boxShadow: `0 4px 15px ${cat.color}40`,
+                    }}
+                  >
+                    <Icon size={18} />
+                  </div>
+                  <span
+                    className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border"
+                    style={{
+                      borderColor: `${cat.color}40`,
+                      color: cat.color,
+                      background: `${cat.color}15`,
+                    }}
+                  >
+                    {cat.badge}
+                  </span>
                 </div>
-                <span>{cat.name}</span>
-              </button>
+
+                <div className="relative z-10 pt-3">
+                  <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-white transition-colors line-clamp-1">
+                    {cat.name}
+                  </h3>
+                  <p className="text-[10px] text-gray-400 line-clamp-1 mt-0.5">
+                    {cat.sub}
+                  </p>
+                </div>
+              </motion.div>
             );
           })}
         </div>
       </div>
 
-      {/* ── 3. CAROUSEL: TRENDING ANIME DI HENTAIPLAY ────────────────────────── */}
+      {/* ── 3. CAROUSEL: TRENDING ANIME HENTAI ──────────────────────────── */}
       <MediaCarousel
         title="Trending Anime Hentai"
         icon={Flame}
-        tagColor="text-red-500"
+        accentColor="#ff2d55"
         viewAllLink="/hentaiplay"
       >
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-48 sm:w-60 h-36 bg-white/5 animate-pulse rounded-xl shrink-0" />
-          ))
+          Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
         ) : hentaiPlayVideos.length > 0 ? (
-          hentaiPlayVideos.slice(0, 12).map((item) => (
-            <motion.div
+          hentaiPlayVideos.slice(0, 14).map((item) => (
+            <CarouselCard
               key={item.slug}
-              whileHover={{ scale: 1.04, y: -4 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate(`/hentaiplay/video/${encodeURIComponent(item.slug)}`)}
-              className="w-48 sm:w-60 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-red-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-            >
-              <div className="relative aspect-video bg-black/60 overflow-hidden">
-                {item.cover_url || item.thumbnail ? (
-                  <img
-                    src={item.cover_url || item.thumbnail}
-                    alt={item.title}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-neutral-800">
-                    <Film size={28} className="text-gray-600" />
-                  </div>
-                )}
-                {item.categories?.length > 0 && (
-                  <span className="absolute top-2 left-2 bg-red-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
-                    {item.categories[0]}
-                  </span>
-                )}
-                {/* Play Overlay */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-600/50">
-                    <Play size={18} className="fill-white translate-x-0.5" />
-                  </div>
-                </div>
-              </div>
-              <div className="p-3">
-                <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">
-                  {item.title}
-                </p>
-              </div>
-            </motion.div>
+              onClick={() =>
+                navigate(
+                  `/hentaiplay/video/${encodeURIComponent(item.slug)}`
+                )
+              }
+              image={item.cover_url || item.thumbnail}
+              title={item.title}
+              badge={item.categories?.[0] || "Premier"}
+              badgeColor="#ff2d55"
+              hoverColor="#ff2d55"
+            />
           ))
         ) : (
-          <div className="w-full py-4 px-6 bg-neutral-900/60 border border-white/10 rounded-xl text-gray-400 text-xs">
-            Belum ada video HentaiPlay yang termuat.
+          <div className="w-full py-8 px-6 rounded-2xl glass-card text-center border border-white/10 max-w-lg mx-auto">
+            <Film size={32} className="mx-auto text-rose-500/50 mb-2" />
+            <p className="text-gray-300 text-sm font-semibold">
+              Menghubungkan ke Pusat Server HentaiPlay...
+            </p>
+            <p className="text-gray-500 text-xs mt-1">
+              Data sedang disinkronkan secara realtime.
+            </p>
           </div>
         )}
       </MediaCarousel>
 
-      {/* ── 4. CAROUSEL: TOP ANIMASI 3D DI PORN3DX ───────────────────────────── */}
+      {/* ── 4. CAROUSEL: TOP 3D ANIMATION ───────────────────────────────── */}
       <MediaCarousel
-        title="Animasi 3D Populer (Porn3dx)"
+        title="Animasi 3D Unggulan (Porn3dx)"
         icon={Video}
-        tagColor="text-cyan-400"
+        accentColor="#00e5ff"
         viewAllLink="/porn3dx"
       >
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-44 sm:w-56 h-40 bg-white/5 animate-pulse rounded-xl shrink-0" />
+            <SkeletonCard key={i} w="w-48 sm:w-56" h="h-44" />
           ))
         ) : porn3dxItems.length > 0 ? (
-          porn3dxItems.slice(0, 12).map((item, i) => (
-            <motion.div
+          porn3dxItems.slice(0, 14).map((item, i) => (
+            <CarouselCard
               key={item.id || i}
-              whileHover={{ scale: 1.04, y: -4 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate(`/porn3dx/${encodeURIComponent(item.slug)}`)}
-              className="w-44 sm:w-56 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-cyan-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-            >
-              <div className="relative aspect-[4/3] bg-black/60 overflow-hidden">
-                <img
-                  src={item.cover_url}
-                  alt={item.title}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {item.duration && (
-                  <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white">
-                    {item.duration}
-                  </span>
-                )}
-                <span className="absolute top-2 left-2 bg-cyan-600/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow">
-                  {item.type === "video" ? "3D Video" : "3D Render"}
-                </span>
-                {/* Play Overlay */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/50">
-                    <Play size={18} className="fill-white translate-x-0.5" />
-                  </div>
-                </div>
-              </div>
-              <div className="p-3">
-                <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-cyan-300 transition-colors">
-                  {item.title}
-                </p>
-              </div>
-            </motion.div>
+              onClick={() =>
+                navigate(`/porn3dx/${encodeURIComponent(item.slug)}`)
+              }
+              image={item.cover_url}
+              title={item.title}
+              badge={item.type === "video" ? "3D Video" : "3D Render"}
+              badgeColor="#00e5ff"
+              hoverColor="#00e5ff"
+              duration={item.duration}
+              widthClass="w-48 sm:w-56"
+              aspectClass="aspect-[4/3]"
+            />
           ))
         ) : (
-          <div className="w-full py-5 px-6 bg-gradient-to-r from-neutral-900/90 via-neutral-900/60 to-cyan-950/40 border border-cyan-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                <Video size={20} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  Server Porn3dx Sedang Pemeliharaan (503)
-                </h4>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Server pusat Porn3dx sedang offline/maintenance. Silakan coba kembali nanti atau tonton animasi 3D di Rule34.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                to="/porn3dx"
-                className="px-3.5 py-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 text-cyan-200 text-xs font-semibold transition-all"
-              >
-                Cek Status
-              </Link>
-              <Link
-                to="/rule34"
-                className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold transition-all"
-              >
-                Lihat Rule34 3D
-              </Link>
-            </div>
-          </div>
-        )}
-      </MediaCarousel>
-
-      {/* ── 5. CAROUSEL: MANGA & DOUJINSHI PILIHAN ──────────────────────────── */}
-      <MediaCarousel
-        title="Manga & Doujinshi Terpopuler"
-        icon={Book}
-        tagColor="text-amber-400"
-        viewAllLink="/doujin"
-      >
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-36 sm:w-44 h-48 bg-white/5 animate-pulse rounded-xl shrink-0" />
-          ))
-        ) : doujinList.length > 0 ? (
-          doujinList.slice(0, 12).map((item) => (
-            <motion.div
-              key={item.slug}
-              whileHover={{ scale: 1.04, y: -4 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate(`/doujin/${encodeURIComponent(item.slug)}`)}
-              className="w-36 sm:w-44 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-amber-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-            >
-              <div className="relative aspect-[3/4] bg-black/60 overflow-hidden">
-                <img
-                  src={item.cover_url || item.thumbnail}
-                  alt={item.title}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {item.score && (
-                  <span className="absolute top-2 left-2 bg-black/70 backdrop-blur text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5">
-                    ⭐ {item.score}
-                  </span>
-                )}
-                {item.type && (
-                  <span className="absolute bottom-2 right-2 bg-amber-600/90 text-white px-1.5 py-0.5 rounded text-[9px] font-bold">
-                    {item.type}
-                  </span>
-                )}
-              </div>
-              <div className="p-2.5 sm:p-3">
-                <p className="text-white text-xs sm:text-sm font-semibold line-clamp-2 leading-snug group-hover:text-amber-300 transition-colors">
-                  {item.title}
-                </p>
-              </div>
-            </motion.div>
-          ))
-        ) : (
-          <div className="w-full py-5 px-6 bg-gradient-to-r from-neutral-900/90 via-neutral-900/60 to-amber-950/40 border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                <Book size={20} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white">Manga & Doujin Sedang Disinkronkan</h4>
-                <p className="text-xs text-gray-400 mt-0.5">Belum ada preview yang termuat atau server sedang memuat ulang.</p>
-              </div>
-            </div>
+          <div className="w-full py-6 px-6 rounded-2xl glass-card border border-white/10 max-w-lg mx-auto text-center">
+            <Video size={32} className="mx-auto text-cyan-400/50 mb-2" />
+            <h4 className="text-sm font-bold text-white">
+              Animasi 3D Studio
+            </h4>
+            <p className="text-xs text-gray-400 mt-1 mb-3">
+              Kunjungi katalog Porn3dx atau Rule34 untuk ribuan video animasi 3D.
+            </p>
             <Link
-              to="/doujin"
-              className="px-3.5 py-1.5 rounded-lg bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/40 text-amber-200 text-xs font-semibold transition-all shrink-0"
+              to="/porn3dx"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold hover:bg-cyan-500/30 transition-colors"
             >
-              Buka DoujinDesu
+              Buka Katalog 3D &rarr;
             </Link>
           </div>
         )}
       </MediaCarousel>
 
-      {/* ── 6. CAROUSEL: FOTO TELEGRAM TERBARU (MONGODB ATLAS) ──────────────── */}
+      {/* ── 5. CAROUSEL: MANGA & DOUJINSHI ──────────────────────────────── */}
+      <MediaCarousel
+        title="Manga & Doujinshi Terpopuler"
+        icon={Book}
+        accentColor="#ffb347"
+        viewAllLink="/doujin"
+      >
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} w="w-40 sm:w-48" h="h-56" />
+          ))
+        ) : doujinList.length > 0 ? (
+          doujinList.slice(0, 14).map((item) => (
+            <CarouselCard
+              key={item.slug}
+              onClick={() =>
+                navigate(`/doujin/${encodeURIComponent(item.slug)}`)
+              }
+              image={item.cover_url || item.thumbnail}
+              title={item.title}
+              badge={item.score ? `⭐ ${item.score}` : "Doujin"}
+              badgeColor="#ffb347"
+              hoverColor="#ffb347"
+              widthClass="w-40 sm:w-48"
+              aspectClass="aspect-[3/4]"
+            />
+          ))
+        ) : (
+          <div className="w-full py-6 px-6 rounded-2xl glass-card border border-white/10 max-w-lg mx-auto text-center">
+            <Book size={32} className="mx-auto text-amber-400/50 mb-2" />
+            <h4 className="text-sm font-bold text-white">Doujinshi & Manga</h4>
+            <p className="text-xs text-gray-400 mt-1 mb-3">
+              Jelajahi koleksi komik Doujin Desu dan NHentai secara langsung.
+            </p>
+            <Link
+              to="/doujin"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold hover:bg-amber-500/30 transition-colors"
+            >
+              Buka Doujin Desu &rarr;
+            </Link>
+          </div>
+        )}
+      </MediaCarousel>
+
+      {/* ── 6. CAROUSEL: FOTO TELEGRAM PRIBADI ──────────────────────────── */}
       {telegramPhotos.length > 0 && (
         <MediaCarousel
-          title="Koleksi Galeri Telegram Pribadi"
+          title="Koleksi Vault Foto Telegram"
           icon={Camera}
-          tagColor="text-blue-400"
+          accentColor="#a855f7"
           viewAllLink="/personal-photo"
         >
           {telegramPhotos.map((photo) => (
-            <motion.div
+            <CarouselCard
               key={photo.id}
-              whileHover={{ scale: 1.04, y: -4 }}
-              whileTap={{ scale: 0.98 }}
               onClick={() => navigate("/personal-photo")}
-              className="w-36 sm:w-44 shrink-0 bg-neutral-900/80 border border-white/10 hover:border-blue-500/60 rounded-xl overflow-hidden cursor-pointer shadow-lg transition-all group"
-            >
-              <div className="relative aspect-[3/4] bg-black/60 overflow-hidden">
-                <img
-                  src={photo.proxyUrl || photo.url}
-                  alt={photo.caption || "Telegram Photo"}
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <span className="absolute top-2 left-2 bg-blue-600/90 text-white px-1.5 py-0.5 rounded text-[9px] font-bold">
-                  Telegram Sync
-                </span>
-              </div>
-              <div className="p-2.5">
-                <p className="text-white text-xs font-semibold line-clamp-1 group-hover:text-blue-300 transition-colors">
-                  {photo.caption || "Foto Tersimpan"}
-                </p>
-                {photo.date && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {new Date(photo.date).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-            </motion.div>
+              image={photo.proxyUrl || photo.url}
+              title={photo.caption || "Foto Tersimpan"}
+              badge="Telegram Sync"
+              badgeColor="#a855f7"
+              hoverColor="#a855f7"
+              widthClass="w-40 sm:w-48"
+              aspectClass="aspect-[3/4]"
+            />
           ))}
         </MediaCarousel>
       )}

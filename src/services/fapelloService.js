@@ -17,15 +17,22 @@ export const getFapelloModel = async (slug) => {
   const id = parts.length > 1 ? parts[1] : parts[0];
 
   const data = await getCoomerCreatorPosts(service, id, 0);
+  const mediaList = (data.posts || []).flatMap((p) =>
+    (p.images || []).map((img) => ({
+      id: img.name || img.url,
+      type: "image",
+      src: img.url,
+      cover_url: img.url,
+      href: p.post_url || img.url,
+      is_video: false,
+    }))
+  );
+
   return {
     name: id,
     avatar: `/api/coomer/media?icon=1&service=${encodeURIComponent(service)}&id=${encodeURIComponent(id)}`,
     followers: "Verified",
-    media: (data.posts || []).flatMap(p => p.images || []).map(img => ({
-      type: "image",
-      src: img.url,
-      cover_url: img.url,
-      href: p.post_url,
-    })),
+    posts: mediaList,
+    media: mediaList,
   };
 };

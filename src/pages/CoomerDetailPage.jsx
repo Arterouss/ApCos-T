@@ -2,8 +2,19 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, ExternalLink, Loader2, Users, Heart,
-  Image as ImageIcon, Video, X, ChevronLeft, ChevronRight, Download
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  Users,
+  Heart,
+  Image as ImageIcon,
+  Video,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Sparkles,
+  Calendar,
 } from "lucide-react";
 import { getCoomerCreatorPosts, getCoomerCreatorProfile } from "../services/coomerService";
 
@@ -55,98 +66,109 @@ export default function CoomerDetailPage() {
   }, [fetchPosts]);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white selection:bg-rose-500 selection:text-white">
-      {/* Header / Nav */}
-      <div className="sticky top-0 z-30 bg-neutral-950/85 backdrop-blur-xl border-b border-white/5 px-4 lg:px-8 py-3.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen text-white pb-24 pt-4 md:pt-10 px-3.5 sm:px-6 md:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Top Navbar */}
+        <div className="flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10 hover:border-rose-500/40 text-gray-300 hover:text-white text-xs sm:text-sm font-semibold transition-all group shadow-md"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            Kembali
           </button>
-          <div>
-            <h1 className="font-bold text-sm text-white line-clamp-1">{profile?.name || id}</h1>
-            <span className="text-[10px] uppercase font-semibold text-rose-400">{service}</span>
-          </div>
+
+          {profile?.url && (
+            <a
+              href={profile.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10 hover:border-rose-500/40 text-gray-400 hover:text-rose-300 text-xs font-semibold transition-all"
+            >
+              <span>Buka Web Sumber</span>
+              <ExternalLink size={14} />
+            </a>
+          )}
         </div>
 
-        {profile?.url && (
-          <a
-            href={profile.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-xl bg-white/5 hover:bg-rose-600/20 text-gray-400 hover:text-rose-400 transition-all flex items-center gap-1.5 text-xs"
-            title="Buka di Coomer.st"
-          >
-            <span className="hidden sm:inline">Web Sumber</span>
-            <ExternalLink size={16} />
-          </a>
-        )}
-      </div>
+        {/* Creator Hero Banner Card */}
+        <div className="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 space-y-8">
-        {/* Creator Hero Banner & Info */}
-        <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border border-white/5 rounded-3xl p-6 lg:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-2xl">
-          {/* Avatar */}
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-neutral-800 border-4 border-rose-500/30 flex-shrink-0 shadow-xl shadow-rose-950/30 relative">
-            <img
-              src={`/api/coomer/media?icon=1&service=${encodeURIComponent(service)}&id=${encodeURIComponent(id)}`}
-              alt={profile?.name || id}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-gray-600 -z-0">
-              <Users size={36} />
-            </div>
-          </div>
-
-          {/* Details */}
-          <div className="flex-1 text-center sm:text-left space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-extrabold text-white">{profile?.name || id}</h2>
-              <span className="self-center sm:self-auto text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                {service}
-              </span>
+          <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+            {/* Avatar */}
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden glass-card border-2 border-rose-500/40 flex-shrink-0 shadow-xl shadow-rose-950/40 relative group">
+              <img
+                src={`/api/coomer/media?icon=1&service=${encodeURIComponent(service)}&id=${encodeURIComponent(id)}`}
+                alt={profile?.name || id}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-gray-600 -z-0">
+                <Users size={36} />
+              </div>
             </div>
 
-            <p className="text-xs text-gray-400">@{id}</p>
-
-            <div className="flex items-center justify-center sm:justify-start gap-3 pt-2">
-              {profile?.favorited > 0 && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-rose-400">
-                  <Heart size={14} className="fill-rose-500" />
-                  {profile.favorited.toLocaleString()} Favorites
+            {/* Profile Info */}
+            <div className="flex-1 text-center sm:text-left space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-black text-white font-display">
+                  {profile?.name || id}
+                </h1>
+                <span className="self-center sm:self-auto text-[11px] uppercase font-bold px-3 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                  {service}
                 </span>
-              )}
-              <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300">
-                {posts.length} Postingan di halaman ini
-              </span>
+              </div>
+
+              <p className="text-xs text-gray-400 font-mono">ID: @{id}</p>
+
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2 text-xs">
+                {profile?.favorited > 0 && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-card border border-rose-500/30 text-rose-300 font-semibold shadow-md">
+                    <Heart size={14} className="fill-rose-500 text-rose-500" />
+                    {profile.favorited.toLocaleString()} Menyukai
+                  </span>
+                )}
+                <span className="px-3 py-1.5 rounded-full glass-card border border-white/10 text-gray-300 font-medium">
+                  {posts.length} Postingan di Halaman Ini
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Posts Section */}
         <div>
-          <h3 className="text-base font-bold text-white mb-4">Galeri Postingan</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Sparkles size={18} className="text-rose-400" /> Arsip Postingan
+            </h2>
+            <span className="text-xs text-gray-400 font-medium">
+              Halaman {page}
+            </span>
+          </div>
 
           {loading ? (
             <div className="min-h-[40vh] flex flex-col items-center justify-center gap-3">
-              <Loader2 size={36} className="text-rose-500 animate-spin" />
-              <p className="text-xs text-gray-400">Memuat postingan...</p>
+              <div className="w-12 h-12 rounded-full border-2 border-rose-500/20 border-t-rose-500 animate-spin" />
+              <p className="text-xs text-rose-300 uppercase tracking-widest font-semibold">
+                Memuat Postingan...
+              </p>
             </div>
           ) : error ? (
-            <div className="p-8 text-center bg-neutral-900/50 border border-red-500/20 rounded-2xl">
-              <p className="text-red-400 text-sm mb-3">{error}</p>
+            <div className="glass-card p-8 text-center rounded-3xl border border-rose-500/30 max-w-md mx-auto">
+              <p className="text-rose-400 text-sm mb-4">{error}</p>
               <button
                 onClick={fetchPosts}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold"
+                className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-full text-xs font-semibold transition-all shadow-lg shadow-rose-600/30"
               >
                 Coba Lagi
               </button>
             </div>
           ) : posts.length === 0 ? (
-            <div className="py-20 text-center text-gray-500 text-sm">
+            <div className="glass-card p-12 text-center rounded-3xl text-gray-500 text-sm max-w-md mx-auto">
               Belum ada postingan media dari creator ini.
             </div>
           ) : (
@@ -158,12 +180,14 @@ export default function CoomerDetailPage() {
                     key={post.id}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-neutral-900/60 border border-white/5 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-lg"
+                    className="glass-card border border-white/10 hover:border-rose-500/40 rounded-3xl p-5 flex flex-col justify-between gap-4 shadow-xl transition-all duration-300 hover:-translate-y-1"
                   >
-                    {/* Post Content / Caption */}
+                    {/* Caption Header */}
                     <div>
                       {post.title && (
-                        <h4 className="font-bold text-sm text-white mb-1.5">{post.title}</h4>
+                        <h3 className="font-bold text-sm text-white mb-1.5 line-clamp-2">
+                          {post.title}
+                        </h3>
                       )}
                       {post.content && (
                         <p className="text-xs text-gray-300 leading-relaxed line-clamp-3 mb-3">
@@ -171,26 +195,35 @@ export default function CoomerDetailPage() {
                         </p>
                       )}
                       {post.published && (
-                        <p className="text-[10px] text-gray-500">
-                          {new Date(post.published).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                          <Calendar size={11} className="text-rose-400" />
+                          <span>
+                            {new Date(post.published).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
                       )}
                     </div>
 
-                    {/* Media Grid inside the post card */}
+                    {/* Media Grid Preview */}
                     {allMedia.length > 0 && (
-                      <div className={`grid gap-2 ${allMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} mt-2`}>
+                      <div
+                        className={`grid gap-2 ${
+                          allMedia.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                        } mt-1`}
+                      >
                         {allMedia.slice(0, 4).map((m, idx) => {
-                          const isVideo = ['mp4', 'webm', 'mov', 'm4v'].some(ext => (m.path || m.name || '').endsWith(ext));
+                          const isVideo = ["mp4", "webm", "mov", "m4v"].some((ext) =>
+                            (m.path || m.name || "").endsWith(ext)
+                          );
                           return (
                             <div
                               key={idx}
                               onClick={() => setSelectedMedia({ ...m, isVideo })}
-                              className="relative aspect-square rounded-xl overflow-hidden bg-neutral-800 cursor-pointer group border border-white/5 hover:border-rose-500/50 transition-colors"
+                              className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group border border-white/5 hover:border-rose-500/50 transition-all"
                             >
                               <img
                                 src={m.url}
@@ -200,13 +233,13 @@ export default function CoomerDetailPage() {
                               />
                               {isVideo && (
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                  <div className="w-10 h-10 rounded-full bg-rose-600/90 flex items-center justify-center shadow-lg">
+                                  <div className="w-10 h-10 rounded-full bg-rose-600/90 flex items-center justify-center shadow-lg shadow-rose-600/40">
                                     <Video size={18} className="text-white" />
                                   </div>
                                 </div>
                               )}
                               {idx === 3 && allMedia.length > 4 && (
-                                <div className="absolute inset-0 bg-black/75 flex items-center justify-center text-white font-bold text-sm">
+                                <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-white font-bold text-xs backdrop-blur-sm">
                                   +{allMedia.length - 4} Lainnya
                                 </div>
                               )}
@@ -222,21 +255,21 @@ export default function CoomerDetailPage() {
           )}
 
           {/* Pagination */}
-          <div className="flex items-center justify-center gap-3 pt-8 pb-4">
+          <div className="flex items-center justify-center gap-3 pt-10 pb-4">
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-30 disabled:pointer-events-none border border-white/10 rounded-xl text-xs font-semibold text-white flex items-center gap-1.5 transition-colors"
+              className="px-5 py-2.5 glass-card hover:border-rose-500/40 disabled:opacity-30 disabled:pointer-events-none border border-white/10 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 transition-all shadow-md"
             >
               <ChevronLeft size={16} /> Sebelumnya
             </button>
-            <span className="text-xs font-semibold text-gray-400 px-3 py-2 bg-white/5 rounded-xl border border-white/10">
+            <span className="text-xs font-bold text-rose-300 px-4 py-2 glass-card rounded-full border border-rose-500/30">
               Halaman {page}
             </span>
             <button
               disabled={!hasMore}
               onClick={() => setPage((p) => p + 1)}
-              className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-30 disabled:pointer-events-none border border-white/10 rounded-xl text-xs font-semibold text-white flex items-center gap-1.5 transition-colors"
+              className="px-5 py-2.5 glass-card hover:border-rose-500/40 disabled:opacity-30 disabled:pointer-events-none border border-white/10 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 transition-all shadow-md"
             >
               Selanjutnya <ChevronRight size={16} />
             </button>
@@ -247,7 +280,10 @@ export default function CoomerDetailPage() {
       {/* Lightbox Modal */}
       <AnimatePresence>
         {selectedMedia && (
-          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4"
+            onClick={() => setSelectedMedia(null)}
+          >
             <button
               onClick={() => setSelectedMedia(null)}
               className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-10"
@@ -258,6 +294,7 @@ export default function CoomerDetailPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
               className="max-w-4xl max-h-[90vh] flex flex-col items-center"
             >
               {selectedMedia.isVideo ? (
@@ -265,17 +302,26 @@ export default function CoomerDetailPage() {
                   src={selectedMedia.url}
                   controls
                   autoPlay
-                  className="max-h-[80vh] max-w-full rounded-2xl shadow-2xl"
+                  className="max-h-[80vh] max-w-full rounded-2xl shadow-2xl border border-white/10"
                 />
               ) : (
                 <img
                   src={selectedMedia.url}
                   alt={selectedMedia.name}
-                  className="max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl"
+                  className="max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
                 />
               )}
-              {selectedMedia.name && (
-                <p className="text-xs text-gray-400 mt-3 text-center">{selectedMedia.name}</p>
+              {selectedMedia.url && (
+                <div className="mt-3 flex items-center gap-3">
+                  <a
+                    href={selectedMedia.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-rose-300 flex items-center gap-1.5 transition-all"
+                  >
+                    <Download size={13} /> Unduh Berkas Asli
+                  </a>
+                </div>
               )}
             </motion.div>
           </div>

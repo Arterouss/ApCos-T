@@ -1,19 +1,15 @@
 import { useState, useEffect } from "react";
 
 export function useFavorites() {
-  const [favorites, setFavorites] = useState([]);
-
-  // Muat data dari localStorage saat hook pertama kali dipanggil
-  useEffect(() => {
+  const [favorites, setFavorites] = useState(() => {
     try {
       const stored = localStorage.getItem("apicos_favorites");
-      if (stored) {
-        setFavorites(JSON.parse(stored));
-      }
+      return stored ? JSON.parse(stored) : [];
     } catch (e) {
       console.error("Gagal memuat favorit:", e);
+      return [];
     }
-  }, []);
+  });
 
   // Simpan ke localStorage setiap kali state favorites berubah
   useEffect(() => {

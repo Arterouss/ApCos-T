@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -15,6 +15,7 @@ import {
   Sparkles,
   Sliders,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 
 export default function AnimeWatchPage() {
@@ -118,141 +119,184 @@ export default function AnimeWatchPage() {
         const resolvedQ = targetQ || mirror.q;
         setCachedStreamUrls((prev) => ({ ...prev, [resolvedQ]: data.url }));
       } else {
-        throw new Error("Link stream tidak ditemukan pada server ini.");
+        throw new Error("Server ini sedang tidak merespon link stream.");
       }
     } catch (err) {
-      console.error("Change stream error:", err);
-      setStreamError(`Gagal memuat server ${mirror.name} (${mirror.q}). Coba klik server lain di bawah.`);
+      console.error("Load mirror error:", err);
+      setStreamError(
+        `Server ${mirror.name} (${mirror.q || targetQ}) tidak dapat memuat video. Silakan pilih server lain di bawah.`
+      );
     } finally {
       setChangingStream(false);
     }
   };
 
-  // Change quality tab
-  const handleQualityChange = (q) => {
-    if (changingStream) return;
-    setActiveQuality(q);
+  // Switch Quality / Resolution
+  const handleQualityChange = async (qualityKey) => {
+    if (qualityKey === activeQuality && currentStreamUrl) return;
+    setActiveQuality(qualityKey);
     setActiveServerIndex(0);
 
-    // Instant switch if already cached (0ms delay)
-    if (cachedStreamUrls[q]) {
-      setCurrentStreamUrl(cachedStreamUrls[q]);
+    // Fast-path: Check if already cached in memory
+    if (cachedStreamUrls[qualityKey]) {
+      setCurrentStreamUrl(cachedStreamUrls[qualityKey]);
       setStreamError(null);
       return;
     }
 
-    const mirrorsForQ = episode?.qualities?.[q];
-    if (mirrorsForQ && mirrorsForQ[0]) {
-      loadMirror(mirrorsForQ[0], episode, q);
+    const mirrors = episode?.qualities?.[qualityKey] || [];
+    if (mirrors.length > 0) {
+      // Pick first mirror, prioritize odstream/desustream if available
+      const bestMirror =
+        mirrors.find((m) => m.name.toLowerCase().includes("od") || m.name.toLowerCase().includes("desu")) ||
+        mirrors[0];
+
+      const bestIdx = mirrors.indexOf(bestMirror);
+      setActiveServerIndex(bestIdx >= 0 ? bestIdx : 0);
+      await loadMirror(bestMirror, episode, qualityKey);
+    } else {
+      setStreamError(`Resolusi ${qualityKey} tidak memiliki server alternatif.`);
     }
   };
 
-  // Change server within active quality
+  // Switch Server within the active quality
   const handleServerChange = (index) => {
-    if (index === activeServerIndex || changingStream) return;
     setActiveServerIndex(index);
-
-    const mirror = episode?.qualities?.[activeQuality]?.[index];
-    if (mirror) {
-      loadMirror(mirror, episode, activeQuality);
+    const mirrors = episode?.qualities?.[activeQuality] || [];
+    if (mirrors[index]) {
+      loadMirror(mirrors[index], episode, activeQuality);
     }
   };
 
-  // ── Loading state ─────────────────────────────────────────────────────
+  // Loading
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <Loader2 size={40} className="text-cyan-400 animate-spin mb-4" />
-        <p className="text-white/40 text-sm">Memuat episode dan stream...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#07080f]">
+        <div className="relative">
+          <Loader2 size={48} className="text-neon-cyan animate-spin" />
+          <div className="absolute inset-0 blur-xl bg-neon-cyan/20 animate-pulse" />
+        </div>
+        <p className="text-gray-400 text-xs sm:text-sm mt-4 font-mono tracking-wider">
+          MEMUAT PEMUTAR VIDEO...
+        </p>
       </div>
     );
   }
 
-  // ── Error state ───────────────────────────────────────────────────────
+  // Error
   if (error || !episode) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <AlertCircle size={48} className="text-red-400 mb-4" />
-        <p className="text-red-400 font-semibold mb-2">Gagal Memuat Episode</p>
-        <p className="text-white/40 text-sm mb-4">{error || "Episode tidak ditemukan"}</p>
-        <button
-          onClick={() => navigate("/anime")}
-          className="px-6 py-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 font-semibold border border-cyan-500/30 hover:bg-cyan-500/30 transition-all"
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center bg-[#07080f]">
+        <div
+          className="rounded-3xl p-8 max-w-md mx-auto"
+          style={{
+            background: 'rgba(18, 18, 28, 0.6)',
+            border: '1px solid rgba(255, 45, 85, 0.25)',
+          }}
         >
-          Kembali ke Daftar Anime
-        </button>
+          <AlertCircle size={48} className="text-neon-red mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-white mb-2">Gagal Memuat Episode</h2>
+          <p className="text-gray-400 text-xs mb-6">{error || "Episode tidak ditemukan."}</p>
+          <button
+            onClick={() => navigate("/anime")}
+            className="px-6 py-2.5 rounded-xl text-xs font-bold text-black transition-all cursor-pointer"
+            style={{ background: '#00e5ff' }}
+          >
+            Kembali ke Katalog
+          </button>
+        </div>
       </div>
     );
   }
 
-  const qualityKeys = episode.qualityKeys || Object.keys(episode.qualities || {});
+  const qualityKeys =
+    episode.qualityKeys && episode.qualityKeys.length > 0
+      ? episode.qualityKeys
+      : Object.keys(episode.qualities || {});
+
   const availableServers = episode.qualities?.[activeQuality] || [];
 
   return (
-    <div className="min-h-screen pb-20">
-      {/* ── Top Bar ─────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 backdrop-blur-xl bg-black/75 border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() =>
-                episode.animeSlug
-                  ? navigate(`/anime/detail/${episode.animeSlug}`)
-                  : navigate("/anime")
-              }
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white/80 hover:bg-white/20 transition-all text-sm flex-shrink-0"
-            >
-              <ArrowLeft size={14} />
-              <span className="hidden sm:inline">Kembali</span>
-            </button>
-            <h1 className="text-sm sm:text-base font-semibold text-white truncate">
-              {episode.title}
-            </h1>
-          </div>
+    <div className="min-h-screen text-white pb-24 relative overflow-hidden bg-[#07080f]">
+      {/* ── Background Aurora Glow ───────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-cyan-500/[0.06] blur-[160px]" />
+        <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/[0.05] blur-[170px]" />
+      </div>
 
-          {/* Episode navigation */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {episode.prevEpisode && (
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-6">
+        {/* ── Top Navigation Bar ──────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <button
+            onClick={() => {
+              if (episode.animeSlug) {
+                navigate(`/anime/detail/${episode.animeSlug}`);
+              } else {
+                navigate("/anime");
+              }
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-gray-300 hover:text-white transition-all cursor-pointer"
+            style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+            }}
+          >
+            <ArrowLeft size={16} />
+            <span>Detail Anime</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {episode.allEpisodes && (
               <Link
-                to={`/anime/watch/${episode.prevEpisode}`}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white/80 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all text-sm"
-                title="Episode Sebelumnya"
+                to={`/anime/detail/${episode.animeSlug || ""}`}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-neon-cyan hover:text-white transition-all"
+                style={{
+                  background: 'rgba(0, 229, 255, 0.08)',
+                  border: '1px solid rgba(0, 229, 255, 0.25)',
+                }}
               >
-                <ChevronLeft size={14} />
-                <span className="hidden sm:inline">Prev</span>
-              </Link>
-            )}
-            {episode.animeSlug && (
-              <Link
-                to={`/anime/detail/${episode.animeSlug}`}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white/80 hover:bg-violet-500/20 hover:border-violet-500/40 transition-all text-sm"
-                title="Semua Episode"
-              >
-                <List size={14} />
-              </Link>
-            )}
-            {episode.nextEpisode && (
-              <Link
-                to={`/anime/watch/${episode.nextEpisode}`}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white/80 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all text-sm"
-                title="Episode Selanjutnya"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight size={14} />
+                <List size={15} />
+                <span>Semua Episode</span>
               </Link>
             )}
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-4">
-        {/* ── Video Player ──────────────────────────────────────────── */}
+        {/* ── Title Header ────────────────────────────────────────────── */}
+        <div className="mb-4">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-black text-white leading-tight tracking-tight">
+            {episode.title}
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-400 mt-1">
+            Otakudesu • Resolusi Aktif: <strong className="text-neon-cyan">{activeQuality}</strong>
+          </p>
+        </div>
+
+        {/* ── VIDEO PLAYER CONTAINER ─────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full relative"
+          className="relative"
         >
-          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/60">
+          <div
+            className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl transition-all"
+            style={{
+              background: '#040508',
+              border: '1px solid rgba(0, 229, 255, 0.25)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(0, 229, 255, 0.12)',
+            }}
+          >
+            {changingStream && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md">
+                <Loader2 size={40} className="text-neon-cyan animate-spin mb-3" />
+                <p className="text-white text-xs sm:text-sm font-semibold">
+                  Menghubungkan ke resolusi {activeQuality}...
+                </p>
+                <p className="text-gray-400 text-[11px] mt-1">Memproses stream provider</p>
+              </div>
+            )}
+
             {currentStreamUrl ? (
               <iframe
                 key={currentStreamUrl}
@@ -261,49 +305,36 @@ export default function AnimeWatchPage() {
                     ? `/api/anime/stream-player?url=${encodeURIComponent(currentStreamUrl)}`
                     : currentStreamUrl
                 }
-                className="absolute inset-0 w-full h-full border-0"
+                title={episode.title}
+                className="w-full h-full border-0"
                 allowFullScreen
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                <Monitor size={48} className="text-white/20 mb-3" />
-                <p className="text-white/60 text-sm font-semibold">
-                  Pilih resolusi dan server di bawah untuk mulai menonton
-                </p>
-                <p className="text-white/30 text-xs mt-1">
-                  Tersedia resolusi 360p, 480p, dan 720p HD
+              <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 bg-surface-card">
+                <AlertCircle size={40} className="text-neon-red mb-3" />
+                <p className="text-white font-bold text-sm mb-1">Stream Belum Tersedia</p>
+                <p className="text-gray-400 text-xs max-w-sm mb-4">
+                  Pilih resolusi atau server di bawah untuk memuat video.
                 </p>
               </div>
             )}
-
-            {/* Switching Resolution / Mirror Overlay */}
-            <AnimatePresence>
-              {changingStream && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center z-10"
-                >
-                  <Loader2 size={36} className="text-cyan-400 animate-spin mb-3" />
-                  <p className="text-white/90 text-sm font-semibold">
-                    Memuat Resolusi {activeQuality}...
-                  </p>
-                  <p className="text-white/40 text-xs mt-1">
-                    Server: {availableServers[activeServerIndex]?.name || "Auto"}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           {/* Quick Resolution & Action Bar directly below video */}
-          <div className="mt-3 p-3 sm:p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-3 shadow-xl shadow-black/40">
+          <div
+            className="mt-4 p-3 sm:p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3"
+            style={{
+              background: 'rgba(14, 16, 26, 0.65)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+            }}
+          >
             {/* Quick Quality Buttons */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-white/50 flex items-center gap-1.5 mr-1">
-                <Sliders size={13} className="text-cyan-400" />
+              <span className="text-xs font-semibold text-gray-400 flex items-center gap-1.5 mr-1">
+                <Sliders size={14} className="text-neon-cyan" />
                 <span>Pilih Resolusi:</span>
               </span>
 
@@ -317,24 +348,33 @@ export default function AnimeWatchPage() {
                     disabled={changingStream}
                     className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all duration-200 disabled:opacity-50 cursor-pointer ${
                       isActive
-                        ? "bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-md shadow-cyan-500/30 scale-105 border border-white/30"
-                        : "bg-white/5 border border-white/10 text-white/70 hover:bg-white/15 hover:text-white hover:border-cyan-500/40"
+                        ? "text-black shadow-lg"
+                        : "text-gray-400 hover:text-white"
                     }`}
+                    style={{
+                      background: isActive
+                        ? 'linear-gradient(135deg, #00e5ff, #7c4dff)'
+                        : 'rgba(255, 255, 255, 0.04)',
+                      border: isActive
+                        ? '1px solid rgba(0, 229, 255, 0.8)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                      boxShadow: isActive ? '0 0 15px rgba(0, 229, 255, 0.4)' : 'none',
+                    }}
                   >
                     <span>{q}</span>
                     {isHD && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/25 text-amber-300 font-extrabold border border-amber-400/40">
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400 text-black font-extrabold uppercase">
                         HD
                       </span>
                     )}
-                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />}
                   </button>
                 );
               })}
             </div>
 
             {/* Quick Actions (External link & Server reload) */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {currentStreamUrl && (
                 <a
                   href={
@@ -344,7 +384,11 @@ export default function AnimeWatchPage() {
                   }
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-cyan-300 hover:border-cyan-500/30 transition-all text-xs font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-300 hover:text-neon-cyan transition-all"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
                   title="Buka Player di Tab Baru"
                 >
                   <ExternalLink size={12} />
@@ -355,10 +399,14 @@ export default function AnimeWatchPage() {
                 <button
                   onClick={() => loadMirror(availableServers[activeServerIndex], episode, activeQuality)}
                   disabled={changingStream}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-xs font-medium cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-300 hover:text-white transition-all cursor-pointer"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
                   title="Muat Ulang Server Ini"
                 >
-                  <Sparkles size={12} className="text-violet-400" />
+                  <Sparkles size={12} className="text-neon-purple" />
                   <span>Reload Server</span>
                 </button>
               )}
@@ -367,14 +415,20 @@ export default function AnimeWatchPage() {
 
           {/* Stream error alert */}
           {streamError && (
-            <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-300 text-xs">
+            <div
+              className="mt-3 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-amber-300 text-xs"
+              style={{
+                background: 'rgba(251, 191, 36, 0.08)',
+                border: '1px solid rgba(251, 191, 36, 0.3)',
+              }}
+            >
               <div className="flex items-center gap-2">
-                <AlertCircle size={16} className="flex-shrink-0" />
+                <AlertCircle size={16} className="shrink-0 text-amber-400" />
                 <span>{streamError}</span>
               </div>
               <button
                 onClick={() => setStreamError(null)}
-                className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200"
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 transition-colors cursor-pointer"
               >
                 Tutup
               </button>
@@ -387,24 +441,35 @@ export default function AnimeWatchPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mt-6 p-4 sm:p-5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-4"
+          className="mt-6 p-5 rounded-3xl space-y-5"
+          style={{
+            background: 'rgba(14, 16, 26, 0.65)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+          }}
         >
           {/* 1. Quality / Resolution Row */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sliders size={15} className="text-cyan-400" />
+                <Sliders size={16} className="text-neon-cyan" />
                 <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
                   Pilihan Resolusi Video
                 </h3>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] font-bold">
+              <div
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-neon-cyan"
+                style={{
+                  background: 'rgba(0, 229, 255, 0.1)',
+                  border: '1px solid rgba(0, 229, 255, 0.25)',
+                }}
+              >
                 <Sparkles size={11} />
                 <span>Resolusi Aktif: {activeQuality}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {qualityKeys.map((q) => {
                 const isActive = q === activeQuality;
                 const is720 = q.includes("720");
@@ -419,27 +484,35 @@ export default function AnimeWatchPage() {
                     key={q}
                     onClick={() => handleQualityChange(q)}
                     disabled={changingStream}
-                    className={`relative flex items-center justify-between p-3.5 rounded-xl font-bold text-sm transition-all duration-300 disabled:opacity-50 text-left cursor-pointer ${
-                      isActive
-                        ? "bg-gradient-to-r from-cyan-500/30 via-violet-500/30 to-purple-500/30 border-2 border-cyan-400 text-white shadow-lg shadow-cyan-500/20"
-                        : "bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:border-cyan-500/40 hover:text-white"
-                    }`}
+                    className="relative flex items-center justify-between p-4 rounded-2xl font-bold text-sm transition-all duration-300 disabled:opacity-50 text-left cursor-pointer"
+                    style={{
+                      background: isActive
+                        ? 'linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(124, 77, 255, 0.15))'
+                        : 'rgba(255, 255, 255, 0.02)',
+                      border: isActive
+                        ? '2px solid rgba(0, 229, 255, 0.6)'
+                        : '1px solid rgba(255, 255, 255, 0.06)',
+                      boxShadow: isActive ? '0 0 25px rgba(0, 229, 255, 0.2)' : 'none',
+                    }}
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-base font-extrabold">{q}</span>
+                        <span className="text-base font-extrabold text-white">{q}</span>
                         {is720 && (
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-400/20 text-cyan-300 font-extrabold border border-cyan-400/30 uppercase">
-                            ⭐ HD
+                          <span
+                            className="text-[9px] px-2 py-0.5 rounded font-extrabold uppercase text-black"
+                            style={{ background: '#00e5ff' }}
+                          >
+                            HD
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-white/50 font-normal mt-0.5">{label}</p>
+                      <p className="text-[11px] text-gray-400 font-normal mt-0.5">{label}</p>
                     </div>
                     {isActive ? (
-                      <CheckCircle2 size={18} className="text-cyan-400 flex-shrink-0" />
+                      <CheckCircle2 size={20} className="text-neon-cyan shrink-0" />
                     ) : (
-                      <span className="text-xs text-white/30 font-normal">Pilih</span>
+                      <span className="text-xs text-gray-500 font-normal">Pilih</span>
                     )}
                   </button>
                 );
@@ -449,28 +522,27 @@ export default function AnimeWatchPage() {
 
           {/* 2. Server / Mirror Row for the selected resolution */}
           {availableServers.length > 0 && (
-            <div className="pt-3 border-t border-white/5">
-              <div className="flex items-center justify-between mb-2">
+            <div className="pt-4 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Monitor size={15} className="text-violet-400" />
-                  <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wider">
-                    Pilih Server / Provider ({activeQuality})
+                  <Monitor size={15} className="text-neon-purple" />
+                  <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                    Pilih Server Alternatif ({activeQuality})
                   </h4>
                 </div>
-                <span className="text-[11px] text-white/40">
+                <span className="text-[11px] text-gray-500 font-mono">
                   {availableServers.length} server tersedia
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {[...availableServers].sort((a, b) => {
                   const aIsOd = a.name.toLowerCase().startsWith('od') || a.name.toLowerCase().includes('desu');
                   const bIsOd = b.name.toLowerCase().startsWith('od') || b.name.toLowerCase().includes('desu');
                   if (aIsOd && !bIsOd) return -1;
                   if (!aIsOd && bIsOd) return 1;
                   return 0;
-                }).map((server, i) => {
-                  // Find original index in availableServers
+                }).map((server) => {
                   const origIdx = availableServers.findIndex(s => s.name === server.name);
                   const isActive = origIdx === activeServerIndex;
                   const isRecommended = server.name.toLowerCase().startsWith('od') || server.name.toLowerCase().includes('desu');
@@ -480,31 +552,47 @@ export default function AnimeWatchPage() {
                       key={server.name}
                       onClick={() => handleServerChange(origIdx)}
                       disabled={changingStream}
-                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 capitalize ${
-                        isActive
-                          ? "bg-violet-600/30 border border-violet-400 text-violet-200 shadow-md shadow-violet-500/20"
-                          : "bg-white/5 border border-white/10 text-white/60 hover:bg-violet-500/10 hover:border-violet-500/30 hover:text-white/90"
-                      }`}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 capitalize cursor-pointer"
+                      style={{
+                        background: isActive
+                          ? 'rgba(124, 77, 255, 0.25)'
+                          : 'rgba(255, 255, 255, 0.03)',
+                        border: isActive
+                          ? '1px solid rgba(124, 77, 255, 0.6)'
+                          : '1px solid rgba(255, 255, 255, 0.06)',
+                        color: isActive ? '#d8b4fe' : '#9ca3af',
+                        boxShadow: isActive ? '0 0 15px rgba(124, 77, 255, 0.3)' : 'none',
+                      }}
                     >
                       <Play size={10} fill="currentColor" />
                       <span>{server.name}</span>
                       {isRecommended && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">
-                          ⭐ Rekomendasi
+                        <span
+                          className="text-[9px] px-1.5 py-0.2 rounded font-bold text-black"
+                          style={{ background: '#ffb347' }}
+                        >
+                          Rekomendasi
                         </span>
                       )}
-                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 ml-0.5" />}
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-neon-purple ml-0.5" />}
                     </button>
                   );
                 })}
               </div>
 
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-white/50 space-y-1 mt-2.5">
-                <p>
-                  💡 <strong className="text-white/80">Kenapa ada server yang "Not Found" / tidak bisa dibuka?</strong>
+              <div
+                className="p-3.5 rounded-2xl text-[11px] text-gray-400 space-y-1.5 mt-4"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                }}
+              >
+                <p className="flex items-center gap-1.5 font-bold text-gray-300">
+                  <ShieldAlert size={13} className="text-neon-cyan" />
+                  Tips jika video tidak bisa diputar:
                 </p>
-                <p className="text-white/40 leading-relaxed">
-                  Server anime disediakan oleh beberapa pihak ketiga gratisan (seperti Mega, Vidhide, Filedon). File di server luar bisa sewaktu-waktu <em>terhapus (DMCA/hak cipta)</em> atau <em>diblokir operator internet</em>. Jika salah satu server error, cukup klik <strong>server lain di sebelahnya</strong> (disarankan yang berlabel <strong>⭐ Rekomendasi / Odstream</strong>).
+                <p className="text-gray-400 leading-relaxed">
+                  Jika pemutar menampilkan error atau layar kosong, coba klik server lain di sebelahnya (disarankan yang berlabel <strong>Rekomendasi / Odstream</strong>) atau ganti ke resolusi lain (misal 480p / 720p).
                 </p>
               </div>
             </div>
@@ -521,10 +609,14 @@ export default function AnimeWatchPage() {
           {episode.prevEpisode ? (
             <Link
               to={`/anime/watch/${episode.prevEpisode}`}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all text-sm font-semibold"
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-xs sm:text-sm font-semibold text-gray-300 hover:text-white transition-all cursor-pointer"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
             >
               <ChevronLeft size={16} />
-              Episode Sebelumnya
+              <span>Episode Sebelumnya</span>
             </Link>
           ) : (
             <div className="flex-1" />
@@ -532,9 +624,13 @@ export default function AnimeWatchPage() {
           {episode.nextEpisode ? (
             <Link
               to={`/anime/watch/${episode.nextEpisode}`}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-violet-500/20 border border-cyan-500/30 text-cyan-400 hover:from-cyan-500/30 hover:to-violet-500/30 transition-all text-sm font-semibold"
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-black transition-all cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #00e5ff, #7c4dff)',
+                boxShadow: '0 4px 20px rgba(0, 229, 255, 0.35)',
+              }}
             >
-              Episode Selanjutnya
+              <span>Episode Selanjutnya</span>
               <ChevronRight size={16} />
             </Link>
           ) : (
@@ -552,10 +648,14 @@ export default function AnimeWatchPage() {
           >
             <button
               onClick={() => setShowDownloads(!showDownloads)}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all text-sm font-semibold w-full justify-center"
+              className="flex items-center gap-2 px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-semibold text-gray-300 hover:text-white transition-all w-full justify-center cursor-pointer"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
             >
-              <Download size={15} />
-              <span>{showDownloads ? "Sembunyikan Download" : "Tampilkan Link Download Episode"}</span>
+              <Download size={15} className="text-neon-cyan" />
+              <span>{showDownloads ? "Sembunyikan Link Download" : "Tampilkan Link Download Episode"}</span>
               <ChevronRight
                 size={15}
                 className={`transition-transform duration-300 ${
@@ -572,8 +672,15 @@ export default function AnimeWatchPage() {
                 className="mt-3 space-y-3"
               >
                 {episode.downloads.map((dl, i) => (
-                  <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <p className="text-sm font-semibold text-cyan-400 mb-2">
+                  <div
+                    key={i}
+                    className="p-4 rounded-2xl"
+                    style={{
+                      background: 'rgba(14, 16, 26, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                    }}
+                  >
+                    <p className="text-xs sm:text-sm font-bold text-neon-cyan mb-2.5">
                       {dl.quality || "Download"}
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -583,10 +690,14 @@ export default function AnimeWatchPage() {
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-cyan-500/10 hover:border-cyan-500/30 hover:text-cyan-400 transition-all text-xs font-medium"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                          }}
                         >
-                          <ExternalLink size={10} />
-                          {link.name}
+                          <ExternalLink size={11} className="text-gray-400" />
+                          <span>{link.name}</span>
                         </a>
                       ))}
                     </div>

@@ -13,31 +13,15 @@ import {
   Calendar,
   Tag,
   Loader,
+  Sparkles,
 } from "lucide-react";
 
 // ── HLS / MP4 Player ────────────────────────────────────────────────
 function VideoPlayer({ videoUrl, referer, quality }) {
-  const isIframe = videoUrl && !videoUrl.includes(".m3u8") && !videoUrl.includes(".mp4");
-  if (isIframe) {
-    const embedProxyUrl = videoUrl.startsWith("http")
-      ? `/api/embed?url=${encodeURIComponent(videoUrl)}`
-      : videoUrl;
-    return (
-      <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10">
-        <iframe
-          src={embedProxyUrl}
-          className="w-full h-full border-0"
-          allowFullScreen
-          allow="autoplay; fullscreen"
-        />
-      </div>
-    );
-  }
-
   const videoRef = useRef(null);
-  const hlsRef   = useRef(null);
+  const hlsRef = useRef(null);
   const [playerError, setPlayerError] = useState(null);
-  const [isLoading,   setIsLoading]   = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const buildProxyUrl = useCallback((url, referer) => {
     if (!url) return "";
@@ -48,8 +32,10 @@ function VideoPlayer({ videoUrl, referer, quality }) {
     return `/api/proxy?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(referer || "")}`;
   }, []);
 
+  const isIframe = videoUrl && !videoUrl.includes(".m3u8") && !videoUrl.includes(".mp4");
+
   useEffect(() => {
-    if (!videoUrl || !videoRef.current) return;
+    if (isIframe || !videoUrl || !videoRef.current) return;
     const video = videoRef.current;
     setPlayerError(null);
     setIsLoading(true);
@@ -90,7 +76,7 @@ function VideoPlayer({ videoUrl, referer, quality }) {
         if (d.fatal) {
           if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
           else if (d.type === Hls.ErrorTypes.NETWORK_ERROR) setTimeout(() => hls.startLoad(), 2000);
-          else { setPlayerError("Playback failed. The video might be blocked in your region."); setIsLoading(false); hls.destroy(); }
+          else { setPlayerError("Pemutaran gagal. Video mungkin dibatasi di wilayah Anda."); setIsLoading(false); hls.destroy(); }
         }
       });
       hlsRef.current = hls;
@@ -98,37 +84,68 @@ function VideoPlayer({ videoUrl, referer, quality }) {
       video.src = buildProxyUrl(videoUrl, referer);
       video.addEventListener("loadeddata", () => setIsLoading(false), { once: true });
       video.addEventListener("error", () => {
-        setPlayerError("Could not load video."); setIsLoading(false);
+        setPlayerError("Tidak dapat memuat video."); setIsLoading(false);
       }, { once: true });
       video.play().catch(() => {});
     }
 
     return () => { if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; } };
-  }, [videoUrl, referer, buildProxyUrl]);
+  }, [videoUrl, referer, buildProxyUrl, isIframe]);
+
+  if (isIframe) {
+    const embedProxyUrl = videoUrl.startsWith("http")
+      ? `/api/embed?url=${encodeURIComponent(videoUrl)}`
+      : videoUrl;
+    return (
+      <div
+        className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl"
+        style={{
+          background: '#050508',
+          border: '1px solid rgba(255, 45, 85, 0.25)',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(255, 45, 85, 0.12)',
+        }}
+      >
+        <iframe
+          src={embedProxyUrl}
+          className="w-full h-full border-0"
+          allowFullScreen
+          allow="autoplay; fullscreen"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10">
+    <div
+      className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl"
+      style={{
+        background: '#050508',
+        border: '1px solid rgba(255, 45, 85, 0.25)',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(255, 45, 85, 0.12)',
+      }}
+    >
       <video ref={videoRef} controls autoPlay playsInline className="w-full h-full object-contain" />
       {isLoading && !playerError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/75 backdrop-blur-sm pointer-events-none">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-red-500 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">{quality} loading…</p>
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-rose-500 mx-auto mb-2" />
+            <p className="text-gray-400 text-xs font-mono">{quality} sedang dimuat…</p>
           </div>
         </div>
       )}
       {playerError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-          <div className="text-center p-4">
-            <AlertTriangle className="mx-auto mb-2 text-red-400" size={32} />
-            <p className="text-gray-300 text-sm mb-4">{playerError}</p>
-            <a 
+        <div className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm">
+          <div className="text-center p-6 max-w-sm">
+            <AlertTriangle className="mx-auto mb-3 text-neon-red" size={36} />
+            <p className="text-gray-300 text-xs sm:text-sm mb-4 leading-relaxed">{playerError}</p>
+            <a
               href={`https://hanime.tv/hentai-videos/${videoUrl.split('/').pop().replace('.m3u8', '')}`}
-              target="_blank" 
+              target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 rounded-full hover:bg-red-700 transition-colors text-xs"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer"
+              style={{ background: 'linear-gradient(135deg, #ff2d55, #ff6b35)' }}
             >
-              <ExternalLink size={12} /> Watch on Original Site
+              <ExternalLink size={12} /> Buka di Situs Asli
             </a>
           </div>
         </div>
@@ -139,7 +156,6 @@ function VideoPlayer({ videoUrl, referer, quality }) {
 
 export default function HanimeTvDetailPage() {
   const { slug } = useParams();
-  const location = useLocation();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -156,11 +172,7 @@ export default function HanimeTvDetailPage() {
     getHanimeVideo(slug)
       .then((d) => {
         setData(d.hentai_video || d);
-        console.log("[Hanime] Video Detail Data:", d);
-        
-        // Extract streams from videos_manifest
         if (d.videos_manifest && d.videos_manifest.servers) {
-          console.log("[Hanime] Found manifest servers:", d.videos_manifest.servers.length);
           const allStreams = [];
           d.videos_manifest.servers.forEach(server => {
             if (server.streams) {
@@ -188,21 +200,36 @@ export default function HanimeTvDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white bg-neutral-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500" />
+      <div className="min-h-screen flex items-center justify-center text-white bg-[#07070b]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-rose-500 mx-auto mb-3" />
+          <p className="text-gray-400 text-xs font-mono">MEMUAT DETAIL VIDEO...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white bg-neutral-950 px-4 text-center">
-        <AlertTriangle className="mx-auto mb-4 text-red-400" size={48} />
-        <h2 className="text-xl font-bold mb-2 text-red-400">Error Loading Video</h2>
-        <p className="text-gray-400 mb-6 max-w-md">{error || "Post not found."}</p>
-        <Link to="/hanimetv" className="px-6 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-          Back to Gallery
-        </Link>
+      <div className="min-h-screen flex flex-col items-center justify-center text-white bg-[#07070b] px-4 text-center">
+        <div
+          className="rounded-3xl p-8 max-w-md mx-auto"
+          style={{
+            background: 'rgba(18, 18, 28, 0.6)',
+            border: '1px solid rgba(255, 45, 85, 0.25)',
+          }}
+        >
+          <AlertTriangle className="mx-auto mb-3 text-neon-red" size={44} />
+          <h2 className="text-lg font-bold mb-2 text-white">Gagal Memuat Video</h2>
+          <p className="text-gray-400 text-xs mb-6">{error || "Data video tidak ditemukan."}</p>
+          <Link
+            to="/hanimetv"
+            className="px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all inline-block"
+            style={{ background: '#ff2d55' }}
+          >
+            Kembali ke Jav.Guru
+          </Link>
+        </div>
       </div>
     );
   }
@@ -210,26 +237,69 @@ export default function HanimeTvDetailPage() {
   const currentStream = streams[activeQIdx];
 
   return (
-    <div className="min-h-screen text-white pb-24 pt-20 px-4 md:px-8 bg-neutral-950">
-      <div className="max-w-5xl mx-auto">
-        <Link to="/hanimetv" className="inline-flex items-center gap-2 text-gray-400 hover:text-red-400 mb-5 transition-colors text-sm">
-          <ArrowLeft size={18} /> Back to Jav.Guru
+    <div className="min-h-screen text-white pb-24 pt-6 md:pt-8 px-4 md:px-8 relative overflow-hidden bg-[#07070b]">
+      {/* ── Background Aurora Glow ───────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-rose-600/[0.06] blur-[160px]" />
+        <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/[0.04] blur-[170px]" />
+      </div>
+
+      <div className="relative z-10 max-w-5xl mx-auto">
+        <Link
+          to="/hanimetv"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-gray-300 hover:text-white mb-6 transition-all"
+          style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          <ArrowLeft size={16} />
+          <span>Kembali ke Jav.Guru</span>
         </Link>
 
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent leading-tight">
+        <h1 className="text-2xl sm:text-3xl font-display font-black mb-3 leading-tight tracking-tight text-white">
           {data.name}
         </h1>
 
-        <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-5">
-          {data.views != null && <span className="flex items-center gap-1.5"><Eye size={14} className="text-blue-400"/>{Number(data.views).toLocaleString()} views</span>}
-          {data.brand && <span className="flex items-center gap-1.5"><Tag size={14} className="text-purple-400"/>{data.brand}</span>}
-          {data.released_at && <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-500"/>{new Date(data.released_at).toLocaleDateString()}</span>}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-6">
+          {data.views != null && (
+            <span
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg"
+              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
+            >
+              <Eye size={13} className="text-neon-cyan"/>
+              <span>{Number(data.views).toLocaleString()} views</span>
+            </span>
+          )}
+          {data.brand && (
+            <span
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg"
+              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
+            >
+              <Tag size={13} className="text-neon-purple"/>
+              <span>{data.brand}</span>
+            </span>
+          )}
+          {data.released_at && (
+            <span
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg"
+              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
+            >
+              <Calendar size={13} className="text-gray-400"/>
+              <span>{new Date(data.released_at).toLocaleDateString()}</span>
+            </span>
+          )}
         </div>
 
+        {/* Video Player Section */}
         <div className="mb-8">
           {!playerVisible ? (
             <div
-              className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10 bg-black group cursor-pointer"
+              className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl bg-black group cursor-pointer transition-all duration-300"
+              style={{
+                border: '1px solid rgba(255, 45, 85, 0.3)',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 45, 85, 0.15)',
+              }}
               onClick={handlePlay}
             >
               {(data.poster_url || data.cover_url) && (
@@ -237,7 +307,7 @@ export default function HanimeTvDetailPage() {
                   src={data.poster_url || data.cover_url}
                   alt={data.name}
                   referrerPolicy="no-referrer"
-                  className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-300"
+                  className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-300 group-hover:scale-105"
                   onError={(e) => {
                     const u = data.poster_url || data.cover_url;
                     if (!e.target.dataset.proxied && u && u.startsWith("http")) {
@@ -247,14 +317,20 @@ export default function HanimeTvDetailPage() {
                   }}
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-red-600/90 hover:bg-red-500 p-5 rounded-full shadow-2xl shadow-red-500/40 transition-all group-hover:scale-110 duration-200">
-                  <Play size={40} className="fill-white text-white" />
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all group-hover:scale-110 duration-200"
+                  style={{
+                    background: 'linear-gradient(135deg, #ff2d55, #ff6b35)',
+                    boxShadow: '0 0 30px rgba(255, 45, 85, 0.6)',
+                  }}
+                >
+                  <Play size={28} className="fill-white text-white ml-0.5" />
                 </div>
               </div>
-              <p className="absolute bottom-4 left-0 right-0 text-center text-gray-300 text-sm">
-                Click to play
+              <p className="absolute bottom-4 left-0 right-0 text-center text-gray-300 text-xs sm:text-sm font-semibold tracking-wide drop-shadow">
+                Klik untuk Putar Video
               </p>
             </div>
           ) : (
@@ -262,11 +338,24 @@ export default function HanimeTvDetailPage() {
               {streams.length > 1 && (
                 <div className="flex flex-wrap gap-2 mb-3">
                   {streams.map((s, idx) => (
-                    <button key={idx} onClick={() => setActiveQIdx(idx)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border
-                        ${activeQIdx === idx
-                          ? "bg-red-600 text-white border-red-500"
-                          : "bg-white/5 border-white/10 text-gray-300 hover:bg-red-500/20 hover:border-red-500/40"}`}>
+                    <button
+                      key={idx}
+                      onClick={() => setActiveQIdx(idx)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                        activeQIdx === idx
+                          ? "text-white shadow-lg"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                      style={{
+                        background: activeQIdx === idx
+                          ? 'linear-gradient(135deg, #ff2d55, #ff6b35)'
+                          : 'rgba(255, 255, 255, 0.04)',
+                        border: activeQIdx === idx
+                          ? '1px solid rgba(255, 45, 85, 0.7)'
+                          : '1px solid rgba(255, 255, 255, 0.08)',
+                        boxShadow: activeQIdx === idx ? '0 0 15px rgba(255, 45, 85, 0.35)' : 'none',
+                      }}
+                    >
                       {s.quality}
                     </button>
                   ))}
@@ -276,25 +365,16 @@ export default function HanimeTvDetailPage() {
               {currentStream ? (
                 <VideoPlayer key={activeQIdx} videoUrl={currentStream.url} referer={currentStream.referer} quality={currentStream.quality} />
               ) : (
-                <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-neutral-900 flex flex-col items-center justify-center gap-4 relative">
-                  {(data.poster_url || data.cover_url) && (
-                    <img
-                      src={data.poster_url || data.cover_url}
-                      alt={data.name}
-                      referrerPolicy="no-referrer"
-                      className="absolute inset-0 w-full h-full object-cover opacity-20"
-                      onError={(e) => {
-                        const u = data.poster_url || data.cover_url;
-                        if (!e.target.dataset.proxied && u && u.startsWith("http")) {
-                          e.target.dataset.proxied = "true";
-                          e.target.src = `/api/proxy?url=${encodeURIComponent(u)}&referer=https://jav.guru/`;
-                        }
-                      }}
-                    />
-                  )}
+                <div
+                  className="aspect-video rounded-3xl overflow-hidden flex flex-col items-center justify-center gap-4 relative"
+                  style={{
+                    background: 'rgba(14, 16, 26, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                  }}
+                >
                   <div className="relative z-10 text-center px-6">
                     <AlertTriangle size={36} className="mx-auto mb-3 text-amber-400" />
-                    <p className="text-gray-400 text-sm mb-4">Stream unavailable.</p>
+                    <p className="text-gray-400 text-sm">Stream saat ini tidak tersedia.</p>
                   </div>
                 </div>
               )}
@@ -303,19 +383,42 @@ export default function HanimeTvDetailPage() {
         </div>
 
         {data.description && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5">
-            <div className="text-sm text-gray-300" dangerouslySetInnerHTML={{ __html: data.description }} />
+          <div
+            className="rounded-3xl p-6 mb-6"
+            style={{
+              background: 'rgba(14, 16, 26, 0.6)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <h2 className="text-xs font-mono uppercase tracking-wider text-gray-400 mb-2">Deskripsi</h2>
+            <div className="text-xs sm:text-sm text-gray-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: data.description }} />
           </div>
         )}
 
         {data.hentai_tags && filterBlockedTags(data.hentai_tags).length > 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Tag size={13}/> Tags
+          <div
+            className="rounded-3xl p-6"
+            style={{
+              background: 'rgba(14, 16, 26, 0.6)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
+              <Tag size={13} className="text-neon-red" />
+              <span>Tags Video</span>
             </h3>
             <div className="flex flex-wrap gap-2">
               {filterBlockedTags(data.hentai_tags).map((tag, i) => (
-                <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:border-red-500/40 hover:text-red-300 transition-colors cursor-default">
+                <span
+                  key={i}
+                  className="px-3 py-1 rounded-xl text-xs text-gray-300"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
                   {tag.text}
                 </span>
               ))}

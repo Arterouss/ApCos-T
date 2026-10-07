@@ -341,11 +341,18 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: -10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="relative w-full max-w-4xl max-h-[88vh] flex flex-col bg-neutral-900/95 border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/80 overflow-hidden z-10"
+          className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-3xl overflow-hidden z-10"
+          style={{
+            background: 'rgba(12, 14, 24, 0.92)',
+            backdropFilter: 'blur(25px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(25px) saturate(180%)',
+            border: '1px solid rgba(255, 45, 85, 0.25)',
+            boxShadow: '0 25px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 45, 85, 0.12)',
+          }}
         >
           {/* Top Search Input Bar */}
-          <div className="p-4 sm:p-5 border-b border-white/10 flex items-center gap-3 relative bg-white/[0.02]">
-            <div className="text-red-400 pl-1">
+          <div className="p-4 sm:p-5 border-b border-white/[0.06] flex items-center gap-3 relative bg-white/[0.02]">
+            <div className="text-neon-red pl-1">
               <Search size={22} className="shrink-0" />
             </div>
 

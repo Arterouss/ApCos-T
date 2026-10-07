@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search, Home, Tv, BookOpen, Globe, Shield, Star, Compass, Bookmark, CheckCircle, Users } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search, Home, Tv, BookOpen, Globe, Shield, Star, Compass, Bookmark, CheckCircle, Users, Zap, ArrowUpRight } from "lucide-react";
 import { usePortalMode } from "../context/PortalContext";
 
 // ── Menu untuk Mode 18+ (ApiCos Cinema) ─────────────────────────────────
@@ -9,33 +9,33 @@ const adultMenuCategories = [
   {
     title: "Koleksi & Favorit",
     items: [
-      { name: "Favorit Saya", path: "/favorites", icon: <Heart size={20} /> },
-      { name: "Video Pribadi", path: "/personal", icon: <Film size={20} /> },
-      { name: "Foto Pribadi", path: "/personal-photo", icon: <Camera size={20} /> },
+      { name: "Favorit Saya", path: "/favorites", icon: <Heart size={18} /> },
+      { name: "Video Pribadi", path: "/personal", icon: <Film size={18} /> },
+      { name: "Foto Pribadi", path: "/personal-photo", icon: <Camera size={18} /> },
     ],
   },
   {
     title: "Manga & Doujin",
     items: [
-      { name: "Nhentai", path: "/nhentai", icon: <Sparkles size={20} /> },
-      { name: "Doujin Desu", path: "/doujin", icon: <Book size={20} /> },
+      { name: "Nhentai", path: "/nhentai", icon: <Sparkles size={18} /> },
+      { name: "Doujin Desu", path: "/doujin", icon: <Book size={18} /> },
     ]
   },
   {
     title: "Cinema & Video",
     items: [
-      { name: "HentaiPlay", path: "/hentaiplay", icon: <Film size={20} /> },
-      { name: "Jav.Guru", path: "/hanimetv", icon: <Film size={20} /> },
-      { name: "Porn3dx (3D)", path: "/porn3dx", icon: <Film size={20} /> },
-      { name: "CavPorn", path: "/cavporn", icon: <Video size={20} /> },
-      { name: "Rule34", path: "/rule34", icon: <Image size={20} /> },
+      { name: "HentaiPlay", path: "/hentaiplay", icon: <Film size={18} /> },
+      { name: "Jav.Guru", path: "/hanimetv", icon: <Film size={18} /> },
+      { name: "Porn3dx (3D)", path: "/porn3dx", icon: <Film size={18} /> },
+      { name: "CavPorn", path: "/cavporn", icon: <Video size={18} /> },
+      { name: "Rule34", path: "/rule34", icon: <Image size={18} /> },
     ]
   },
   {
     title: "Cosplay & Foto",
     items: [
-      { name: "Coomer.su", path: "/coomer", icon: <Users size={20} /> },
-      { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={20} /> },
+      { name: "Coomer.su", path: "/coomer", icon: <Users size={18} /> },
+      { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={18} /> },
     ]
   }
 ];
@@ -45,102 +45,105 @@ const generalMenuCategories = [
   {
     title: "Anime Series",
     items: [
-      { name: "Nonton Anime", path: "/anime", icon: <Tv size={20} /> },
-      { name: "Anime Ongoing", path: "/anime?tab=ongoing", icon: <Tv size={20} /> },
-      { name: "Anime Completed", path: "/anime?tab=completed", icon: <CheckCircle size={20} /> },
+      { name: "Nonton Anime", path: "/anime", icon: <Tv size={18} /> },
+      { name: "Anime Ongoing", path: "/anime?tab=ongoing", icon: <Tv size={18} /> },
+      { name: "Anime Completed", path: "/anime?tab=completed", icon: <CheckCircle size={18} /> },
     ]
   },
   {
     title: "Film & Sinema",
     items: [
-      { name: "Movie Anime", path: "/movie-anime", icon: <Film size={20} /> },
-      { name: "Film Bioskop", path: "/movie-theater", icon: <Video size={20} /> },
+      { name: "Movie Anime", path: "/movie-anime", icon: <Film size={18} /> },
+      { name: "Film Bioskop", path: "/movie-theater", icon: <Video size={18} /> },
     ]
   },
   {
     title: "Komik & Manga",
     items: [
-      { name: "Manga Shounen", path: "/manga-shounen", icon: <BookOpen size={20} /> },
-      { name: "Manhwa Webtoon", path: "/manhwa-webtoon", icon: <Book size={20} /> },
+      { name: "Manga Shounen", path: "/manga-shounen", icon: <BookOpen size={18} /> },
+      { name: "Manhwa Webtoon", path: "/manhwa-webtoon", icon: <Book size={18} /> },
     ]
   },
   {
     title: "Koleksi",
     items: [
-      { name: "Bookmark Anime", path: "/bookmark-anime", icon: <Bookmark size={20} /> },
+      { name: "Bookmark Anime", path: "/bookmark-anime", icon: <Bookmark size={18} /> },
     ]
   }
 ];
 
 const SidebarContent = ({ onClose, location, onOpenSearch }) => {
-  const { isAdultMode, isGeneralMode, togglePortalMode } = usePortalMode();
+  const { isAdultMode, togglePortalMode } = usePortalMode();
 
   const menuCategories = isAdultMode ? adultMenuCategories : generalMenuCategories;
 
-  // Accent colors based on mode
+  // Accent system
   const accent = isAdultMode
     ? {
-        logoGradient: "from-red-500 via-rose-500 to-amber-400",
+        neon: "#ff2d55",
+        neonRgb: "255, 45, 85",
         badge: "CINEMA",
-        badgeBg: "bg-red-600/30 text-red-400 border-red-500/40",
-        glowTop: "from-rose-900/25",
-        activeGradient: "from-red-600/30 to-rose-600/10",
-        activeBorder: "border-red-500/30",
-        activeText: "text-red-400",
-        activeHover: "group-hover:text-red-300",
-        activePill: "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)]",
-        activeDot: "bg-red-500",
-        searchBorderHover: "hover:border-red-500/50",
-        searchIcon: "text-red-400",
-        berandaActive: "shadow-rose-950/40 from-red-600/30 to-rose-600/10 border-red-500/30",
-        berandaIcon: "text-red-400",
-        berandaHoverIcon: "group-hover:text-red-300",
-        berandaPill: "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)]",
-        decorLine: "from-red-600 via-rose-600 to-amber-500",
+        badgeIcon: <Shield size={10} />,
+        logoGradient: "from-[#ff2d55] via-[#ff6b35] to-[#ffb347]",
+        glowColor: "rgba(255, 45, 85, 0.15)",
+        activeBg: "bg-[#ff2d55]/10",
+        activeBorder: "border-[#ff2d55]/20",
+        activeText: "text-[#ff2d55]",
+        hoverText: "group-hover:text-[#ff2d55]",
+        dotColor: "bg-[#ff2d55]",
+        dotGlow: "shadow-[0_0_8px_rgba(255,45,85,0.8)]",
+        searchFocus: "focus-within:border-[#ff2d55]/30 focus-within:shadow-[0_0_15px_rgba(255,45,85,0.1)]",
+        switchTarget: "to-cyan",
+        switchBg: "from-[#00e5ff]/10 to-[#7c4dff]/10",
+        switchBorder: "border-[#00e5ff]/20 hover:border-[#00e5ff]/40",
+        switchIcon: "text-[#00e5ff]",
+        switchLabel: "text-[#00e5ff]",
+        decorLine: "from-[#ff2d55] via-[#ff6b35] to-[#ffb347]",
       }
     : {
-        logoGradient: "from-cyan-400 via-sky-400 to-violet-400",
+        neon: "#00e5ff",
+        neonRgb: "0, 229, 255",
         badge: "HUB",
-        badgeBg: "bg-cyan-600/30 text-cyan-300 border-cyan-500/40",
-        glowTop: "from-cyan-900/25",
-        activeGradient: "from-cyan-600/30 to-sky-600/10",
-        activeBorder: "border-cyan-500/30",
-        activeText: "text-cyan-400",
-        activeHover: "group-hover:text-cyan-300",
-        activePill: "bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.9)]",
-        activeDot: "bg-cyan-500",
-        searchBorderHover: "hover:border-cyan-500/50",
-        searchIcon: "text-cyan-400",
-        berandaActive: "shadow-cyan-950/40 from-cyan-600/30 to-sky-600/10 border-cyan-500/30",
-        berandaIcon: "text-cyan-400",
-        berandaHoverIcon: "group-hover:text-cyan-300",
-        berandaPill: "bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.9)]",
-        decorLine: "from-cyan-500 via-sky-400 to-violet-500",
+        badgeIcon: <Globe size={10} />,
+        logoGradient: "from-[#00e5ff] via-[#40c4ff] to-[#7c4dff]",
+        glowColor: "rgba(0, 229, 255, 0.15)",
+        activeBg: "bg-[#00e5ff]/10",
+        activeBorder: "border-[#00e5ff]/20",
+        activeText: "text-[#00e5ff]",
+        hoverText: "group-hover:text-[#00e5ff]",
+        dotColor: "bg-[#00e5ff]",
+        dotGlow: "shadow-[0_0_8px_rgba(0,229,255,0.8)]",
+        searchFocus: "focus-within:border-[#00e5ff]/30 focus-within:shadow-[0_0_15px_rgba(0,229,255,0.1)]",
+        switchTarget: "to-red",
+        switchBg: "from-[#ff2d55]/10 to-[#ff6b35]/10",
+        switchBorder: "border-[#ff2d55]/20 hover:border-[#ff2d55]/40",
+        switchIcon: "text-[#ff2d55]",
+        switchLabel: "text-[#ff2d55]",
+        decorLine: "from-[#00e5ff] via-[#40c4ff] to-[#7c4dff]",
       };
 
-  const getActiveCategory = () => {
-    const idx = menuCategories.findIndex(cat => 
+  const [expandedCats, setExpandedCats] = useState(() => {
+    const active = menuCategories.findIndex(cat => 
       cat.items.some(item => item.path === location.pathname)
     );
-    return idx !== -1 ? idx : -1;
-  };
-
-  const [expandedCats, setExpandedCats] = useState(() => {
-    const active = getActiveCategory();
     return active !== -1 ? [active] : [0];
   });
 
-  useEffect(() => {
-    const activeIdx = getActiveCategory();
-    if (activeIdx !== -1 && !expandedCats.includes(activeIdx)) {
-      setExpandedCats(prev => [...prev, activeIdx]);
-    }
-  }, [location.pathname]);
-
-  // Reset expanded categories when mode changes
-  useEffect(() => {
+  const [prevAdultMode, setPrevAdultMode] = useState(isAdultMode);
+  if (prevAdultMode !== isAdultMode) {
+    setPrevAdultMode(isAdultMode);
     setExpandedCats([0]);
-  }, [isAdultMode]);
+  }
+
+  // Auto-expand category on route change
+  useEffect(() => {
+    const idx = menuCategories.findIndex(cat => 
+      cat.items.some(item => item.path === location.pathname)
+    );
+    if (idx !== -1) {
+      setExpandedCats(prev => (prev.includes(idx) ? prev : [...prev, idx]));
+    }
+  }, [location.pathname, menuCategories]);
 
   const toggleCategory = (idx) => {
     setExpandedCats(prev => 
@@ -149,18 +152,45 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#09090b]/95 backdrop-blur-2xl border-r border-white/5 relative overflow-hidden">
-      {/* Decorative Glow */}
-      <div className={`absolute top-0 left-0 w-full h-56 bg-gradient-to-b ${accent.glowTop} to-transparent blur-[80px] pointer-events-none`} />
+    <div className="flex flex-col h-full relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(180deg, rgba(12,12,18,0.97) 0%, rgba(8,8,12,0.99) 100%)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+      }}
+    >
+      {/* ── Ambient Glow at Top ─────────────────────────────────────── */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[200px] rounded-full pointer-events-none opacity-30 blur-[100px]"
+        style={{ background: accent.glowColor }}
+      />
 
-      <div className="p-6 pb-3 z-10 shrink-0">
-        <div className="flex justify-between items-center mb-5">
-          <div className="flex items-center gap-2">
-            <Link to="/" onClick={onClose} className="group">
-              <span className={`text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${accent.logoGradient} group-hover:brightness-125 transition-all duration-300`}>
-                ApiCos
-              </span>
-              <div className={`h-1 w-10 bg-gradient-to-r ${accent.decorLine} rounded-full mt-1.5 group-hover:w-full transition-all duration-500`} />
+      {/* ── Border Right (Desktop) ──────────────────────────────────── */}
+      <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-white/[0.06] via-white/[0.03] to-transparent" />
+
+      {/* ── Logo & Header ───────────────────────────────────────────── */}
+      <div className="relative z-10 px-5 pt-5 pb-3 shrink-0">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2.5">
+            <Link to="/" onClick={onClose} className="group flex items-center gap-2">
+              {/* Logo Mark */}
+              <div className="relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${accent.neon}20, transparent)`,
+                  border: `1px solid ${accent.neon}30`,
+                }}
+              >
+                <Zap size={18} style={{ color: accent.neon }} />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{ background: `radial-gradient(circle, ${accent.neon}15, transparent)` }}
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className={`text-xl font-display font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${accent.logoGradient} group-hover:brightness-125 transition-all duration-300`}>
+                  ApiCos
+                </span>
+                <div className={`h-0.5 w-6 bg-gradient-to-r ${accent.decorLine} rounded-full mt-0 group-hover:w-full transition-all duration-500`} />
+              </div>
             </Link>
             <AnimatePresence mode="wait">
               <motion.button
@@ -170,72 +200,74 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.7, y: 5 }}
                 transition={{ duration: 0.3 }}
-                className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border tracking-wider flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-all ${accent.badgeBg}`}
+                className="text-[9px] font-extrabold px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                style={{
+                  background: `${accent.neon}18`,
+                  color: accent.neon,
+                  border: `1px solid ${accent.neon}30`,
+                }}
                 title={`Klik untuk beralih ke ${isAdultMode ? "Mode Anime (HUB)" : "Mode Cinema (18+)"}`}
               >
-                {isAdultMode ? <Shield size={10} /> : <Globe size={10} />}
+                {accent.badgeIcon}
                 <span>{accent.badge}</span>
               </motion.button>
             </AnimatePresence>
           </div>
           <button
             onClick={onClose}
-            className="md:hidden text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full cursor-pointer"
+            className="md:hidden text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/[0.06] rounded-xl cursor-pointer"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Global Search Quick Trigger */}
+        {/* ── Search Quick Trigger ─────────────────────────────────── */}
         <button
           onClick={() => {
             onOpenSearch?.();
             onClose?.();
           }}
-          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 ${accent.searchBorderHover} text-gray-300 hover:text-white transition-all shadow-inner group cursor-pointer mb-2`}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-gray-400 hover:text-white transition-all group cursor-pointer ${accent.searchFocus}`}
         >
           <div className="flex items-center gap-2.5">
-            <Search size={16} className={`${accent.searchIcon} group-hover:scale-110 transition-transform`} />
+            <Search size={15} style={{ color: accent.neon }} className="group-hover:scale-110 transition-transform" />
             <span className="text-xs font-medium">Cari di semua platform...</span>
           </div>
-          <kbd className={`text-[10px] bg-black/60 border border-white/10 px-1.5 py-0.5 rounded text-gray-400 font-mono group-hover:border-white/20 transition-colors`}>
-            Ctrl+K
+          <kbd className="text-[9px] bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded-md text-gray-500 font-mono group-hover:border-white/15 transition-colors">
+            ⌘K
           </kbd>
         </button>
 
-        {/* Standalone Pinned Beranda */}
+        {/* ── Beranda (Home) ───────────────────────────────────────── */}
         <Link
           to="/"
           onClick={onClose}
-          className={`relative flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden ${
+          className={`relative mt-2 flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden ${
             location.pathname === "/"
-              ? `text-white shadow-lg ${accent.berandaActive} font-semibold`
-              : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+              ? `text-white font-medium ${accent.activeBg} ${accent.activeBorder} border`
+              : "text-gray-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
           }`}
         >
-          <span
-            className={`relative z-10 transition-transform duration-300 ${location.pathname === "/" ? `${accent.berandaIcon} scale-110` : `group-hover:scale-110 ${accent.berandaHoverIcon}`}`}
-          >
-            <Home size={20} />
+          <span className={`relative z-10 transition-all duration-300 ${
+            location.pathname === "/" ? `${accent.activeText} scale-110` : accent.hoverText
+          }`}>
+            <Home size={18} />
           </span>
-          <span
-            className={`tracking-wide relative z-10 text-sm ${location.pathname === "/" ? "text-white font-medium" : ""}`}
-          >
-            Beranda
-          </span>
-
+          <span className="tracking-wide relative z-10 text-sm">Beranda</span>
           {location.pathname === "/" && (
             <motion.div
-              layoutId="active-pill"
-              className={`absolute right-3 w-2 h-2 rounded-full ${accent.berandaPill}`}
+              layoutId="sidebar-active-pill"
+              className={`absolute right-3 w-1.5 h-1.5 rounded-full ${accent.dotColor} ${accent.dotGlow}`}
             />
           )}
         </Link>
       </div>
 
-      <div className="h-px bg-white/5 mx-6 mb-3 shrink-0" />
+      {/* ── Separator ─────────────────────────────────────────────── */}
+      <div className="h-px mx-5 shrink-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
 
-      <div className="flex-1 overflow-y-auto px-5 space-y-6 pb-6 z-10 custom-scrollbar">
+      {/* ── Menu Categories ───────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-6 z-10 space-y-1 scrollbar-none">
         {menuCategories.map((category, idx) => {
           const isExpanded = expandedCats.includes(idx);
           const hasActiveItem = category.items.some(item => item.path === location.pathname);
@@ -244,17 +276,25 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
             <div key={category.title} className="flex flex-col">
               <button
                 onClick={() => toggleCategory(idx)}
-                className={`flex items-center justify-between w-full text-left mb-2.5 transition-colors duration-200 group ${hasActiveItem ? accent.activeText : "text-gray-400 hover:text-white"}`}
+                className="flex items-center justify-between w-full text-left py-2.5 px-2 transition-colors duration-200 group rounded-lg hover:bg-white/[0.02]"
               >
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${hasActiveItem ? accent.activeDot : "bg-gray-600"}`} />
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2"
+                  style={{ color: hasActiveItem ? accent.neon : 'rgb(107, 114, 128)' }}
+                >
+                  <span
+                    className="w-1 h-1 rounded-full transition-all duration-300"
+                    style={{
+                      background: hasActiveItem ? accent.neon : 'rgb(75, 85, 99)',
+                      boxShadow: hasActiveItem ? `0 0 6px ${accent.neon}80` : 'none',
+                    }}
+                  />
                   {category.title}
                 </span>
                 <motion.div
                   animate={{ rotate: isExpanded ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <ChevronDown size={14} className={hasActiveItem ? accent.activeText : "text-gray-500 group-hover:text-white"} />
+                  <ChevronDown size={13} className={hasActiveItem ? accent.activeText : "text-gray-600 group-hover:text-white"} />
                 </motion.div>
               </button>
 
@@ -267,7 +307,7 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-1.5 pt-1 pb-2">
+                    <div className="space-y-0.5 pt-0.5 pb-2 pl-1">
                       {category.items.map((item) => {
                         const isActive = location.pathname === item.path;
                         return (
@@ -275,27 +315,24 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
                             key={item.name}
                             to={item.path}
                             onClick={onClose}
-                            className={`relative flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden ${
+                            className={`relative flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 group overflow-hidden ${
                               isActive
-                                ? `text-white shadow-lg bg-gradient-to-r ${accent.activeGradient} ${accent.activeBorder} border font-semibold`
-                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                                ? `text-white font-medium ${accent.activeBg} ${accent.activeBorder} border`
+                                : "text-gray-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
                             }`}
                           >
-                            <span
-                              className={`relative z-10 transition-transform duration-300 ${isActive ? `${accent.activeText} scale-110` : `group-hover:scale-110 ${accent.activeHover}`}`}
-                            >
+                            <span className={`relative z-10 transition-all duration-300 ${
+                              isActive ? `${accent.activeText} scale-110` : accent.hoverText
+                            }`}>
                               {item.icon}
                             </span>
-                            <span
-                              className={`tracking-wide relative z-10 text-sm ${isActive ? "text-white" : ""}`}
-                            >
+                            <span className="tracking-wide relative z-10 text-[13px]">
                               {item.name}
                             </span>
-
                             {isActive && (
                               <motion.div
-                                layoutId="active-pill"
-                                className={`absolute right-3 w-2 h-2 rounded-full ${accent.activePill}`}
+                                layoutId="sidebar-active-pill"
+                                className={`absolute right-3 w-1.5 h-1.5 rounded-full ${accent.dotColor} ${accent.dotGlow}`}
                               />
                             )}
                           </Link>
@@ -310,26 +347,21 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
         })}
       </div>
 
-      {/* ── Bottom: Mode Switcher + Status ──────────────────────────── */}
-      <div className="mt-auto border-t border-white/5 bg-black/20 shrink-0 z-10">
-        {/* Mode Switcher Button */}
-        <div className="px-4 pt-4 pb-2">
+      {/* ── Bottom Section: Mode Switcher + Status ────────────────── */}
+      <div className="mt-auto shrink-0 z-10">
+        {/* Fade-out separator */}
+        <div className="h-px mx-5 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+        {/* Mode Switcher */}
+        <div className="px-4 pt-3 pb-2">
           <motion.button
             onClick={togglePortalMode}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-500 overflow-hidden group ${
-              isAdultMode
-                ? "bg-gradient-to-r from-cyan-950/60 to-indigo-950/60 border-cyan-500/20 hover:border-cyan-400/40"
-                : "bg-gradient-to-r from-rose-950/60 to-neutral-950/60 border-rose-500/20 hover:border-rose-400/40"
-            }`}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            className={`w-full relative flex items-center gap-3 px-3.5 py-3 rounded-xl border transition-all duration-500 overflow-hidden group bg-gradient-to-r ${accent.switchBg} ${accent.switchBorder}`}
           >
-            {/* Glow effect on hover */}
-            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-              isAdultMode
-                ? "bg-gradient-to-r from-cyan-500/[0.08] to-violet-500/[0.05]"
-                : "bg-gradient-to-r from-rose-500/[0.08] to-red-500/[0.05]"
-            }`} />
+            {/* Hover glow */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-white/[0.02]" />
 
             <AnimatePresence mode="wait">
               <motion.div
@@ -338,13 +370,12 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
                 animate={{ rotate: 0, opacity: 1 }}
                 exit={{ rotate: 180, opacity: 0 }}
                 transition={{ duration: 0.4 }}
-                className={`relative z-10 w-8 h-8 rounded-lg flex items-center justify-center ${
-                  isAdultMode
-                    ? "bg-cyan-500/20 text-cyan-400"
-                    : "bg-rose-500/20 text-rose-400"
-                }`}
+                className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center ${accent.switchIcon}`}
+                style={{
+                  background: isAdultMode ? 'rgba(0,229,255,0.1)' : 'rgba(255,45,85,0.1)',
+                }}
               >
-                {isAdultMode ? <Globe size={16} /> : <Shield size={16} />}
+                {isAdultMode ? <Globe size={14} /> : <Shield size={14} />}
               </motion.div>
             </AnimatePresence>
 
@@ -356,33 +387,31 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.25 }}
-                  className={`text-xs font-bold ${
-                    isAdultMode ? "text-cyan-200" : "text-rose-200"
-                  }`}
+                  className={`text-xs font-bold ${accent.switchLabel}`}
                 >
                   {isAdultMode ? "Mode Anime & Film" : "Mode ApiCos Cinema"}
                 </motion.span>
               </AnimatePresence>
-              <span className="text-[10px] text-gray-500">Klik untuk beralih mode</span>
+              <span className="text-[10px] text-gray-600">Klik untuk beralih mode</span>
             </div>
 
-            {/* Arrow indicator */}
-            <div className={`relative z-10 ml-auto text-gray-500 group-hover:translate-x-0.5 transition-transform ${
-              isAdultMode ? "group-hover:text-cyan-400" : "group-hover:text-rose-400"
-            }`}>
-              <ChevronDown size={14} className="-rotate-90" />
+            <div className={`relative z-10 ml-auto ${accent.switchIcon} opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all`}>
+              <ArrowUpRight size={14} />
             </div>
           </motion.button>
         </div>
 
         {/* System Status */}
-        <div className="px-6 pb-4 pt-1">
-          <div className="flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
-            <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></div>
+        <div className="px-5 pb-4 pt-1">
+          <div className="flex items-center justify-between opacity-50 hover:opacity-100 transition-opacity duration-300">
+            <div className="flex items-center gap-2 text-[9px] text-gray-500 font-mono tracking-wider">
+              <div className="relative">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping opacity-50" />
+              </div>
               <span>SYSTEM ONLINE</span>
             </div>
-            <span className="text-[10px] text-gray-600">v2.1</span>
+            <span className="text-[9px] text-gray-700 font-mono">v3.0</span>
           </div>
         </div>
       </div>
@@ -414,14 +443,22 @@ const Sidebar = ({ isOpen, onClose, onOpenSearch }) => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={onClose}
-                className="fixed inset-0 bg-black/60 z-50 backdrop-blur-md"
+                className="fixed inset-0 z-50"
+                style={{
+                  background: 'rgba(0,0,0,0.7)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                }}
               />
               <motion.div
                 initial="closed"
                 animate="open"
                 exit="closed"
                 variants={sidebarVariants}
-                className="fixed left-0 top-0 h-full w-72 z-[60] shadow-2xl"
+                className="fixed left-0 top-0 h-full w-72 z-[60]"
+                style={{
+                  boxShadow: '20px 0 60px rgba(0,0,0,0.8)',
+                }}
               >
                 <SidebarContent onClose={onClose} location={location} onOpenSearch={onOpenSearch} />
               </motion.div>

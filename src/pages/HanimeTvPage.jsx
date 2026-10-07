@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { getHanimeTrending, getHanimeSearch } from "../services/hanimeTvService";
-import { Menu, Play, Tag } from "lucide-react";
+import { Flame, Play, Tag, Sparkles, ChevronLeft, ChevronRight, Film } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 import GlassCard from "../components/GlassCard";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
@@ -27,7 +28,7 @@ export default function HanimeTvPage({ onOpenSidebar }) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchData = React.useCallback(
+  const fetchData = useCallback(
     async (pageNum) => {
       setLoading(true);
       try {
@@ -77,72 +78,117 @@ export default function HanimeTvPage({ onOpenSidebar }) {
   };
 
   return (
-    <div className="min-h-screen text-white pb-20 pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 bg-neutral-950/50">
+    <div className="min-h-screen text-white pb-24 pt-6 md:pt-10 px-4 sm:px-6 md:px-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-stretch md:items-end gap-4 md:gap-6 border-b border-white/10 pb-6 text-left">
+        {/* ── Page Header ────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/[0.06] pb-8"
+        >
           <div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-2">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-red-500 to-rose-600">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3"
+              style={{
+                background: 'rgba(255, 45, 85, 0.1)',
+                color: '#ff2d55',
+                border: '1px solid rgba(255, 45, 85, 0.25)',
+              }}
+            >
+              <Flame size={12} className="animate-pulse" />
+              <span>Jav.Guru Exclusive Stream</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-black tracking-tight mb-2">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-rose-500 to-pink-500">
                 Jav.Guru
               </span>
             </h1>
-            <p className="text-gray-400 text-xs sm:text-sm max-w-lg">
+            <p className="text-gray-400 text-xs sm:text-sm max-w-lg leading-relaxed">
               {debouncedQuery
-                ? `Search results for "${debouncedQuery}"`
-                : "Explore latest Japanese Adult Videos from Jav.Guru."}
+                ? `Hasil pencarian untuk "${debouncedQuery}"`
+                : "Katalog video pilihan kualitas HD dengan streaming cepat dan cover jernih."}
             </p>
           </div>
 
-          <div className="w-full md:w-auto">
-            <div className="w-full md:w-80">
-              <SearchBar value={searchQuery} onChange={setSearchQuery} />
-            </div>
+          <div className="w-full md:w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Cari aktris, kode, atau tag..."
+            />
           </div>
-        </header>
+        </motion.div>
 
-        {/* Popular Tags Menu */}
-        <div className="mb-6 overflow-x-auto pb-2 scrollbar-none">
-          <div className="flex items-center gap-1.5 min-w-max">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1 mr-1.5">
+        {/* ── Popular Tags Pills ───────────────────────────────────────── */}
+        <div className="mb-8 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex items-center gap-2 min-w-max">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5 mr-2">
               <Tag size={13} className="text-orange-400" /> Tags:
             </span>
-            {POPULAR_TAGS.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => {
-                  if (searchQuery.toLowerCase() === tag.toLowerCase()) {
-                    setSearchQuery("");
-                    setPage(0);
-                  } else {
-                    setSearchQuery(tag);
-                    setPage(0);
-                  }
-                }}
-                className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1 border ${
-                  searchQuery.toLowerCase() === tag.toLowerCase()
-                    ? "bg-gradient-to-r from-orange-500 to-red-600 text-white border-transparent shadow-lg shadow-red-500/20 scale-105"
-                    : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20"
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+            {POPULAR_TAGS.map((tag) => {
+              const isSelected = searchQuery.toLowerCase() === tag.toLowerCase();
+              return (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSearchQuery("");
+                      setPage(0);
+                    } else {
+                      setSearchQuery(tag);
+                      setPage(0);
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "text-white shadow-lg"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                  style={{
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #ff6b35, #ff2d55)'
+                      : 'rgba(255, 255, 255, 0.03)',
+                    border: isSelected
+                      ? '1px solid rgba(255, 45, 85, 0.6)'
+                      : '1px solid rgba(255, 255, 255, 0.06)',
+                    boxShadow: isSelected ? '0 4px 20px rgba(255, 45, 85, 0.35)' : 'none',
+                  }}
+                >
+                  {tag}
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        {/* ── Content Grid / Skeletons ─────────────────────────────────── */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="animate-pulse flex flex-col gap-3">
-                <div className="bg-white/5 aspect-[16/9] rounded-xl w-full" />
-                <div className="h-4 bg-white/5 rounded w-3/4" />
-                <div className="h-3 bg-white/5 rounded w-1/2" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-2xl overflow-hidden p-2 flex flex-col gap-3"
+                style={{
+                  background: 'rgba(18, 18, 28, 0.4)',
+                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                }}
+              >
+                <div className="aspect-[2/3] rounded-xl bg-white/[0.04] relative overflow-hidden animate-pulse">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent animate-shimmer" />
+                </div>
+                <div className="h-4 bg-white/[0.05] rounded-md w-3/4 animate-pulse" />
+                <div className="h-3 bg-white/[0.03] rounded-md w-1/2 animate-pulse" />
               </div>
             ))}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5"
+            >
               {data.map((item, idx) => (
                 <GlassCard
                   key={`${item?.id || idx}-${idx}`}
@@ -152,21 +198,27 @@ export default function HanimeTvPage({ onOpenSidebar }) {
                   category={
                     item?.views
                       ? `${Number(item.views) ? Number(item.views).toLocaleString() : item.views} Views`
-                      : "Anime"
+                      : "Jav.Guru"
                   }
                   fallbackIcon={Play}
                 />
               ))}
-            </div>
+            </motion.div>
 
+            {/* Pagination Controls */}
             {data.length > 0 && (
-              <div className="mt-16 flex justify-center items-center gap-2 pb-20 flex-wrap">
+              <div className="mt-16 flex justify-center items-center gap-2 pb-12 flex-wrap">
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 0 || loading}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none text-white text-sm shadow-md"
+                  className="px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-gray-300 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
                 >
-                  Prev
+                  <ChevronLeft size={16} />
+                  <span>Prev</span>
                 </button>
 
                 {getPageNumbers().map((pNum) => (
@@ -174,11 +226,20 @@ export default function HanimeTvPage({ onOpenSidebar }) {
                     key={pNum}
                     onClick={() => handlePageChange(pNum)}
                     disabled={loading}
-                    className={`w-10 h-10 rounded-xl font-bold text-sm transition-all flex items-center justify-center border ${
+                    className={`w-10 h-10 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center cursor-pointer ${
                       page === pNum
-                        ? "bg-gradient-to-r from-orange-500 to-rose-600 text-white border-transparent shadow-lg shadow-rose-500/30 scale-105"
-                        : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20"
+                        ? "text-white shadow-lg"
+                        : "text-gray-400 hover:text-white"
                     }`}
+                    style={{
+                      background: page === pNum
+                        ? 'linear-gradient(135deg, #ff6b35, #ff2d55)'
+                        : 'rgba(255, 255, 255, 0.04)',
+                      border: page === pNum
+                        ? '1px solid rgba(255, 45, 85, 0.6)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                      boxShadow: page === pNum ? '0 0 20px rgba(255, 45, 85, 0.4)' : 'none',
+                    }}
                   >
                     {pNum + 1}
                   </button>
@@ -187,19 +248,42 @@ export default function HanimeTvPage({ onOpenSidebar }) {
                 <button
                   onClick={() => handlePageChange(page + 1)}
                   disabled={loading || data.length < 12}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all disabled:opacity-30 disabled:pointer-events-none text-white text-sm shadow-md"
+                  className="px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-gray-300 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
                 >
-                  Next
+                  <span>Next</span>
+                  <ChevronRight size={16} />
                 </button>
               </div>
             )}
 
+            {/* Empty State */}
             {data.length === 0 && !loading && (
-              <div className="py-20 text-center text-gray-500 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                  <Menu size={24} className="opacity-30" />
+              <div
+                className="py-24 text-center rounded-3xl p-8 max-w-md mx-auto flex flex-col items-center gap-4"
+                style={{
+                  background: 'rgba(18, 18, 28, 0.4)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center text-gray-500">
+                  <Film size={28} />
                 </div>
-                <p>No videos found.</p>
+                <h3 className="text-lg font-bold text-white">Tidak Ada Video</h3>
+                <p className="text-gray-400 text-xs">
+                  Tidak ditemukan video yang sesuai dengan kata kunci atau filter saat ini.
+                </p>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-neon-red bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer"
+                  >
+                    Reset Pencarian
+                  </button>
+                )}
               </div>
             )}
           </>

@@ -192,8 +192,14 @@ export default function PersonalVideoPage() {
   const isApiKeyNotSet = error && error.includes("API_KEY_NOT_SET");
 
   return (
-    <div className="min-h-screen text-white pt-6 md:pt-16 px-3.5 sm:px-6 md:px-8 pb-20">
+    <div className="min-h-screen text-white pt-6 md:pt-10 px-4 sm:px-6 md:px-8 pb-24 relative overflow-hidden bg-[#07070c]">
+      {/* ── Background Aurora Glow ───────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-indigo-600/[0.06] blur-[160px]" />
+        <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-600/[0.05] blur-[170px]" />
+      </div>
 
+      <div className="relative z-10 max-w-7xl mx-auto">
       {/* Video Player Modal */}
       <AnimatePresence>
         {playingVideo && (
@@ -201,13 +207,13 @@ export default function PersonalVideoPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl"
             onClick={() => setPlayingVideo(null)}
           >
             {/* Absolute Close Button */}
             <button
               onClick={() => setPlayingVideo(null)}
-              className="absolute top-3 right-3 sm:top-5 sm:right-5 z-[120] p-2.5 sm:p-3 rounded-full bg-white/10 hover:bg-red-600 text-white transition-all backdrop-blur-md shadow-lg group active:scale-95"
+              className="absolute top-3 right-3 sm:top-5 sm:right-5 z-[120] p-2.5 sm:p-3 rounded-full bg-white/10 hover:bg-rose-600 text-white transition-all backdrop-blur-md shadow-lg group active:scale-95 cursor-pointer"
               title="Tutup (Esc)"
             >
               <X size={20} className="sm:w-6 sm:h-6" />
@@ -218,19 +224,31 @@ export default function PersonalVideoPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-5xl flex flex-col bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative z-10"
+              className="w-full max-w-5xl flex flex-col rounded-3xl overflow-hidden shadow-2xl relative z-10"
+              style={{
+                background: 'rgba(14, 16, 26, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(124, 77, 255, 0.3)',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(124, 77, 255, 0.15)',
+              }}
               onClick={e => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-white/10 shrink-0 pr-12 sm:pr-16 bg-neutral-900/90">
+              <div className="flex items-center justify-between p-4 border-b border-white/[0.06] shrink-0 pr-12 sm:pr-16 bg-white/[0.02]">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                    <Film size={16} />
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: 'rgba(124, 77, 255, 0.2)',
+                      border: '1px solid rgba(124, 77, 255, 0.3)',
+                    }}
+                  >
+                    <Film size={16} className="text-neon-purple" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-white truncate text-sm sm:text-base">{playingVideo.title}</h3>
+                    <h3 className="font-display font-bold text-white truncate text-sm sm:text-base">{playingVideo.title}</h3>
                     {playingVideo.driveLabel && (
-                      <span className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wider">
+                      <span className="text-[10px] text-neon-purple font-mono font-semibold uppercase tracking-wider">
                         {playingVideo.driveLabel}
                       </span>
                     )}
@@ -690,6 +708,7 @@ export default function PersonalVideoPage() {
           Tidak ada video yang cocok dengan pencarian "{searchQuery}".
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Loader2, AlertCircle, Film, Tag, Heart } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  AlertCircle,
+  Play,
+  Film,
+  Tag,
+  Heart,
+  Sparkles,
+  Share2,
+} from "lucide-react";
 import { getHentaiPlayVideo } from "../services/hentaiPlayService";
 import { useFavorites } from "../hooks/useFavorites";
 import { filterBlockedTags } from "../utils/contentFilter";
@@ -13,10 +24,10 @@ export default function HentaiPlayDetailPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     const fetchVideo = async () => {
       setLoading(true);
       setError(null);
@@ -35,171 +46,198 @@ export default function HentaiPlayDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 size={40} className="text-rose-400 animate-spin" />
-          <p className="text-gray-500 text-sm">Memuat video...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center text-white px-4">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-rose-500/20 border-t-rose-500 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Film size={18} className="text-rose-400 animate-pulse" />
+          </div>
         </div>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-rose-300">
+          Memuat Pemutar HentaiPlay...
+        </p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center gap-4">
-        <AlertCircle size={40} className="text-red-400" />
-        <p className="text-red-400 text-sm">{error || "Video tidak ditemukan"}</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm hover:bg-rose-700 transition-colors"
-        >
-          Kembali
-        </button>
+      <div className="min-h-screen flex flex-col items-center justify-center text-white px-4 text-center">
+        <div className="glass-card p-8 rounded-3xl max-w-md border border-white/10 shadow-2xl">
+          <AlertCircle size={44} className="mx-auto text-rose-500 mb-3" />
+          <h2 className="text-xl font-bold mb-2 text-white">Gagal Memuat Video</h2>
+          <p className="text-gray-400 text-sm mb-6">{error || "Video tidak ditemukan."}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition-all shadow-lg shadow-rose-600/30"
+          >
+            Kembali
+          </button>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-950 text-white">
-      {/* Navbar */}
-      <div className="sticky top-0 z-30 bg-neutral-950/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="font-semibold text-sm text-white line-clamp-1 flex-1">
-          {data.title || "Video"}
-        </h1>
-        <a
-          href={data.original_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 rounded-xl bg-white/5 hover:bg-rose-600/20 text-gray-400 hover:text-rose-400 transition-all"
-        >
-          <ExternalLink size={16} />
-        </a>
-      </div>
+  const favoriteActive =
+    isFavorite(slug) ||
+    isFavorite(`/hentaiplay/video/${encodeURIComponent(slug)}`);
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Video Player Section */}
-        <div className="mb-6">
-          {!isPlaying ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative group cursor-pointer"
-              onClick={() => {
-                if (data.embed_url) {
-                  setIsPlaying(true);
-                } else {
-                  window.open(data.original_url, '_blank');
-                }
-              }}
+  return (
+    <div className="min-h-screen text-white pb-24 pt-4 md:pt-10 px-3.5 sm:px-6 md:px-8">
+      <div className="max-w-5xl mx-auto">
+        {/* Navigation Bar */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10 hover:border-rose-500/40 text-gray-300 hover:text-white text-xs sm:text-sm font-semibold transition-all group shadow-md"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            Kembali
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                toggleFavorite({
+                  id: slug,
+                  link: `/hentaiplay/video/${encodeURIComponent(slug)}`,
+                  title: data.title,
+                  cover_url: data.cover_url,
+                  type: "Video",
+                  source: "HentaiPlay",
+                })
+              }
+              className={`p-2.5 rounded-full transition-all border ${
+                favoriteActive
+                  ? "bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-600/40"
+                  : "glass-card border-white/10 text-gray-400 hover:text-rose-400 hover:border-rose-500/40"
+              }`}
+              title={favoriteActive ? "Hapus dari Favorit" : "Simpan ke Favorit"}
             >
-              {/* Thumbnail Background */}
-              {data.cover_url && (
-                <img
-                  src={data.cover_url}
-                  alt={data.title}
-                  className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-300"
-                />
-              )}
-              {/* Overlay + Play Button */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-rose-600/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-rose-500/50 group-hover:scale-110 transition-transform duration-300 border border-rose-400/30">
-                  <Film size={36} className="text-white ml-1" />
-                </div>
-                <div className="text-center">
-                  <p className="text-white font-bold text-base drop-shadow-lg">Klik untuk Tonton</p>
-                  <p className="text-rose-300 text-xs mt-1">
-                    {data.embed_url ? "Nonton Langsung Disini" : "Membuka di HentaiPlay.net"}
-                  </p>
+              <Heart size={18} className={favoriteActive ? "fill-white" : ""} />
+            </button>
+
+            {data.original_url && (
+              <a
+                href={data.original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-full glass-card border border-white/10 hover:border-rose-500/40 text-gray-400 hover:text-rose-300 transition-all"
+                title="Buka di Sumber Asli"
+              >
+                <ExternalLink size={18} />
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Video Player Section */}
+        <div className="mb-8">
+          <div className="relative rounded-3xl overflow-hidden border border-white/15 bg-black shadow-[0_0_50px_rgba(244,63,94,0.15)] aspect-video">
+            {!isPlaying ? (
+              <div
+                onClick={() => {
+                  if (data.embed_url) {
+                    setIsPlaying(true);
+                  } else {
+                    window.open(data.original_url, "_blank");
+                  }
+                }}
+                className="w-full h-full relative cursor-pointer group"
+              >
+                {data.cover_url && (
+                  <img
+                    src={data.cover_url}
+                    alt={data.title}
+                    className="w-full h-full object-cover opacity-60 group-hover:opacity-45 transition-opacity duration-500"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/30" />
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-rose-600 blur-xl opacity-60 group-hover:opacity-100 transition-opacity animate-pulse" />
+                    <div className="relative w-20 h-20 rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 flex items-center justify-center shadow-2xl shadow-rose-600/50 group-hover:scale-110 transition-transform duration-300 border border-white/30">
+                      <Play size={32} className="text-white fill-white ml-1" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-white font-bold text-base drop-shadow-md tracking-wide">
+                      Klik untuk Memutar
+                    </span>
+                    <p className="text-rose-300 text-xs mt-1 font-medium">
+                      {data.embed_url
+                        ? "Streaming Langsung Kualitas HD"
+                        : "Buka di HentaiPlay.net"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          ) : (
-            <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-rose-900/10 bg-black aspect-video relative">
-              {data.embed_url && (data.embed_url.includes(".mp4") || !data.embed_url.includes("embed")) ? (
-                <video
-                  src={`/api/hentaiplay/stream?url=${encodeURIComponent(data.embed_url)}`}
-                  poster={data.cover_url}
-                  className="w-full h-full object-contain"
-                  controls
-                  autoPlay
-                  playsInline
-                ></video>
-              ) : (
-                <iframe
-                  src={data.embed_url}
-                  className="w-full h-full border-0"
-                  allowFullScreen
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                ></iframe>
-              )}
+            ) : (
+              <div className="w-full h-full bg-black">
+                {data.embed_url &&
+                (data.embed_url.includes(".mp4") || !data.embed_url.includes("embed")) ? (
+                  <video
+                    src={`/api/hentaiplay/stream?url=${encodeURIComponent(data.embed_url)}`}
+                    poster={data.cover_url}
+                    className="w-full h-full object-contain"
+                    controls
+                    autoPlay
+                    playsInline
+                  />
+                ) : (
+                  <iframe
+                    src={data.embed_url}
+                    className="w-full h-full border-0"
+                    allowFullScreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Info Card */}
+        <div className="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-2 flex-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                <Sparkles size={12} className="text-rose-400" /> HentaiPlay Premiere
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight font-display">
+                {data.title}
+              </h1>
+            </div>
+          </div>
+
+          {data.description && (
+            <div className="pt-4 border-t border-white/5">
+              <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+                {data.description}
+              </p>
+            </div>
+          )}
+
+          {/* Tags */}
+          {data.tags && filterBlockedTags(data.tags).length > 0 && (
+            <div className="pt-4 border-t border-white/5 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <Tag size={13} className="text-rose-400" /> Kategori & Tag
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {filterBlockedTags(data.tags).map((tag, i) => (
+                  <span
+                    key={i}
+                    className="px-3 py-1 rounded-full text-xs font-medium glass-card border border-white/10 text-gray-300 hover:text-rose-300 hover:border-rose-500/40 transition-colors"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
-
-        {/* Title & Info */}
-        <div className="mb-6 flex items-start gap-4 justify-between">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-3 leading-tight">{data.title}</h2>
-            {data.description && (
-              <p className="text-sm text-gray-400 leading-relaxed">{data.description}</p>
-            )}
-          </div>
-          <button
-            onClick={() => toggleFavorite({
-              id: slug,
-              link: `/hentaiplay/video/${encodeURIComponent(slug)}`,
-              title: data.title,
-              cover_url: data.cover_url,
-              type: "Video",
-              source: "HentaiPlay"
-            })}
-            className={`p-3 rounded-full flex-shrink-0 transition-all ${
-              isFavorite(slug) || isFavorite(`/hentaiplay/video/${encodeURIComponent(slug)}`)
-                ? "bg-rose-600 text-white shadow-lg shadow-rose-600/30"
-                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-rose-400"
-            }`}
-          >
-            <Heart size={24} className={isFavorite(slug) || isFavorite(`/hentaiplay/video/${encodeURIComponent(slug)}`) ? "fill-white" : ""} />
-          </button>
-        </div>
-
-        {/* Tags */}
-        {filterBlockedTags(data.tags).length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Tag size={14} className="text-rose-400" />
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tags</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {filterBlockedTags(data.tags).map((tag, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-400 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-300 transition-colors cursor-default"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Open Original Button */}
-        <a
-          href={data.original_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-rose-600/20 border border-white/10 hover:border-rose-500/30 text-gray-400 hover:text-rose-400 rounded-xl text-sm transition-all"
-        >
-          <ExternalLink size={14} />
-          Buka di HentaiPlay.net
-        </a>
       </div>
     </div>
   );

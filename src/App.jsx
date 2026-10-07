@@ -7,7 +7,7 @@ import {
   Navigate
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { Menu, Search, Globe, Shield } from "lucide-react";
+import { Menu, Search, Globe, Shield, Zap } from "lucide-react";
 import GlobalSearchModal from "./components/GlobalSearchModal";
 import Home from "./pages/Home";
 import GeneralHome from "./pages/GeneralHome";
@@ -25,6 +25,7 @@ import DoujinDetailPage from "./pages/DoujinDetailPage";
 import DoujinReaderPage from "./pages/DoujinReaderPage";
 import NhentaiPage from "./pages/NhentaiPage";
 import Sidebar from "./components/Sidebar";
+import MobileBottomNav from "./components/MobileBottomNav";
 
 import Porn3dxPage from "./pages/Porn3dxPage";
 import Porn3dxDetailPage from "./pages/Porn3dxDetailPage";
@@ -176,26 +177,53 @@ function App() {
 function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSearch, isGlobalSearchOpen, onCloseSearch }) {
   const { isAdultMode, togglePortalMode } = usePortalMode();
 
+  const neon = isAdultMode ? '#ff2d55' : '#00e5ff';
+  const neonSecondary = isAdultMode ? '#ffb347' : '#7c4dff';
+
   return (
-    <div className="min-h-screen text-white relative overflow-hidden bg-[#070709]">
-      {/* Global Ambient Background — Dynamic based on mode */}
+    <div className="min-h-screen text-white relative overflow-hidden bg-surface noise-overlay">
+      {/* ── Global Ambient Background Orbs & Cyber Auroras ─────────── */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-all duration-1000">
         {isAdultMode ? (
           <>
-            <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-rose-950/20 rounded-full blur-[160px]" />
-            <div className="absolute top-[35%] right-[-10%] w-[45%] h-[45%] bg-red-950/15 rounded-full blur-[180px]" />
-            <div className="absolute bottom-[-10%] left-[25%] w-[40%] h-[40%] bg-amber-950/15 rounded-full blur-[160px]" />
+            <div
+              className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
+              style={{ background: 'radial-gradient(circle, #ff2d55 0%, #ff6b35 50%, transparent 80%)' }}
+            />
+            <div
+              className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
+              style={{ background: 'radial-gradient(circle, #ff375f 0%, #7c4dff 50%, transparent 80%)' }}
+            />
+            <div
+              className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
+              style={{ background: 'radial-gradient(circle, #ff6b35 0%, #ff2d55 50%, transparent 80%)' }}
+            />
+            <div
+              className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#ff2d55]/30 to-transparent"
+            />
           </>
         ) : (
           <>
-            <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-cyan-950/20 rounded-full blur-[160px]" />
-            <div className="absolute top-[35%] right-[-10%] w-[45%] h-[45%] bg-indigo-950/15 rounded-full blur-[180px]" />
-            <div className="absolute bottom-[-10%] left-[25%] w-[40%] h-[40%] bg-violet-950/15 rounded-full blur-[160px]" />
+            <div
+              className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
+              style={{ background: 'radial-gradient(circle, #00e5ff 0%, #00b0ff 50%, transparent 80%)' }}
+            />
+            <div
+              className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
+              style={{ background: 'radial-gradient(circle, #7c4dff 0%, #00e5ff 50%, transparent 80%)' }}
+            />
+            <div
+              className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
+              style={{ background: 'radial-gradient(circle, #00b0ff 0%, #7c4dff 50%, transparent 80%)' }}
+            />
+            <div
+              className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#00e5ff]/30 to-transparent"
+            />
           </>
         )}
       </div>
 
-      {/* Sidebar & Content Wrapper */}
+      {/* ── Sidebar & Content Wrapper ────────────────────────────── */}
       <div className="relative z-10 flex">
         <Sidebar
           isOpen={isSidebarOpen}
@@ -203,31 +231,48 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
           onOpenSearch={onOpenSearch}
         />
 
-        <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-hidden">
-          {/* Global Sticky Top Header for Mobile — Dynamic */}
-          <div className="md:hidden sticky top-0 z-40 bg-[#070709]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between shadow-xl shadow-black/60">
+        <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-hidden pb-20 md:pb-0">
+          {/* ── Mobile Top Bar ────────────────────────────────────── */}
+          <div className="md:hidden sticky top-0 z-40 px-4 py-3 flex items-center justify-between"
+            style={{
+              background: 'rgba(8,8,12,0.85)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              boxShadow: '0 4px 30px rgba(0,0,0,0.5)',
+            }}
+          >
             <button
               onClick={onOpenSidebar}
-              className="p-2.5 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/10 rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
+              className="p-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.06] rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
               aria-label="Open Menu"
             >
-              <Menu size={22} className={isAdultMode ? "text-red-400" : "text-cyan-400"} />
+              <Menu size={20} style={{ color: neon }} />
             </button>
             <div className="flex items-center gap-2">
-              <span className={`font-black text-lg bg-clip-text text-transparent bg-gradient-to-r tracking-tight transition-all duration-500 ${
-                isAdultMode
-                  ? "from-red-500 via-rose-500 to-amber-400"
-                  : "from-cyan-400 via-sky-400 to-violet-400"
-              }`}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{
+                  background: `${neon}15`,
+                  border: `1px solid ${neon}25`,
+                }}
+              >
+                <Zap size={14} style={{ color: neon }} />
+              </div>
+              <span className="font-display font-black text-base bg-clip-text text-transparent tracking-tight transition-all duration-500"
+                style={{
+                  backgroundImage: `linear-gradient(135deg, ${neon}, ${neonSecondary})`,
+                }}
+              >
                 ApiCos
               </span>
               <button
                 onClick={togglePortalMode}
-                className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border tracking-wider transition-all duration-300 flex items-center gap-1 cursor-pointer active:scale-95 ${
-                  isAdultMode
-                    ? "bg-red-600/30 text-red-400 border-red-500/40 hover:bg-red-600/50"
-                    : "bg-cyan-600/30 text-cyan-300 border-cyan-500/40 hover:bg-cyan-600/50"
-                }`}
+                className="text-[9px] font-extrabold px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                style={{
+                  background: `${neon}15`,
+                  color: neon,
+                  border: `1px solid ${neon}25`,
+                }}
                 title={`Beralih ke ${isAdultMode ? "Mode Anime (HUB)" : "Mode Cinema (18+)"}`}
                 aria-label="Ganti Mode Portal"
               >
@@ -237,19 +282,24 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
             </div>
             <button
               onClick={onOpenSearch}
-              className={`p-2.5 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/10 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-sm ${
-                isAdultMode ? "text-red-400 hover:text-red-300" : "text-cyan-400 hover:text-cyan-300"
-              }`}
+              className="p-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.06] rounded-xl transition-all flex items-center justify-center cursor-pointer"
+              style={{ color: neon }}
               aria-label="Cari di semua platform"
               title="Pencarian Cepat"
             >
-              <Search size={20} />
+              <Search size={18} />
             </button>
           </div>
 
           <AnimatedRoutes onOpenSidebar={onOpenSidebar} />
         </main>
       </div>
+
+      {/* ── Mobile Bottom Navigation Bar ─────────────────────────────── */}
+      <MobileBottomNav
+        onOpenSidebar={onOpenSidebar}
+        onOpenSearch={onOpenSearch}
+      />
 
       {/* Global Search Modal */}
       <GlobalSearchModal

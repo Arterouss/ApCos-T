@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import { getCavPornDetail } from "../services/cavpornService";
 import Hls from "hls.js";
 import { useFavorites } from "../hooks/useFavorites";
-import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 import {
   ArrowLeft,
   Download,
@@ -17,6 +16,7 @@ import {
   ListVideo,
   Info,
   Heart,
+  Sparkles,
 } from "lucide-react";
 
 export default function CavPornDetailPage() {
@@ -46,17 +46,14 @@ export default function CavPornDetailPage() {
     if (id) loadDetail();
   }, [id, slug]);
 
-  // Helper to build proxy URL
   const buildProxyUrl = useCallback((url, referer) => {
     let abs = url;
     if (!url.startsWith("http")) {
-      // relative URL — shouldn't happen but handle it
       abs = url;
     }
     return `/api/proxy?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(referer || "")}`;
   }, []);
 
-  // Initialize HLS.js when data is available
   useEffect(() => {
     if (!data?.rawVideoSrc || !videoRef.current) return;
 
@@ -65,21 +62,16 @@ export default function CavPornDetailPage() {
     const referer = data.originalUrl || "";
     const isM3U8 = videoUrl.includes(".m3u8");
 
-    // Cleanup previous instance
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
     }
 
     if (isM3U8 && Hls.isSupported()) {
-      console.log("[HLS] Initializing with URL:", videoUrl);
-
       const hls = new Hls({
         xhrSetup: (xhr, xhrUrl) => {
-          // Check if URL is already proxied (from m3u8 rewriting by backend)
           let finalUrl = xhrUrl;
           if (xhrUrl.includes("/api/proxy")) {
-            // Already proxied — extract path if absolute URL
             if (xhrUrl.startsWith("http")) {
               try {
                 const u = new URL(xhrUrl);
@@ -88,17 +80,9 @@ export default function CavPornDetailPage() {
                 finalUrl = xhrUrl;
               }
             }
-            // Already relative proxy URL — use as-is
           } else {
-            // Not proxied yet — proxy it
             finalUrl = buildProxyUrl(xhrUrl, referer);
           }
-          console.log(
-            "[HLS XHR]",
-            xhrUrl.substring(0, 50),
-            "→",
-            finalUrl.substring(0, 50),
-          );
           xhr.open("GET", finalUrl, true);
         },
         enableWorker: false,
@@ -106,44 +90,32 @@ export default function CavPornDetailPage() {
         backBufferLength: 90,
       });
 
-      // Load the m3u8 through our proxy
       hls.loadSource(buildProxyUrl(videoUrl, referer));
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log("[HLS] Manifest parsed, starting playback");
-        video.play().catch((e) => console.log("[HLS] Autoplay blocked:", e));
+        setVideoError(null);
+        video.play().catch(() => {});
       });
 
-      hls.on(Hls.Events.ERROR, (_, hlsData) => {
-        console.error("[HLS] Error:", hlsData.type, hlsData.details);
-        if (hlsData.fatal) {
-          if (hlsData.type === Hls.ErrorTypes.MEDIA_ERROR) {
-            console.log("[HLS] Recovering from media error...");
-            hls.recoverMediaError();
-          } else if (hlsData.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            console.log("[HLS] Network error, retrying in 2s...");
-            setTimeout(() => hls.startLoad(), 2000);
-          } else {
-            setVideoError(
-              "Video playback failed. Try watching on the original site.",
-            );
+      hls.on(Hls.Events.ERROR, (_, d) => {
+        if (d.fatal) {
+          if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          else if (d.type === Hls.ErrorTypes.NETWORK_ERROR) setTimeout(() => hls.startLoad(), 2000);
+          else {
+            setVideoError("Gagal memuat video stream HLS.");
             hls.destroy();
           }
         }
       });
 
       hlsRef.current = hls;
-    } else if (isM3U8 && video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari native HLS
-      video.src = buildProxyUrl(videoUrl, referer);
-      video.play().catch(() => {});
-    } else if (!isM3U8) {
-      // Direct MP4
-      video.src = buildProxyUrl(videoUrl, referer);
-      video.play().catch(() => {});
     } else {
-      setVideoError("HLS playback is not supported in this browser.");
+      video.src = buildProxyUrl(videoUrl, referer);
+      video.addEventListener("error", () => {
+        setVideoError("Gagal memuat video.");
+      });
+      video.play().catch(() => {});
     }
 
     return () => {
@@ -156,69 +128,105 @@ export default function CavPornDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white bg-neutral-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500"></div>
+      <div className="min-h-screen flex items-center justify-center text-white bg-[#07070b]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400 mx-auto mb-3" />
+          <p className="text-gray-400 text-xs font-mono">MEMUAT DETAIL VIDEO...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white bg-neutral-950 px-4 text-center">
-        <AlertTriangle className="mx-auto mb-4 text-red-500" size={48} />
-        <h2 className="text-2xl font-bold mb-4 text-red-500">
-          Error Loading Video
-        </h2>
-        <p className="text-gray-400 mb-6 max-w-md">
-          {error || "The requested video could not be found."}
-        </p>
-        <Link
-          to="/cavporn"
-          className="px-6 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition-colors text-white"
+      <div className="min-h-screen flex flex-col items-center justify-center text-white bg-[#07070b] px-4 text-center">
+        <div
+          className="rounded-3xl p-8 max-w-md mx-auto"
+          style={{
+            background: 'rgba(18, 18, 28, 0.6)',
+            border: '1px solid rgba(255, 45, 85, 0.25)',
+          }}
         >
-          Back to Gallery
-        </Link>
+          <AlertTriangle className="mx-auto mb-3 text-neon-red" size={44} />
+          <h2 className="text-lg font-bold mb-2 text-white">Gagal Memuat Video</h2>
+          <p className="text-gray-400 text-xs mb-6">{error || "Data video tidak ditemukan."}</p>
+          <Link
+            to="/cavporn"
+            className="px-6 py-2.5 rounded-xl text-xs font-bold text-black transition-all inline-block"
+            style={{ background: '#00e5ff' }}
+          >
+            Kembali ke CavPorn
+          </Link>
+        </div>
       </div>
     );
   }
 
+  const isFav = isFavorite(id);
+
   return (
-    <div className="min-h-screen text-white pb-20 pt-20 px-4 md:px-8 bg-neutral-950">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen text-white pb-24 pt-6 md:pt-8 px-4 md:px-8 relative overflow-hidden bg-[#07070b]">
+      {/* ── Background Aurora Glow ───────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-cyan-600/[0.05] blur-[160px]" />
+        <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-600/[0.05] blur-[170px]" />
+      </div>
+
+      <div className="relative z-10 max-w-5xl mx-auto">
         <Link
           to="/cavporn"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-gray-300 hover:text-white mb-6 transition-all"
+          style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
         >
-          <ArrowLeft size={20} /> Back to Gallery
+          <ArrowLeft size={16} />
+          <span>Kembali ke CavPorn</span>
         </Link>
 
         <div className="flex items-start justify-between gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-red-400 to-rose-500 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-display font-black leading-tight tracking-tight text-white flex-1">
             {data.title}
           </h1>
           <button
-            onClick={() => toggleFavorite({
-              id: id,
-              link: `/cavporn/detail?url=${encodeURIComponent(url)}&id=${encodeURIComponent(id)}`,
-              title: data.title,
-              cover_url: data.thumbnail || null,
-              type: "JAV",
-              source: "CavPorn"
-            })}
-            className={`p-3 rounded-full flex-shrink-0 transition-all ${
-              isFavorite(id)
-                ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-red-400"
+            onClick={() =>
+              toggleFavorite({
+                id: id,
+                link: `/cavporn/${id}/${slug || ''}`,
+                title: data.title,
+                cover_url: data.thumbnail || null,
+                type: "JAV",
+                source: "CavPorn",
+              })
+            }
+            className={`p-3 rounded-2xl transition-all cursor-pointer shrink-0 ${
+              isFav ? "text-white shadow-lg" : "text-gray-400 hover:text-white"
             }`}
+            style={{
+              background: isFav
+                ? 'linear-gradient(135deg, #ff2d55, #ff6b35)'
+                : 'rgba(255, 255, 255, 0.04)',
+              border: isFav
+                ? '1px solid rgba(255, 45, 85, 0.8)'
+                : '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: isFav ? '0 0 20px rgba(255, 45, 85, 0.4)' : 'none',
+            }}
           >
-            <Heart size={24} className={isFavorite(id) ? "fill-white" : ""} />
+            <Heart size={20} className={isFav ? "fill-white" : ""} />
           </button>
         </div>
 
-        {/* Video Player - Direct HLS.js integration, no iframe */}
+        {/* Video Player Section */}
         <div className="mb-8">
-          <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-red-500/10 bg-black relative">
+          <div
+            className="aspect-video rounded-3xl overflow-hidden shadow-2xl relative"
+            style={{
+              background: '#040508',
+              border: '1px solid rgba(0, 229, 255, 0.25)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(0, 229, 255, 0.12)',
+            }}
+          >
             {data.rawVideoSrc ? (
               <>
                 <video
@@ -230,171 +238,99 @@ export default function CavPornDetailPage() {
                   poster={data.thumbnail}
                 />
                 {videoError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                    <div className="text-center p-4">
-                      <AlertTriangle
-                        className="mx-auto mb-2 text-red-500"
-                        size={32}
-                      />
-                      <p className="text-gray-300 text-sm mb-3">{videoError}</p>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/85 backdrop-blur-sm">
+                    <div className="text-center p-6 max-w-sm">
+                      <AlertTriangle className="mx-auto mb-3 text-neon-red" size={36} />
+                      <p className="text-gray-300 text-xs sm:text-sm mb-4 leading-relaxed">{videoError}</p>
                       <a
                         href={data.originalUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 rounded-full hover:bg-red-700 transition-colors text-sm"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all"
+                        style={{ background: 'linear-gradient(135deg, #ff2d55, #ff6b35)' }}
                       >
-                        <ExternalLink size={14} /> Watch on Original Site
+                        <ExternalLink size={12} /> Buka di Situs Asli
                       </a>
                     </div>
                   </div>
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center p-4">
-                  <p className="text-gray-400 mb-4">
-                    Video stream could not be extracted.
-                  </p>
+              <div className="flex items-center justify-center h-full text-center p-6">
+                <div>
+                  <p className="text-gray-400 text-sm mb-4">Stream video tidak dapat diekstrak langsung.</p>
                   <a
                     href={data.originalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 rounded-full hover:bg-red-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold text-black"
+                    style={{ background: '#00e5ff' }}
                   >
-                    <ExternalLink size={20} /> Watch on Original Site
+                    <ExternalLink size={14} /> Tonton di Situs Sumber
                   </a>
                 </div>
               </div>
             )}
           </div>
-          <div className="flex justify-center mt-2">
-            <a
-              href={data.originalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1"
-            >
-              <ExternalLink size={12} /> Open on Original Site
-            </a>
-          </div>
         </div>
 
-        {/* Info Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Category */}
+        {/* Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           {data.category && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wider">
-                Category
-              </h3>
-              <span className="text-white">{data.category}</span>
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: 'rgba(14, 16, 26, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <h3 className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1.5">Kategori</h3>
+              <span className="text-sm font-semibold text-white">{data.category}</span>
             </div>
           )}
 
-          {/* Download */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-              <Download size={14} /> Download
-            </h3>
-            <a
-              href={data.downloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 transition-colors text-sm border border-red-500/20"
+          {data.downloadUrl && (
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: 'rgba(14, 16, 26, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
             >
-              <Download size={14} /> Download MP4
-            </a>
-          </div>
+              <h3 className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1.5 flex items-center gap-1.5">
+                <Download size={13} className="text-neon-cyan" /> Download
+              </h3>
+              <a
+                href={data.downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-neon-cyan hover:underline mt-1"
+              >
+                <Download size={12} /> Unduh Video MP4
+              </a>
+            </div>
+          )}
 
-          {/* Original Link */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wider">
-              Source
-            </h3>
-            <a
-              href={data.originalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
+          {data.originalUrl && (
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: 'rgba(14, 16, 26, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
             >
-              <ExternalLink size={14} /> cav103.com
-            </a>
-          </div>
+              <h3 className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1.5">Sumber Asli</h3>
+              <a
+                href={data.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-neon-cyan text-xs font-mono flex items-center gap-1 mt-1 transition-colors"
+              >
+                <ExternalLink size={12} /> cav103.com
+              </a>
+            </div>
+          )}
         </div>
-
-        {/* Tags */}
-        {data.tags && filterBlockedTags(data.tags).length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-2">
-              <Tag size={14} /> Tags
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {filterBlockedTags(data.tags).map((tag) => (
-                <Link
-                  key={tag.hash}
-                  to="/cavporn"
-                  onClick={() => {
-                    // This will navigate back with the tag as search
-                    // We rely on the page to pick up the state
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-gray-300 hover:text-white border border-white/5 hover:border-red-500/30 hover:bg-white/10 transition-all"
-                >
-                  {tag.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Related Videos */}
-        {data.relatedVideos && filterBlockedItems(data.relatedVideos).length > 0 && (
-          <div className="mt-12">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Play size={20} className="text-red-500" /> Related Videos
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filterBlockedItems(data.relatedVideos).map((rel) => (
-                <Link
-                  key={rel.id}
-                  to={`/cavporn/${rel.id}/${rel.slug}`}
-                  className="group relative bg-white/5 rounded-xl overflow-hidden hover:-translate-y-1 transition-all duration-300 border border-white/5 hover:border-red-500/30"
-                >
-                  <div className="aspect-video overflow-hidden relative">
-                    <img
-                      src={
-                        rel.thumbnail ||
-                        "https://via.placeholder.com/320x180?text=No+Thumb"
-                      }
-                      alt={rel.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-red-600/90 p-2 rounded-full backdrop-blur-sm">
-                        <Play className="fill-white text-white" size={18} />
-                      </div>
-                    </div>
-
-                    {rel.duration && (
-                      <div className="absolute bottom-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-mono flex items-center gap-0.5">
-                        <Clock size={8} />
-                        {rel.duration}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-2">
-                    <h4 className="font-medium text-xs line-clamp-2 group-hover:text-red-400 transition-colors">
-                      {rel.title}
-                    </h4>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
