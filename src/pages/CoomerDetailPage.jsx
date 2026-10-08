@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,8 +29,125 @@ export default function CoomerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Modal Lightbox state
-  const [selectedMedia, setSelectedMedia] = useState(null);
+  // Gallery Lightbox state
+  const [lightbox, setLightbox] = useState({
+    isOpen: false,
+    mediaList: [],
+    currentIndex: 0,
+    postTitle: "",
+  });
+
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const touchEndRef = useRef({ x: 0, y: 0 });
+  const thumbListRef = useRef(null);
+
+  const openLightbox = (mediaList, startIndex = 0, title = "") => {
+    if (!mediaList || mediaList.length === 0) return;
+    const formatted = mediaList.map((m) => {
+      const isVideo = ["mp4", "webm", "mov", "m4v", "avi"].some((ext) =>
+        (m.path || m.name || m.url || "").toLowerCase().endsWith(ext)
+      );
+      return { ...m, isVideo };
+    });
+    setLightbox({
+      isOpen: true,
+      mediaList: formatted,
+      currentIndex: Math.max(0, Math.min(startIndex, formatted.length - 1)),
+      postTitle: title || "",
+    });
+  };
+
+  const closeLightbox = () => {
+    setLightbox((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const nextMedia = useCallback(() => {
+    setLightbox((prev) => {
+      if (!prev.isOpen || prev.mediaList.length <= 1) return prev;
+      const nextIdx = (prev.currentIndex + 1) % prev.mediaList.length;
+      return { ...prev, currentIndex: nextIdx };
+    });
+  }, []);
+
+  const prevMedia = useCallback(() => {
+    setLightbox((prev) => {
+      if (!prev.isOpen || prev.mediaList.length <= 1) return prev;
+      const prevIdx =
+        (prev.currentIndex - 1 + prev.mediaList.length) % prev.mediaList.length;
+      return { ...prev, currentIndex: prevIdx };
+    });
+  }, []);
+
+  const goToMedia = (index) => {
+    setLightbox((prev) => ({
+      ...prev,
+      currentIndex: Math.max(0, Math.min(index, prev.mediaList.length - 1)),
+    }));
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!lightbox.isOpen) return;
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowRight") nextMedia();
+      if (e.key === "ArrowLeft") prevMedia();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightbox.isOpen, nextMedia, prevMedia]);
+
+  // Auto-scroll active thumbnail into view
+  useEffect(() => {
+    if (lightbox.isOpen && thumbListRef.current) {
+      const activeEl = thumbListRef.current.children[lightbox.currentIndex];
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: "smooth",
+          inline: "center",
+          block: "nearest",
+        });
+      }
+    }
+  }, [lightbox.currentIndex, lightbox.isOpen]);
+
+  // Touch swipe gesture handlers (mobile friendly)
+  const handleTouchStart = (e) => {
+    if (!e.targetTouches || e.targetTouches.length === 0) return;
+    touchStartRef.current = {
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY,
+    };
+    touchEndRef.current = {
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY,
+    };
+  };
+
+  const handleTouchMove = (e) => {
+    if (!e.targetTouches || e.targetTouches.length === 0) return;
+    touchEndRef.current = {
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = () => {
+    const deltaX = touchStartRef.current.x - touchEndRef.current.x;
+    const deltaY = touchStartRef.current.y - touchEndRef.current.y;
+    const minSwipeDistance = 40;
+
+    // Trigger only if swipe is predominantly horizontal and exceeds threshold
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+      if (deltaX > 0) {
+        // Swiped left -> next photo
+        nextMedia();
+      } else {
+        // Swiped right -> previous photo
+        prevMedia();
+      }
+    }
+  };
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -210,42 +327,66 @@ export default function CoomerDetailPage() {
 
                     {/* Media Grid Preview */}
                     {allMedia.length > 0 && (
-                      <div
-                        className={`grid gap-2 ${
-                          allMedia.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                        } mt-1`}
-                      >
-                        {allMedia.slice(0, 4).map((m, idx) => {
-                          const isVideo = ["mp4", "webm", "mov", "m4v"].some((ext) =>
-                            (m.path || m.name || "").endsWith(ext)
-                          );
-                          return (
-                            <div
-                              key={idx}
-                              onClick={() => setSelectedMedia({ ...m, isVideo })}
-                              className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group border border-white/5 hover:border-rose-500/50 transition-all"
-                            >
-                              <img
-                                src={m.url}
-                                alt={m.name || "Media"}
-                                loading="lazy"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                              {isVideo && (
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                  <div className="w-10 h-10 rounded-full bg-rose-600/90 flex items-center justify-center shadow-lg shadow-rose-600/40">
-                                    <Video size={18} className="text-white" />
+                      <div className="space-y-2.5 mt-1">
+                        <div
+                          className={`grid gap-2 ${
+                            allMedia.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                          }`}
+                        >
+                          {allMedia.slice(0, 4).map((m, idx) => {
+                            const isVideo = ["mp4", "webm", "mov", "m4v", "avi"].some((ext) =>
+                              (m.path || m.name || m.url || "").toLowerCase().endsWith(ext)
+                            );
+                            const isLastPreview = idx === 3 && allMedia.length > 4;
+                            const remainingCount = allMedia.length - 4;
+
+                            return (
+                              <div
+                                key={idx}
+                                onClick={() => openLightbox(allMedia, idx, post.title)}
+                                className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group border border-white/5 hover:border-rose-500/50 transition-all shadow-md"
+                              >
+                                <img
+                                  src={m.url}
+                                  alt={m.name || "Media"}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                {isVideo && (
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-full bg-rose-600/90 flex items-center justify-center shadow-lg shadow-rose-600/40">
+                                      <Video size={18} className="text-white" />
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              {idx === 3 && allMedia.length > 4 && (
-                                <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-white font-bold text-xs backdrop-blur-sm">
-                                  +{allMedia.length - 4} Lainnya
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                )}
+                                {isLastPreview && (
+                                  <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white backdrop-blur-sm group-hover:bg-black/70 transition-all p-2 text-center">
+                                    <span className="font-extrabold text-sm sm:text-base text-rose-300 drop-shadow">
+                                      +{remainingCount} Lainnya
+                                    </span>
+                                    <span className="text-[10px] text-gray-300 mt-0.5 flex items-center gap-1 font-medium">
+                                      <ImageIcon size={10} /> Ketuk untuk lihat semua
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Quick button to view all media in gallery slider if multiple */}
+                        {allMedia.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => openLightbox(allMedia, 0, post.title)}
+                            className="w-full py-2 px-3 rounded-xl glass-card hover:border-rose-500/40 border border-white/10 text-xs font-semibold text-rose-300 hover:text-white flex items-center justify-center gap-2 transition-all group/btn cursor-pointer"
+                          >
+                            <ImageIcon size={13} className="text-rose-400 group-hover/btn:scale-110 transition-transform" />
+                            <span>Buka Galeri Foto ({allMedia.length} Media)</span>
+                            <ChevronRight size={13} className="text-gray-400 group-hover/btn:translate-x-0.5 transition-transform" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </motion.div>
@@ -277,55 +418,195 @@ export default function CoomerDetailPage() {
         </div>
       </div>
 
-      {/* Lightbox Modal */}
+      {/* Interactive Lightbox Slider Modal */}
       <AnimatePresence>
-        {selectedMedia && (
-          <div
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4"
-            onClick={() => setSelectedMedia(null)}
-          >
-            <button
-              onClick={() => setSelectedMedia(null)}
-              className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-10"
-            >
-              <X size={20} />
-            </button>
+        {lightbox.isOpen && lightbox.mediaList.length > 0 && (() => {
+          const currentMedia = lightbox.mediaList[lightbox.currentIndex];
+          const totalMedia = lightbox.mediaList.length;
+
+          return (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="max-w-4xl max-h-[90vh] flex flex-col items-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col select-none touch-pan-y"
+              onClick={closeLightbox}
             >
-              {selectedMedia.isVideo ? (
-                <video
-                  src={selectedMedia.url}
-                  controls
-                  autoPlay
-                  className="max-h-[80vh] max-w-full rounded-2xl shadow-2xl border border-white/10"
-                />
-              ) : (
-                <img
-                  src={selectedMedia.url}
-                  alt={selectedMedia.name}
-                  className="max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
-                />
-              )}
-              {selectedMedia.url && (
-                <div className="mt-3 flex items-center gap-3">
-                  <a
-                    href={selectedMedia.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-rose-300 flex items-center gap-1.5 transition-all"
+              {/* Top Header Bar */}
+              <div
+                className="w-full px-4 py-3 sm:px-6 flex items-center justify-between border-b border-white/10 bg-neutral-950/80 z-20 backdrop-blur-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Left: Counter & Title */}
+                <div className="flex items-center gap-3 min-w-0 pr-2">
+                  <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shadow-sm">
+                    <ImageIcon size={13} />
+                    Foto {lightbox.currentIndex + 1} / {totalMedia}
+                  </span>
+                  {lightbox.postTitle && (
+                    <span className="text-xs text-gray-300 font-medium truncate max-w-[200px] sm:max-w-md hidden xs:inline-block">
+                      {lightbox.postTitle}
+                    </span>
+                  )}
+                </div>
+
+                {/* Right: Actions (Download & Close) */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {currentMedia?.url && (
+                    <a
+                      href={currentMedia.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-rose-300 hover:text-white flex items-center gap-1.5 transition-all shadow-md"
+                      title="Unduh Berkas Asli"
+                    >
+                      <Download size={13} />
+                      <span className="hidden sm:inline">Unduh</span>
+                    </a>
+                  )}
+                  <button
+                    onClick={closeLightbox}
+                    className="p-2 rounded-full glass-card hover:bg-white/15 text-gray-300 hover:text-white transition-all cursor-pointer"
+                    aria-label="Tutup"
                   >
-                    <Download size={13} /> Unduh Berkas Asli
-                  </a>
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Center Main Stage (Swipeable Viewport) */}
+              <div
+                className="relative flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden"
+                onClick={closeLightbox}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                {/* Previous Button (Desktop & Mobile) */}
+                {totalMedia > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prevMedia();
+                    }}
+                    className="absolute left-2 sm:left-6 z-20 p-2.5 sm:p-3.5 rounded-full bg-black/60 hover:bg-rose-600/90 text-white backdrop-blur-md border border-white/15 hover:border-rose-500/50 transition-all shadow-2xl hover:scale-105 active:scale-95 cursor-pointer"
+                    aria-label="Foto Sebelumnya"
+                  >
+                    <ChevronLeft size={22} className="sm:w-6 sm:h-6" />
+                  </button>
+                )}
+
+                {/* Media Centerpiece */}
+                <div
+                  className="w-full h-full flex flex-col items-center justify-center max-h-[75vh] sm:max-h-[78vh]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={lightbox.currentIndex}
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="w-full h-full flex items-center justify-center"
+                    >
+                      {currentMedia?.isVideo ? (
+                        <video
+                          src={currentMedia.url}
+                          controls
+                          autoPlay
+                          playsInline
+                          className="max-h-[72vh] sm:max-h-[78vh] max-w-full rounded-2xl shadow-2xl border border-white/10 bg-black"
+                        />
+                      ) : (
+                        <img
+                          src={currentMedia?.url}
+                          alt={currentMedia?.name || `Foto ${lightbox.currentIndex + 1}`}
+                          draggable={false}
+                          className="max-h-[72vh] sm:max-h-[78vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10 select-none pointer-events-auto"
+                        />
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Next Button (Desktop & Mobile) */}
+                {totalMedia > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nextMedia();
+                    }}
+                    className="absolute right-2 sm:right-6 z-20 p-2.5 sm:p-3.5 rounded-full bg-black/60 hover:bg-rose-600/90 text-white backdrop-blur-md border border-white/15 hover:border-rose-500/50 transition-all shadow-2xl hover:scale-105 active:scale-95 cursor-pointer"
+                    aria-label="Foto Selanjutnya"
+                  >
+                    <ChevronRight size={22} className="sm:w-6 sm:h-6" />
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Swipe Hint */}
+              {totalMedia > 1 && (
+                <div
+                  className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400 pb-1 px-4 z-10 pointer-events-none"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span>Geser layar ↔ atau gunakan tombol panah untuk melihat foto lain</span>
+                </div>
+              )}
+
+              {/* Bottom Thumbnail Strip Carousel */}
+              {totalMedia > 1 && (
+                <div
+                  className="w-full py-2.5 px-3 bg-neutral-950/90 border-t border-white/10 z-20 backdrop-blur-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div
+                    ref={thumbListRef}
+                    className="flex items-center gap-2 overflow-x-auto max-w-5xl mx-auto py-1 px-2 scroll-smooth"
+                    style={{
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                    }}
+                  >
+                    {lightbox.mediaList.map((m, idx) => {
+                      const isActive = idx === lightbox.currentIndex;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => goToMedia(idx)}
+                          className={`relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200 cursor-pointer ${
+                            isActive
+                              ? "border-2 border-rose-500 scale-105 shadow-lg shadow-rose-600/40 opacity-100 ring-2 ring-rose-500/40"
+                              : "border border-white/10 opacity-40 hover:opacity-85 hover:border-white/30"
+                          }`}
+                        >
+                          <img
+                            src={m.url}
+                            alt={`Thumbnail ${idx + 1}`}
+                            loading="lazy"
+                            className="w-full h-full object-cover pointer-events-none"
+                          />
+                          {m.isVideo && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <Video size={12} className="text-white" />
+                            </div>
+                          )}
+                          <div className="absolute bottom-0.5 right-1 text-[9px] font-bold text-white drop-shadow bg-black/60 px-1 rounded">
+                            {idx + 1}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </motion.div>
-          </div>
-        )}
+          );
+        })()}
       </AnimatePresence>
     </div>
   );

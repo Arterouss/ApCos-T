@@ -153,7 +153,10 @@ const CreatorPosts = () => {
                   className="glass-card border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 group flex flex-col justify-between"
                 >
                   {/* Thumbnail / Preview Header */}
-                  <div className="bg-neutral-950 relative aspect-video flex items-center justify-center overflow-hidden">
+                  <div
+                    onClick={() => setSelectedPost(post)}
+                    className="bg-neutral-950 relative aspect-video flex items-center justify-center overflow-hidden cursor-pointer"
+                  >
                     {post.file && post.file.path ? (
                       isVideo(post.file.path) ? (
                         <video
