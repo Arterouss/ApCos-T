@@ -92,22 +92,7 @@ export default function FavoritesPage({ onOpenSidebar }) {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                className="relative group rounded-2xl overflow-hidden transition-all duration-300"
-                style={{
-                  background: 'rgba(14, 16, 26, 0.6)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 45, 85, 0.35)';
-                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 45, 85, 0.12)';
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
+                className="glass-card relative group rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
               >
                 {/* Gambar / Cover */}
                 <Link to={fav.link} className="block aspect-[3/4] relative overflow-hidden bg-neutral-900">
@@ -115,8 +100,9 @@ export default function FavoritesPage({ onOpenSidebar }) {
                     <img
                       src={fav.cover_url}
                       alt={fav.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
+                      className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-neutral-900">

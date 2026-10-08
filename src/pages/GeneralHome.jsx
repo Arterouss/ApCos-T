@@ -105,23 +105,7 @@ const HubFeatureCard = ({
 }) => {
   const content = (
     <div
-      className={`${widthClass} shrink-0 rounded-2xl overflow-hidden transition-all duration-300 group cursor-pointer`}
-      style={{
-        background: 'rgba(12, 14, 24, 0.6)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.3)';
-        e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 229, 255, 0.1)';
-        e.currentTarget.style.transform = 'translateY(-4px)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-        e.currentTarget.style.boxShadow = 'none';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
+      className={`${widthClass} shrink-0 rounded-2xl overflow-hidden glass-card transition-transform duration-200 active:scale-95 md:hover:-translate-y-1.5 group cursor-pointer border border-white/10`}
     >
       <div className={`relative ${aspectClass} bg-gradient-to-br from-neutral-900 via-neutral-900/90 to-surface-card overflow-hidden`}>
         {/* Animated shimmer */}

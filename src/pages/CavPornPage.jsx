@@ -309,22 +309,7 @@ export default function CavPornPage({ onOpenSidebar }) {
               <Link
                 key={item.id}
                 to={`/cavporn/${item.id}/${item.slug}`}
-                className="group flex flex-col h-full rounded-2xl overflow-hidden transition-all duration-300"
-                style={{
-                  background: 'rgba(14, 16, 26, 0.6)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.35)';
-                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 229, 255, 0.12)';
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
+                className="glass-card group flex flex-col h-full rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
               >
                 <div className="aspect-video overflow-hidden relative bg-neutral-900">
                   <img
@@ -333,8 +318,9 @@ export default function CavPornPage({ onOpenSidebar }) {
                       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'%3E%3Crect fill='%23111827' width='320' height='180'/%3E%3C/svg%3E"
                     }
                     alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
+                    className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
                     loading="lazy"
+                    decoding="async"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-transparent to-transparent opacity-70 group-hover:opacity-40 transition-opacity" />
 

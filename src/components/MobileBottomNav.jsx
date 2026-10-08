@@ -20,10 +20,10 @@ export default function MobileBottomNav({ onOpenSidebar, onOpenSearch }) {
     <nav
       className="md:hidden fixed bottom-0 inset-x-0 z-40 transition-all duration-300"
       style={{
-        background: "rgba(8, 8, 12, 0.88)",
-        backdropFilter: "blur(20px) saturate(180%)",
-        WebkitBackdropFilter: "blur(20px) saturate(180%)",
-        borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+        background: "rgba(8, 8, 12, 0.94)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderTop: "1px solid rgba(255, 255, 255, 0.06)",
         boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.6)",
         paddingBottom: "max(0.4rem, env(safe-area-inset-bottom, 0.4rem))",
       }}

@@ -126,21 +126,11 @@ const CarouselCard = ({
   aspectClass = "aspect-video",
   widthClass = "w-52 sm:w-64",
 }) => (
-  <motion.div
-    whileHover={{ scale: 1.03, y: -4 }}
-    whileTap={{ scale: 0.98 }}
+  <div
     onClick={onClick}
-    className={`${widthClass} shrink-0 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 group glass-card border border-white/10 hover:shadow-2xl flex flex-col justify-between`}
+    className={`${widthClass} shrink-0 rounded-2xl overflow-hidden cursor-pointer transition-transform duration-200 active:scale-95 md:hover:-translate-y-1.5 group glass-card border border-white/10 flex flex-col justify-between`}
     style={{
-      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.borderColor = `${hoverColor}60`;
-      e.currentTarget.style.boxShadow = `0 16px 40px rgba(0,0,0,0.6), 0 0 25px ${hoverColor}20`;
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-      e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5)";
+      boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
     }}
   >
     <div className={`relative ${aspectClass} overflow-hidden bg-neutral-900`}>
@@ -148,8 +138,9 @@ const CarouselCard = ({
         <img
           src={image}
           alt={title}
-          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+          className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-neutral-900">
@@ -200,7 +191,7 @@ const CarouselCard = ({
         {title}
       </h3>
     </div>
-  </motion.div>
+  </div>
 );
 
 export default function Home({ onOpenSidebar }) {
@@ -362,8 +353,8 @@ export default function Home({ onOpenSidebar }) {
           <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#08080c]/90 to-transparent" />
         </div>
 
-        {/* Ambient Neon Glows inside Hero */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#ff2d55]/15 rounded-full blur-[140px] pointer-events-none" />
+        {/* Ambient Neon Glows inside Hero (Desktop only for GPU performance) */}
+        <div className="hidden md:block absolute top-1/4 left-1/4 w-96 h-96 bg-[#ff2d55]/15 rounded-full blur-[140px] pointer-events-none" />
 
         {/* Hero Content Container (Split Grid) */}
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 pb-10 sm:pb-14 pt-20">
@@ -490,12 +481,10 @@ export default function Home({ onOpenSidebar }) {
           {platformCards.map((cat) => {
             const Icon = cat.icon;
             return (
-              <motion.div
+              <div
                 key={cat.name}
-                whileHover={{ scale: 1.04, y: -3 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(cat.path)}
-                className={`p-4 rounded-2xl glass-card border border-white/10 hover:border-white/30 cursor-pointer transition-all duration-300 shadow-xl group relative overflow-hidden flex flex-col justify-between min-h-[135px]`}
+                className="p-4 rounded-2xl glass-card border border-white/10 md:hover:border-white/30 cursor-pointer transition-transform duration-200 active:scale-95 md:hover:-translate-y-1 shadow-lg group relative overflow-hidden flex flex-col justify-between min-h-[135px]"
               >
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none`}
@@ -531,7 +520,7 @@ export default function Home({ onOpenSidebar }) {
                     {cat.sub}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>

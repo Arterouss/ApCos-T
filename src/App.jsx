@@ -185,44 +185,55 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
   return (
     <div className="min-h-screen text-white relative overflow-hidden bg-surface noise-overlay">
       {/* ── Global Ambient Background Orbs & Cyber Auroras ─────────── */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-all duration-1000">
-        {isAdultMode ? (
-          <>
-            <div
-              className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
-              style={{ background: 'radial-gradient(circle, #ff2d55 0%, #ff6b35 50%, transparent 80%)' }}
-            />
-            <div
-              className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
-              style={{ background: 'radial-gradient(circle, #ff375f 0%, #7c4dff 50%, transparent 80%)' }}
-            />
-            <div
-              className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
-              style={{ background: 'radial-gradient(circle, #ff6b35 0%, #ff2d55 50%, transparent 80%)' }}
-            />
-            <div
-              className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#ff2d55]/30 to-transparent"
-            />
-          </>
-        ) : (
-          <>
-            <div
-              className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
-              style={{ background: 'radial-gradient(circle, #00e5ff 0%, #00b0ff 50%, transparent 80%)' }}
-            />
-            <div
-              className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
-              style={{ background: 'radial-gradient(circle, #7c4dff 0%, #00e5ff 50%, transparent 80%)' }}
-            />
-            <div
-              className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
-              style={{ background: 'radial-gradient(circle, #00b0ff 0%, #7c4dff 50%, transparent 80%)' }}
-            />
-            <div
-              className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#00e5ff]/30 to-transparent"
-            />
-          </>
-        )}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-all duration-1000 transform-gpu">
+        {/* Mobile: Ultra-lightweight zero-blur gradient (0% GPU overhead) */}
+        <div
+          className="md:hidden absolute inset-0 opacity-20"
+          style={{
+            background: isAdultMode
+              ? 'radial-gradient(circle at 50% 10%, #ff2d55 0%, #ff6b35 35%, transparent 70%)'
+              : 'radial-gradient(circle at 50% 10%, #00e5ff 0%, #7c4dff 35%, transparent 70%)'
+          }}
+        />
+
+        {/* Desktop: Rich multi-layer ambient blur orbs */}
+        <div className="hidden md:block absolute inset-0">
+          {isAdultMode ? (
+            <>
+              <div
+                className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
+                style={{ background: 'radial-gradient(circle, #ff2d55 0%, #ff6b35 50%, transparent 80%)' }}
+              />
+              <div
+                className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
+                style={{ background: 'radial-gradient(circle, #ff375f 0%, #7c4dff 50%, transparent 80%)' }}
+              />
+              <div
+                className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
+                style={{ background: 'radial-gradient(circle, #ff6b35 0%, #ff2d55 50%, transparent 80%)' }}
+              />
+            </>
+          ) : (
+            <>
+              <div
+                className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
+                style={{ background: 'radial-gradient(circle, #00e5ff 0%, #00b0ff 50%, transparent 80%)' }}
+              />
+              <div
+                className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
+                style={{ background: 'radial-gradient(circle, #7c4dff 0%, #00e5ff 50%, transparent 80%)' }}
+              />
+              <div
+                className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
+                style={{ background: 'radial-gradient(circle, #00b0ff 0%, #7c4dff 50%, transparent 80%)' }}
+              />
+            </>
+          )}
+        </div>
+
+        <div
+          className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"
+        />
       </div>
 
       {/* ── Sidebar & Content Wrapper ────────────────────────────── */}
@@ -237,11 +248,11 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
           {/* ── Mobile Top Bar ────────────────────────────────────── */}
           <div className="md:hidden sticky top-0 z-40 px-4 py-3 flex items-center justify-between"
             style={{
-              background: 'rgba(8,8,12,0.85)',
-              backdropFilter: 'blur(20px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-              borderBottom: '1px solid rgba(255,255,255,0.04)',
-              boxShadow: '0 4px 30px rgba(0,0,0,0.5)',
+              background: 'rgba(8,8,12,0.92)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              borderBottom: '1px solid rgba(255,255,255,0.05)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
             }}
           >
             <button

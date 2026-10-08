@@ -31,23 +31,7 @@ const AnimeCard = ({ anime, index }) => (
   >
     <Link
       to={`/anime/detail/${anime.slug}`}
-      className="group flex flex-col h-full rounded-2xl overflow-hidden transition-all duration-300 relative"
-      style={{
-        background: 'rgba(12, 14, 24, 0.6)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.35)';
-        e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 229, 255, 0.12)';
-        e.currentTarget.style.transform = 'translateY(-4px)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-        e.currentTarget.style.boxShadow = 'none';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
+      className="glass-card group flex flex-col h-full rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10 relative"
     >
       {/* Poster */}
       <div className="relative aspect-[3/4] overflow-hidden bg-neutral-900">
@@ -55,7 +39,8 @@ const AnimeCard = ({ anime, index }) => (
           src={anime.poster}
           alt={anime.title}
           loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+          decoding="async"
+          className="w-full h-full object-cover md:group-hover:scale-105 transition-transform duration-500 ease-out"
           onError={(e) => {
             e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect fill='%230f1016' width='300' height='400'/%3E%3Ctext fill='%234B5563' x='150' y='200' text-anchor='middle' font-size='14'%3ENo Image%3C/text%3E%3C/svg%3E";
           }}

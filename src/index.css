@@ -232,21 +232,48 @@ body {
   background-clip: text;
 }
 
-/* ─── Noise Grain Overlay ─────────────────────────────────────────────── */
+/* ─── Noise Grain Overlay (Optimized: static on desktop, disabled on mobile) ── */
 .noise-overlay::before {
   content: '';
   position: fixed;
-  inset: -50%;
-  width: 200%;
-  height: 200%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.4;
-  animation: grain 8s steps(10) infinite;
+  opacity: 0.2;
+}
+
+@media (max-width: 768px) {
+  /* Completely disable expensive full-screen SVG filter on mobile */
+  .noise-overlay::before {
+    display: none !important;
+  }
+
+  /* Disable heavy real-time backdrop blur on mobile scrollable cards */
+  .glass-card,
+  .glass-panel,
+  .cinema-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(16, 17, 25, 0.94) !important;
+  }
+
+  /* Enable GPU-accelerated touch momentum scrolling */
+  .overflow-x-auto,
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
+  }
 }
 
 /* ─── Utilities ───────────────────────────────────────────────────────── */
+/* Off-screen image rendering optimization */
+img {
+  content-visibility: auto;
+}
+
 /* Hide scrollbar for clean carousels */
 .scrollbar-none::-webkit-scrollbar {
   display: none;

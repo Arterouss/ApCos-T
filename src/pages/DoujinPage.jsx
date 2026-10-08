@@ -380,17 +380,13 @@ export default function DoujinPage() {
                       alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
                       loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#07070c] via-transparent to-transparent opacity-75" />
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex justify-between items-end">
                       <span
-                        className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider text-indigo-300"
-                        style={{
-                          background: 'rgba(0, 0, 0, 0.7)',
-                          backdropFilter: 'blur(8px)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                        }}
+                        className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider text-indigo-300 bg-black/80 border border-white/10"
                       >
                         {item.type}
                       </span>
