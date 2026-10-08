@@ -31,6 +31,8 @@ import Porn3dxPage from "./pages/Porn3dxPage";
 import Porn3dxDetailPage from "./pages/Porn3dxDetailPage";
 import CoomerPage from "./pages/CoomerPage";
 import CoomerDetailPage from "./pages/CoomerDetailPage";
+import BalbumsPage from "./pages/BalbumsPage";
+import BalbumsDetailPage from "./pages/BalbumsDetailPage";
 import HentaiPlayPage from "./pages/HentaiPlayPage";
 import HentaiPlayDetailPage from "./pages/HentaiPlayDetailPage";
 import FavoritesPage from "./pages/FavoritesPage";
@@ -106,6 +108,12 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         <Route path="/coomer/:service/:id" element={<CoomerDetailPage />} />
         <Route path="/fapello" element={<Navigate to="/coomer" replace />} />
         <Route path="/fapello/*" element={<Navigate to="/coomer" replace />} />
+
+        <Route
+          path="/balbums"
+          element={<BalbumsPage onOpenSidebar={onOpenSidebar} />}
+        />
+        <Route path="/balbums/album/:id" element={<BalbumsDetailPage />} />
         
         <Route
           path="/cosplay"

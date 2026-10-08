@@ -895,6 +895,90 @@ app.get(/^\/api\/fapello\/model\/(.*)$/, (req, res) => {
   res.redirect(301, `/api/coomer/creator/onlyfans/${slug}/posts`);
 });
 
+// ==========================================
+// BALBUMS.ST (BUNKR ALBUMS) API ROUTES
+// ==========================================
+app.get("/api/balbums/albums", async (req, res) => {
+  try {
+    const { search = "", mode = "broad", per = 20, sort = "latest", page = 1 } = req.query;
+    const { getBalbumsAlbums } = await import("./_lib/scraperBalbums.js");
+    const data = await getBalbumsAlbums({
+      search,
+      mode,
+      per: parseInt(per) || 20,
+      sort,
+      page: parseInt(page) || 1,
+    });
+    res.json(data);
+  } catch (err) {
+    console.error("[Balbums Albums Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/balbums/album/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { getBalbumsAlbumDetail } = await import("./_lib/scraperBalbums.js");
+    const data = await getBalbumsAlbumDetail(id);
+    res.json(data);
+  } catch (err) {
+    console.error("[Balbums Album Detail Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/balbums/file/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { getBalbumsFileDirect } = await import("./_lib/scraperBalbums.js");
+    const data = await getBalbumsFileDirect(id);
+    res.json(data);
+  } catch (err) {
+    console.error("[Balbums File Direct Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Proxy for Balbums / Bunkr media (thumbnails / stream)
+app.get("/api/balbums/media", async (req, res) => {
+  const { url: targetUrl } = req.query;
+  if (!targetUrl) return res.status(400).send("Missing url parameter");
+
+  try {
+    const { fetchWithDoH } = await import("./_lib/dohAgent.js");
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Referer": "https://balbums.st/",
+    };
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    const upstream = await fetchWithDoH(targetUrl, {
+      headers,
+      timeout: 20000,
+    });
+
+    if (!upstream.ok && upstream.status !== 206) {
+      return res.status(upstream.status).send("Media fetch failed");
+    }
+
+    res.status(upstream.status);
+    for (const [key, val] of upstream.headers.entries()) {
+      if (["content-type", "content-length", "content-range", "accept-ranges"].includes(key.toLowerCase())) {
+        res.setHeader(key, val);
+      }
+    }
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    upstream.body.pipe(res);
+  } catch (err) {
+    res.status(500).send("Balbums media proxy error: " + err.message);
+  }
+});
+
+
 
 app.get("/api/hnime/search", async (req, res) => {
   try {

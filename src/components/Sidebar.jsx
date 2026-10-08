@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search, Home, Tv, BookOpen, Globe, Shield, Star, Compass, Bookmark, CheckCircle, Users, Zap, ArrowUpRight } from "lucide-react";
+import { X, ChevronDown, Image, Book, Camera, Video, Menu, Heart, Sparkles, Film, Search, Home, Tv, BookOpen, Globe, Shield, Star, Compass, Bookmark, CheckCircle, Users, Zap, ArrowUpRight, FolderArchive } from "lucide-react";
 import { usePortalMode } from "../context/PortalContext";
 
 // ── Menu untuk Mode 18+ (ApiCos Cinema) ─────────────────────────────────
@@ -35,6 +35,7 @@ const adultMenuCategories = [
     title: "Cosplay & Foto",
     items: [
       { name: "Coomer.su", path: "/coomer", icon: <Users size={18} /> },
+      { name: "Bunkr Albums", path: "/balbums", icon: <FolderArchive size={18} /> },
       { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={18} /> },
     ]
   }
