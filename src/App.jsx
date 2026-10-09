@@ -191,12 +191,12 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
   const neonSecondary = isAdultMode ? '#ffb347' : '#7c4dff';
 
   return (
-    <div className="min-h-screen text-white relative overflow-hidden bg-surface noise-overlay">
+    <div className="min-h-screen text-white relative bg-surface noise-overlay">
       {/* ── Global Ambient Background Orbs & Cyber Auroras ─────────── */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-all duration-1000 transform-gpu">
         {/* Mobile: Ultra-lightweight zero-blur gradient (0% GPU overhead) */}
         <div
-          className="md:hidden absolute inset-0 opacity-20"
+          className="md:hidden absolute inset-0 opacity-20 pointer-events-none"
           style={{
             background: isAdultMode
               ? 'radial-gradient(circle at 50% 10%, #ff2d55 0%, #ff6b35 35%, transparent 70%)'
@@ -205,34 +205,34 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
         />
 
         {/* Desktop: Rich multi-layer ambient blur orbs */}
-        <div className="hidden md:block absolute inset-0">
+        <div className="hidden md:block absolute inset-0 pointer-events-none">
           {isAdultMode ? (
             <>
               <div
-                className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
+                className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, #ff2d55 0%, #ff6b35 50%, transparent 80%)' }}
               />
               <div
-                className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
+                className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, #ff375f 0%, #7c4dff 50%, transparent 80%)' }}
               />
               <div
-                className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
+                className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, #ff6b35 0%, #ff2d55 50%, transparent 80%)' }}
               />
             </>
           ) : (
             <>
               <div
-                className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26]"
+                className="absolute -top-[10%] left-[10%] w-[60%] h-[55%] rounded-full blur-[140px] opacity-[0.26] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, #00e5ff 0%, #00b0ff 50%, transparent 80%)' }}
               />
               <div
-                className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20]"
+                className="absolute top-[25%] -right-[10%] w-[55%] h-[55%] rounded-full blur-[160px] opacity-[0.20] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, #7c4dff 0%, #00e5ff 50%, transparent 80%)' }}
               />
               <div
-                className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18]"
+                className="absolute -bottom-[10%] left-[25%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-[0.18] pointer-events-none"
                 style={{ background: 'radial-gradient(circle, #00b0ff 0%, #7c4dff 50%, transparent 80%)' }}
               />
             </>
@@ -240,7 +240,7 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
         </div>
 
         <div
-          className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"
+          className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
         />
       </div>
 
@@ -252,7 +252,7 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
           onOpenSearch={onOpenSearch}
         />
 
-        <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-hidden pb-20 md:pb-0">
+        <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-clip pb-20 md:pb-0">
           {/* ── Mobile Top Bar ────────────────────────────────────── */}
           <div className="md:hidden sticky top-0 z-40 px-4 py-3 flex items-center justify-between"
             style={{

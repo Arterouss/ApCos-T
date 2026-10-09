@@ -26,10 +26,36 @@ import { usePortalMode } from "../context/PortalContext";
 // ── Carousel Component (Cyber-Luxe Cyan Theme) ──────────────────────────
 const HubCarousel = ({ title, icon: Icon, tagColor = "text-neon-cyan", viewAllLink, children }) => {
   const scrollRef = useRef(null);
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
   const scroll = (dir) => {
     if (scrollRef.current) {
       scrollRef.current.scrollBy({ left: dir === "left" ? -420 : 420, behavior: "smooth" });
     }
+  };
+
+  const onMouseDown = (e) => {
+    isDown.current = true;
+    startX.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeft.current = scrollRef.current.scrollLeft;
+  };
+
+  const onMouseLeave = () => {
+    isDown.current = false;
+  };
+
+  const onMouseUp = () => {
+    isDown.current = false;
+  };
+
+  const onMouseMove = (e) => {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
   };
 
   return (
@@ -83,7 +109,18 @@ const HubCarousel = ({ title, icon: Icon, tagColor = "text-neon-cyan", viewAllLi
           </button>
         </div>
       </div>
-      <div ref={scrollRef} className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-none px-4 sm:px-8 py-2 snap-x">
+      <div
+        ref={scrollRef}
+        onMouseDown={onMouseDown}
+        onMouseLeave={onMouseLeave}
+        onMouseUp={onMouseUp}
+        onMouseMove={onMouseMove}
+        className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-none px-4 sm:px-8 py-2 select-none active:cursor-grabbing cursor-grab"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-x pan-y",
+        }}
+      >
         {children}
       </div>
     </div>

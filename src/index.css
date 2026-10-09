@@ -260,20 +260,15 @@ body {
     background: rgba(16, 17, 25, 0.94) !important;
   }
 
-  /* Enable GPU-accelerated touch momentum scrolling */
+  /* Enable smooth touch scrolling without breaking composite hit-testing */
   .overflow-x-auto,
   .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
-    transform: translateZ(0);
+    touch-action: pan-x pan-y;
   }
 }
 
 /* ─── Utilities ───────────────────────────────────────────────────────── */
-/* Off-screen image rendering optimization */
-img {
-  content-visibility: auto;
-}
-
 /* Hide scrollbar for clean carousels */
 .scrollbar-none::-webkit-scrollbar {
   display: none;

@@ -41,12 +41,38 @@ const MediaCarousel = ({
   children,
 }) => {
   const scrollRef = useRef(null);
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
 
   const scroll = (direction) => {
     if (scrollRef.current) {
       const scrollAmount = direction === "left" ? -450 : 450;
       scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
+  };
+
+  // Mouse drag-to-scroll for desktop & laptop
+  const onMouseDown = (e) => {
+    isDown.current = true;
+    startX.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeft.current = scrollRef.current.scrollLeft;
+  };
+
+  const onMouseLeave = () => {
+    isDown.current = false;
+  };
+
+  const onMouseUp = () => {
+    isDown.current = false;
+  };
+
+  const onMouseMove = (e) => {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
   };
 
   return (
@@ -88,14 +114,14 @@ const MediaCarousel = ({
           )}
           <button
             onClick={() => scroll("left")}
-            className="w-9 h-9 rounded-full flex items-center justify-center glass-card hover:border-white/20 text-gray-400 hover:text-white transition-all shadow-md"
+            className="w-9 h-9 rounded-full flex items-center justify-center glass-card hover:border-white/20 text-gray-400 hover:text-white transition-all shadow-md cursor-pointer"
             aria-label="Scroll Kiri"
           >
             <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => scroll("right")}
-            className="w-9 h-9 rounded-full flex items-center justify-center glass-card hover:border-white/20 text-gray-400 hover:text-white transition-all shadow-md"
+            className="w-9 h-9 rounded-full flex items-center justify-center glass-card hover:border-white/20 text-gray-400 hover:text-white transition-all shadow-md cursor-pointer"
             aria-label="Scroll Kanan"
           >
             <ChevronRight size={16} />
@@ -103,10 +129,18 @@ const MediaCarousel = ({
         </div>
       </div>
 
-      {/* Horizontal Scroll Track */}
+      {/* Horizontal Scroll Track (Smooth Touch & Mouse Drag) */}
       <div
         ref={scrollRef}
-        className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-4 sm:px-8 py-3 snap-x"
+        onMouseDown={onMouseDown}
+        onMouseLeave={onMouseLeave}
+        onMouseUp={onMouseUp}
+        onMouseMove={onMouseMove}
+        className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-4 sm:px-8 py-3 select-none active:cursor-grabbing cursor-grab"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-x pan-y",
+        }}
       >
         {children}
       </div>
@@ -133,26 +167,26 @@ const CarouselCard = ({
       boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
     }}
   >
-    <div className={`relative ${aspectClass} overflow-hidden bg-neutral-900`}>
+    <div className={`relative ${aspectClass} overflow-hidden bg-neutral-900 pointer-events-none`}>
       {image ? (
         <img
           src={image}
           alt={title}
-          className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105 pointer-events-none"
           loading="lazy"
           decoding="async"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-neutral-900">
-          <Film size={32} className="text-gray-700" />
+        <div className="w-full h-full flex items-center justify-center bg-neutral-900 pointer-events-none">
+          <Film size={32} className="text-gray-700 pointer-events-none" />
         </div>
       )}
 
       {/* Dark Vignette Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
 
       {/* Top Badges */}
-      <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between gap-1 z-10">
+      <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between gap-1 z-10 pointer-events-none">
         {badge && (
           <span
             className="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-white backdrop-blur-md shadow-md uppercase tracking-wider"
@@ -172,21 +206,21 @@ const CarouselCard = ({
       </div>
 
       {/* Center Play Button Overlay */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-2xl transition-transform duration-300 group-hover:scale-110"
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-2xl transition-transform duration-300 group-hover:scale-110 pointer-events-none"
           style={{
             background: `linear-gradient(135deg, ${hoverColor}, #ff6b35)`,
             boxShadow: `0 0 25px ${hoverColor}60`,
           }}
         >
-          <Play size={20} className="fill-white ml-0.5" />
+          <Play size={20} className="fill-white ml-0.5 pointer-events-none" />
         </div>
       </div>
     </div>
 
     {/* Title Box */}
-    <div className="p-3.5">
+    <div className="p-3.5 pointer-events-none">
       <h3 className="font-bold text-xs sm:text-sm text-gray-200 line-clamp-2 group-hover:text-white transition-colors leading-snug">
         {title}
       </h3>
@@ -337,7 +371,7 @@ export default function Home({ onOpenSidebar }) {
       {/* ── 1. CINEMATIC HERO SPOTLIGHT ──────────────────────────────────── */}
       <div className="relative w-full min-h-[520px] lg:h-[68vh] max-h-[750px] overflow-hidden flex items-end">
         {/* Dynamic / Fallback Backdrop Wallpaper */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 pointer-events-none">
           <img
             src={
               featuredItem?.cover_url ||
@@ -345,12 +379,12 @@ export default function Home({ onOpenSidebar }) {
               DEFAULT_HERO_BG
             }
             alt="Spotlight"
-            className="w-full h-full object-cover object-center filter brightness-[0.55] contrast-[1.15] scale-105 transition-transform duration-1000"
+            className="w-full h-full object-cover object-center filter brightness-[0.55] contrast-[1.15] scale-105 transition-transform duration-1000 pointer-events-none"
           />
           {/* Multi-layered Cinema Vignette Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#08080c] via-[#08080c]/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#08080c] via-[#08080c]/80 to-transparent w-full lg:w-3/4" />
-          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#08080c]/90 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#08080c] via-[#08080c]/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#08080c] via-[#08080c]/80 to-transparent w-full lg:w-3/4 pointer-events-none" />
+          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#08080c]/90 to-transparent pointer-events-none" />
         </div>
 
         {/* Ambient Neon Glows inside Hero (Desktop only for GPU performance) */}
