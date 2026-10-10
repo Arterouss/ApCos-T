@@ -1,8 +1,9 @@
 const API_BASE = "/api/hentaiplay";
 
-export const getHentaiPlayList = async (page = 1, search = '') => {
+export const getHentaiPlayList = async (page = 1, search = '', category = '') => {
   const params = new URLSearchParams({ page });
   if (search) params.set('search', search);
+  if (category) params.set('category', category);
   const res = await fetch(`${API_BASE}/list?${params.toString()}`);
   if (!res.ok) throw new Error("Gagal mengambil daftar video HentaiPlay");
   return res.json();

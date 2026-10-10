@@ -68,9 +68,9 @@ app.use("/api/nhentai", nhentaiRouter);
 // ==========================================
 app.get("/api/hentaiplay/list", async (req, res) => {
   try {
-    const { page = 1, search = '' } = req.query;
+    const { page = 1, search = '', category = '', tag = '' } = req.query;
     const { scrapeHentaiPlayList } = await import('./_lib/scraperHentaiPlay.js');
-    const data = await scrapeHentaiPlayList(parseInt(page), search);
+    const data = await scrapeHentaiPlayList(parseInt(page), search, category || tag);
     res.json(data);
   } catch (err) {
     console.error('[HentaiPlay] List Error:', err.message);

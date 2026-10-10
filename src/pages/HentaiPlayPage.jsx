@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,29 +15,48 @@ import {
   Star,
   Sparkles,
   TrendingUp,
+  ArrowUpDown,
+  Hash,
+  SlidersHorizontal,
+  Check,
 } from "lucide-react";
 import { getHentaiPlayList } from "../services/hentaiPlayService";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
-const HENTAI_TAGS = filterBlockedTags([
-  { label: "Semua", value: "" },
-  { label: "👙 Milf", value: "milf" },
-  { label: "💕 Gyaru", value: "gyaru" },
-  { label: "🏫 Schoolgirl", value: "schoolgirl" },
-  { label: "😈 Netorare (NTR)", value: "netorare" },
-  { label: "🌸 Harem", value: "harem" },
-  { label: "👩‍❤️‍👩 Yuri", value: "yuri" },
-  { label: "✨ Vanilla", value: "vanilla" },
-  { label: "🐙 Tentacles", value: "tentacles" },
-  { label: "🧝 Elf", value: "elf" },
-  { label: "👩‍🏫 Teacher", value: "teacher" },
-  { label: "🧙 Mind Control", value: "mind control" },
-  { label: "👗 Maid", value: "maid" },
-  { label: "😏 Ahegao", value: "ahegao" },
-  { label: "🎭 Cosplay", value: "cosplay" },
-  { label: "🧊 3D Animation", value: "3d" },
-  { label: "🔓 Uncensored", value: "uncensored" },
+// ── Tab Kategori Utama (Termasuk "Lagi Rame / Trending") ─────────────
+const MAIN_TABS = [
+  { label: "Lagi Rame", value: "trending", icon: Flame, badge: "HOT" },
+  { label: "Terbaru", value: "", icon: Sparkles },
+  { label: "Tanpa Sensor", value: "uncensored", icon: Star },
+  { label: "English Sub", value: "english-subbed", icon: Film },
+  { label: "3D Animation", value: "3d", icon: Sparkles },
+];
+
+// ── Tagar / Hashtags Populer Hentai ─────────────────────────────────
+const ALL_TAGS = filterBlockedTags([
+  { label: "NTR", value: "ntr", color: "red" },
+  { label: "Gyaru", value: "gyaru", color: "pink" },
+  { label: "Milf", value: "milf", color: "orange" },
+  { label: "School Girls", value: "school-girls", color: "blue" },
+  { label: "Harem", value: "harem", color: "purple" },
+  { label: "Ahegao", value: "ahegao", color: "pink" },
+  { label: "Yuri", value: "yuri", color: "rose" },
+  { label: "Vanilla", value: "vanilla", color: "amber" },
+  { label: "Large Breasts", value: "large-breasts", color: "orange" },
+  { label: "Housewife", value: "housewife", color: "purple" },
+  { label: "Office Ladies", value: "office-ladies", color: "indigo" },
+  { label: "Tentacles", value: "tentacles", color: "green" },
+  { label: "Fantasy", value: "fantasy", color: "teal" },
+  { label: "Romance", value: "romance", color: "pink" },
+  { label: "Anal", value: "anal", color: "red" },
+  { label: "Virgins", value: "virgins", color: "rose" },
+  { label: "Teacher", value: "teacher", color: "indigo" },
+  { label: "Maid", value: "maid", color: "blue" },
+  { label: "Mind Control", value: "mind-control", color: "purple" },
+  { label: "Cosplay", value: "cosplay", color: "amber" },
+  { label: "3D Animation", value: "3d", color: "cyan" },
+  { label: "Uncensored", value: "uncensored", color: "amber" },
 ]);
 
 export default function HentaiPlayPage({ onOpenSidebar }) {
@@ -46,82 +65,127 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // States: Category Tab, Active Tagar, Search Input, Sort
+  const [activeCategory, setActiveCategory] = usePersistentState("hp_category", "trending");
+  const [activeTag, setActiveTag] = usePersistentState("hp_tag", "");
+  const [sortBy, setSortBy] = usePersistentState("hp_sort", "default");
+  const [tagSearchInput, setTagSearchInput] = useState("");
   const [page, setPage] = usePersistentState("hentaiplay_page", 1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = usePersistentState("hentaiplay_search", "");
   const [searchInput, setSearchInput] = useState(search);
-  const [activeTag, setActiveTag] = useState(() => search || "");
 
   useScrollRestoration("hentaiplay");
 
-  const fetchVideos = useCallback(async (pageNum, searchQuery) => {
+  // Fetch videos from backend
+  const fetchVideos = useCallback(async (pageNum, searchQuery, cat, tag) => {
     setLoading(true);
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
-      const data = await getHentaiPlayList(pageNum, searchQuery);
+      // Prioritize active tagar over category if tagar is selected
+      const effectiveCategory = tag || cat || "";
+      const data = await getHentaiPlayList(pageNum, searchQuery, effectiveCategory);
       const rawList = data.videos || [];
       setVideos(filterBlockedItems(rawList));
       setTotalPages(data.totalPages || 1);
     } catch (e) {
-      setError("Gagal memuat video. Coba lagi beberapa saat lagi.");
+      setError("Gagal memuat video Hentai. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchVideos(page, search);
-  }, [page, search, fetchVideos]);
+    fetchVideos(page, search, activeCategory, activeTag);
+  }, [page, search, activeCategory, activeTag, fetchVideos]);
 
+  // Handle Search Input submit
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    setSearch(searchInput);
-    setActiveTag(searchInput);
+    setActiveTag("");
+    setSearch(searchInput.trim());
   };
 
-  const handleTagClick = (tagValue) => {
-    if (activeTag.toLowerCase() === tagValue.toLowerCase()) {
-      setActiveTag("");
-      setSearch("");
-      setSearchInput("");
-    } else {
-      setActiveTag(tagValue);
-      setSearch(tagValue);
-      setSearchInput(tagValue);
-    }
-    setPage(1);
-  };
-
-  const handleReset = () => {
+  // Handle Category Tab click
+  const handleCategoryClick = (catVal) => {
+    setActiveCategory(catVal);
     setActiveTag("");
     setSearch("");
     setSearchInput("");
     setPage(1);
   };
 
-  const spotlightVideo = !search && page === 1 && videos.length > 0 ? videos[0] : null;
-  const gridVideos = spotlightVideo ? videos.slice(1) : videos;
+  // Handle Tagar click (toggle on/off)
+  const handleTagClick = (tagVal) => {
+    if (activeTag === tagVal) {
+      setActiveTag("");
+    } else {
+      setActiveTag(tagVal);
+      setSearch("");
+      setSearchInput("");
+    }
+    setPage(1);
+  };
+
+  // Handle Reset Filter
+  const handleReset = () => {
+    setActiveCategory("trending");
+    setActiveTag("");
+    setSearch("");
+    setSearchInput("");
+    setSortBy("default");
+    setPage(1);
+  };
+
+  // Filtered tags list by tagSearchInput
+  const filteredTags = useMemo(() => {
+    if (!tagSearchInput.trim()) return ALL_TAGS;
+    const q = tagSearchInput.toLowerCase().trim();
+    return ALL_TAGS.filter(
+      (t) => t.label.toLowerCase().includes(q) || t.value.toLowerCase().includes(q)
+    );
+  }, [tagSearchInput]);
+
+  // Sorted videos according to sortBy
+  const sortedVideos = useMemo(() => {
+    if (!videos || videos.length === 0) return [];
+    const list = [...videos];
+    if (sortBy === "title_asc") {
+      return list.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    }
+    if (sortBy === "title_desc") {
+      return list.sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+    }
+    return list;
+  }, [videos, sortBy]);
+
+  const spotlightVideo =
+    activeCategory === "trending" && !activeTag && !search && page === 1 && sortedVideos.length > 0
+      ? sortedVideos[0]
+      : null;
+  const gridVideos = spotlightVideo ? sortedVideos.slice(1) : sortedVideos;
 
   return (
     <div className="min-h-screen text-white pt-6 md:pt-10 px-4 sm:px-6 md:px-8 pb-24 relative overflow-hidden bg-[#07070b]">
       {/* ── Background Aurora Glow ───────────────────────────────────── */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-rose-600/[0.06] blur-[160px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-rose-600/[0.07] blur-[160px]" />
         <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-pink-600/[0.05] blur-[170px]" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <div className="relative z-10 max-w-7xl mx-auto space-y-6">
         {/* ── HEADER TITLE & SEARCH ─────────────────────────────────── */}
-        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/[0.06] pb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/[0.06] pb-6">
           <div>
             <div
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2.5"
               style={{
-                background: 'rgba(255, 45, 85, 0.1)',
-                color: '#ff2d55',
-                border: '1px solid rgba(255, 45, 85, 0.3)',
+                background: "rgba(255, 45, 85, 0.12)",
+                color: "#ff2d55",
+                border: "1px solid rgba(255, 45, 85, 0.3)",
               }}
             >
               <Flame size={12} className="animate-pulse" />
@@ -133,7 +197,7 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
               </span>
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm max-w-lg leading-relaxed">
-              Koleksi Anime Hentai Sub English &amp; Indo kualitas 1080p dengan player cepat tanpa jeda iklan.
+              Koleksi Anime Hentai &amp; 3D Animation terlengkap. Putar episode cepat dengan kualitas Full HD 1080p.
             </p>
           </div>
 
@@ -147,19 +211,19 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Cari anime, karakter, atau studio..."
+                placeholder="Cari anime, karakter, atau judul..."
                 className="w-full pl-9 pr-20 py-2.5 rounded-xl text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none transition-all"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: "rgba(255, 255, 255, 0.04)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 45, 85, 0.5)';
-                  e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 45, 85, 0.2)';
+                  e.currentTarget.style.borderColor = "rgba(255, 45, 85, 0.5)";
+                  e.currentTarget.style.boxShadow = "0 0 15px rgba(255, 45, 85, 0.2)";
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                  e.currentTarget.style.boxShadow = "none";
                 }}
               />
               <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -176,8 +240,8 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                   type="submit"
                   className="px-2.5 py-1 rounded-lg text-xs font-bold text-white transition-all cursor-pointer"
                   style={{
-                    background: 'linear-gradient(135deg, #ff2d55, #ff6b35)',
-                    boxShadow: '0 2px 8px rgba(255, 45, 85, 0.4)',
+                    background: "linear-gradient(135deg, #ff2d55, #ff6b35)",
+                    boxShadow: "0 2px 8px rgba(255, 45, 85, 0.4)",
                   }}
                 >
                   Cari
@@ -187,92 +251,193 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
           </form>
         </div>
 
-        {/* ── POPULAR TAGS FILTER BAR ────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <Tag size={13} className="text-neon-red" />
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
-              Pilihan Tag &amp; Genre:
-            </span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2">
-            {HENTAI_TAGS.map((t) => {
-              const isActive = activeTag.toLowerCase() === t.value.toLowerCase();
+        {/* ── 1. TAB KATEGORI UTAMA & LAGI RAME ───────────────────────── */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 max-w-full">
+            {MAIN_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeCategory === tab.value && !activeTag && !search;
               return (
                 <button
-                  key={t.label}
-                  onClick={() => handleTagClick(t.value)}
-                  className={`shrink-0 text-xs px-3.5 py-1.5 rounded-xl font-semibold transition-all duration-300 cursor-pointer ${
-                    isActive ? "text-white shadow-lg" : "text-gray-400 hover:text-white"
+                  key={tab.label}
+                  onClick={() => handleCategoryClick(tab.value)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "text-white shadow-lg shadow-red-500/30 scale-[1.02]"
+                      : "text-gray-400 hover:text-white bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08]"
                   }`}
                   style={{
                     background: isActive
-                      ? 'linear-gradient(135deg, #ff2d55, #ff6b35)'
-                      : 'rgba(255, 255, 255, 0.03)',
+                      ? "linear-gradient(135deg, #ff2d55, #ff6b35)"
+                      : undefined,
                     border: isActive
-                      ? '1px solid rgba(255, 45, 85, 0.6)'
-                      : '1px solid rgba(255, 255, 255, 0.06)',
-                    boxShadow: isActive ? '0 0 15px rgba(255, 45, 85, 0.35)' : 'none',
+                      ? "1px solid rgba(255, 45, 85, 0.6)"
+                      : undefined,
                   }}
                 >
-                  {t.label}
+                  <Icon size={15} className={isActive ? "text-white" : "text-gray-400"} />
+                  <span>{tab.label}</span>
+                  {tab.badge && (
+                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-black/40 text-yellow-300 border border-yellow-300/30">
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {/* Sort By Dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 text-xs flex items-center gap-1">
+              <ArrowUpDown size={13} /> Urutkan:
+            </span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-black/60 border border-white/10 text-gray-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-red-500 cursor-pointer"
+            >
+              <option value="default">Rilis / Default</option>
+              <option value="title_asc">Nama (A - Z)</option>
+              <option value="title_desc">Nama (Z - A)</option>
+            </select>
+          </div>
         </div>
 
-        {/* ── ACTIVE FILTER BAR ──────────────────────────────────────── */}
-        {(search || activeTag) && (
+        {/* ── 2. FILTER TAGAR / HASHTAGS INTERAKTIF ─────────────────── */}
+        <div className="glass-card p-4 sm:p-5 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-300">
+              <Hash size={14} className="text-neon-red" />
+              <span>Filter Berdasarkan Tagar (#Hashtag):</span>
+              {activeTag && (
+                <span className="text-[10px] text-neon-red bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                  #{activeTag} Aktif
+                </span>
+              )}
+            </div>
+
+            {/* Live Tagar Search Box */}
+            <div className="relative w-full sm:w-64">
+              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Cari tagar cepat... (ntr, milf, gyaru)"
+                value={tagSearchInput}
+                onChange={(e) => setTagSearchInput(e.target.value)}
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white/[0.04] border border-white/10 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-all"
+              />
+              {tagSearchInput && (
+                <button
+                  onClick={() => setTagSearchInput("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Tagar Chips */}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-1 max-h-36 overflow-y-auto scrollbar-thin">
+            {filteredTags.length > 0 ? (
+              filteredTags.map((t) => {
+                const isSelected = activeTag.toLowerCase() === t.value.toLowerCase();
+                return (
+                  <button
+                    key={t.value}
+                    onClick={() => handleTagClick(t.value)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer ${
+                      isSelected
+                        ? "bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/40 scale-105"
+                        : "bg-white/[0.03] border-white/10 text-gray-300 hover:border-red-500/50 hover:text-white hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    <span>#{t.label}</span>
+                    {isSelected && <Check size={12} className="text-white" />}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="text-gray-500 text-xs italic py-1">
+                Tidak ada tagar yang cocok dengan "{tagSearchInput}".
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── 3. ACTIVE FILTER NOTIFICATION & RESET ─────────────────── */}
+        {(activeTag || search || activeCategory !== "trending" || sortBy !== "default") && (
           <div
-            className="mb-8 p-3.5 rounded-2xl flex items-center justify-between gap-4"
+            className="p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3"
             style={{
-              background: 'rgba(255, 45, 85, 0.06)',
-              border: '1px solid rgba(255, 45, 85, 0.2)',
+              background: "rgba(255, 45, 85, 0.08)",
+              border: "1px solid rgba(255, 45, 85, 0.25)",
             }}
           >
-            <div className="flex items-center gap-2 text-xs text-gray-300">
-              <span className="text-neon-red font-bold">Filter Aktif:</span>
-              <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-md border border-red-500/30 font-medium">
-                &ldquo;{search || activeTag}&rdquo;
-              </span>
-              <span className="text-gray-500 hidden sm:inline">
-                ({videos.length} anime ditemukan)
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-200">
+              <span className="text-neon-red font-bold">Filter Diterapkan:</span>
+              {activeTag && (
+                <span className="bg-red-500/20 text-red-300 px-2.5 py-0.5 rounded-full border border-red-500/30 font-semibold flex items-center gap-1">
+                  Tagar: #{activeTag}
+                  <button onClick={() => setActiveTag("")} className="hover:text-white">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+              {search && (
+                <span className="bg-red-500/20 text-red-300 px-2.5 py-0.5 rounded-full border border-red-500/30 font-semibold flex items-center gap-1">
+                  Cari: &ldquo;{search}&rdquo;
+                  <button onClick={() => setSearch("")} className="hover:text-white">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+              {activeCategory && activeCategory !== "trending" && (
+                <span className="bg-white/10 text-gray-300 px-2.5 py-0.5 rounded-full border border-white/15 font-semibold">
+                  Kategori: {MAIN_TABS.find((t) => t.value === activeCategory)?.label || activeCategory}
+                </span>
+              )}
+              <span className="text-gray-400">
+                ({sortedVideos.length} anime ditemukan)
               </span>
             </div>
+
             <button
               onClick={handleReset}
-              className="flex items-center gap-1 text-xs text-neon-red hover:text-red-300 font-semibold px-2.5 py-1 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-xs text-neon-red hover:text-white font-bold px-3 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/30 border border-red-500/20 transition-all cursor-pointer"
             >
-              <X size={13} /> Reset Filter
+              <X size={13} /> Reset Semua Filter
             </button>
           </div>
         )}
 
-        {/* ── SPOTLIGHT TRENDING HERO ────────────────────────────────── */}
+        {/* ── 4. SPOTLIGHT HERO: LAGI RAME (TRENDING ANIME) ─────────── */}
         {spotlightVideo && (
-          <div className="mb-10">
+          <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
-              <Flame size={18} className="text-neon-red" />
+              <Flame size={18} className="text-neon-red animate-bounce" />
               <span className="text-xs sm:text-sm font-display font-black uppercase tracking-wider text-neon-red">
-                Trending Anime Hari Ini
+                Sedang Tren &amp; Paling Banyak Ditonton Hari Ini
               </span>
             </div>
             <div
               onClick={() => navigate(`/hentaiplay/video/${encodeURIComponent(spotlightVideo.slug)}`)}
               className="relative rounded-3xl overflow-hidden transition-all duration-400 group cursor-pointer"
               style={{
-                background: 'rgba(14, 16, 26, 0.7)',
-                border: '1px solid rgba(255, 45, 85, 0.25)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 45, 85, 0.1)',
+                background: "rgba(14, 16, 26, 0.7)",
+                border: "1px solid rgba(255, 45, 85, 0.25)",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 45, 85, 0.1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 45, 85, 0.5)';
-                e.currentTarget.style.boxShadow = '0 25px 70px rgba(0, 0, 0, 0.8), 0 0 45px rgba(255, 45, 85, 0.2)';
+                e.currentTarget.style.borderColor = "rgba(255, 45, 85, 0.5)";
+                e.currentTarget.style.boxShadow =
+                  "0 25px 70px rgba(0, 0, 0, 0.8), 0 0 45px rgba(255, 45, 85, 0.2)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 45, 85, 0.25)';
-                e.currentTarget.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 45, 85, 0.1)';
+                e.currentTarget.style.borderColor = "rgba(255, 45, 85, 0.25)";
+                e.currentTarget.style.boxShadow =
+                  "0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 45, 85, 0.1)";
               }}
             >
               <div className="relative aspect-[16/8] sm:aspect-[21/9] max-h-[380px] overflow-hidden bg-black/70">
@@ -297,26 +462,26 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                     <span
                       className="text-[10px] font-black px-2.5 py-0.5 rounded-lg text-white uppercase tracking-wider"
                       style={{
-                        background: 'linear-gradient(135deg, #ff2d55, #ff6b35)',
-                        boxShadow: '0 2px 10px rgba(255, 45, 85, 0.4)',
+                        background: "linear-gradient(135deg, #ff2d55, #ff6b35)",
+                        boxShadow: "0 2px 10px rgba(255, 45, 85, 0.4)",
                       }}
                     >
-                      TOP TRENDING
+                      🔥 NOMOR 1 LAGI RAME
                     </span>
                     {spotlightVideo.categories?.[0] && (
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded-lg text-gray-200"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          background: "rgba(255, 255, 255, 0.08)",
+                          backdropFilter: "blur(10px)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
                         }}
                       >
-                        {spotlightVideo.categories[0]}
+                        #{spotlightVideo.categories[0]}
                       </span>
                     )}
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                      <Star size={10} className="fill-amber-400 text-amber-400" /> 1080p
+                      <Star size={10} className="fill-amber-400 text-amber-400" /> Full HD
                     </span>
                   </div>
 
@@ -325,15 +490,15 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                   </h2>
 
                   <p className="text-xs text-gray-300 line-clamp-2 hidden sm:block max-w-xl">
-                    Streaming episode anime hentai pilihan dengan resolusi tinggi, audio jernih, dan pemutar video cepat.
+                    Streaming episode anime hentai pilihan dengan resolusi tinggi, audio jernih, dan pemutar video instan.
                   </p>
 
                   <div className="pt-2">
                     <button
                       className="px-5 py-2.5 rounded-xl text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition-all group-hover:scale-105 active:scale-95 cursor-pointer"
                       style={{
-                        background: 'linear-gradient(135deg, #ff2d55, #ff6b35)',
-                        boxShadow: '0 4px 20px rgba(255, 45, 85, 0.4)',
+                        background: "linear-gradient(135deg, #ff2d55, #ff6b35)",
+                        boxShadow: "0 4px 20px rgba(255, 45, 85, 0.4)",
                       }}
                     >
                       <Play size={15} className="fill-white" />
@@ -346,7 +511,7 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
           </div>
         )}
 
-        {/* ── VIDEO GRID CONTENT ─────────────────────────────────────── */}
+        {/* ── 5. VIDEO GRID CONTENT ─────────────────────────────────── */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
             {Array.from({ length: 12 }).map((_, i) => (
@@ -354,8 +519,8 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                 key={i}
                 className="rounded-2xl p-2.5 overflow-hidden flex flex-col gap-3"
                 style={{
-                  background: 'rgba(14, 16, 26, 0.5)',
-                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                  background: "rgba(14, 16, 26, 0.5)",
+                  border: "1px solid rgba(255, 255, 255, 0.04)",
                 }}
               >
                 <div className="aspect-video rounded-xl bg-white/[0.04] relative overflow-hidden animate-pulse">
@@ -370,28 +535,28 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
           <div
             className="py-24 text-center rounded-3xl p-8 max-w-md mx-auto flex flex-col items-center gap-4"
             style={{
-              background: 'rgba(18, 18, 28, 0.5)',
-              border: '1px solid rgba(255, 45, 85, 0.2)',
+              background: "rgba(18, 18, 28, 0.5)",
+              border: "1px solid rgba(255, 45, 85, 0.2)",
             }}
           >
             <AlertCircle size={40} className="text-neon-red" />
             <p className="text-neon-red text-sm">{error}</p>
             <button
-              onClick={() => fetchVideos(page, search)}
+              onClick={() => fetchVideos(page, search, activeCategory, activeTag)}
               className="px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-colors cursor-pointer"
-              style={{ background: '#ff2d55' }}
+              style={{ background: "#ff2d55" }}
             >
               Coba Lagi
             </button>
           </div>
         ) : (
           <>
-            {videos.length === 0 ? (
+            {gridVideos.length === 0 ? (
               <div
                 className="py-24 text-center rounded-3xl p-8 max-w-md mx-auto flex flex-col items-center gap-4"
                 style={{
-                  background: 'rgba(18, 18, 28, 0.5)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  background: "rgba(18, 18, 28, 0.5)",
+                  border: "1px solid rgba(255, 255, 255, 0.06)",
                 }}
               >
                 <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center text-gray-500">
@@ -399,7 +564,7 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                 </div>
                 <h3 className="text-lg font-bold text-white">Tidak Ada Video</h3>
                 <p className="text-xs text-gray-400">
-                  Tidak ditemukan anime dengan kata kunci atau tag &ldquo;{search}&rdquo;. Coba tag lain.
+                  Tidak ditemukan anime dengan filter ini. Coba pilih tagar atau kategori yang lain.
                 </p>
                 <button
                   onClick={handleReset}
@@ -437,48 +602,49 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                           />
                         ) : null}
 
-                        <div className={`w-full h-full flex items-center justify-center bg-neutral-800 ${video.cover_url ? "hidden" : ""}`}>
+                        <div
+                          className={`w-full h-full flex items-center justify-center bg-neutral-800 ${
+                            video.cover_url ? "hidden" : ""
+                          }`}
+                        >
                           <Film size={26} className="text-gray-600" />
                         </div>
 
-                        {/* Category Badge */}
+                        {/* Category Tag Badge */}
                         {video.categories?.length > 0 && (
                           <span
                             className="absolute top-2 left-2 text-white px-2 py-0.5 rounded-lg text-[9px] font-bold shadow backdrop-blur-md"
                             style={{
-                              background: 'rgba(0, 0, 0, 0.65)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              background: "rgba(0, 0, 0, 0.65)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
                             }}
                           >
-                            {video.categories[0]}
+                            #{video.categories[0]}
                           </span>
                         )}
 
-                        {/* Hover Overlay with Play Button */}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                          <div
-                            className="w-11 h-11 rounded-full text-white flex items-center justify-center shadow-lg"
-                            style={{
-                              background: 'linear-gradient(135deg, #ff2d55, #ff6b35)',
-                              boxShadow: '0 0 20px rgba(255, 45, 85, 0.6)',
-                            }}
-                          >
-                            <Play size={18} className="fill-white translate-x-0.5" />
+                        {/* Play Overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform">
+                            <Play size={16} className="fill-white translate-x-0.5" />
                           </div>
                         </div>
                       </div>
 
-                      {/* Card Info */}
-                      <div className="p-3.5 flex-1 flex flex-col justify-between">
-                        <p className="text-xs sm:text-sm font-semibold text-gray-200 line-clamp-2 leading-snug group-hover:text-neon-red transition-colors duration-200">
+                      {/* Video Info */}
+                      <div className="p-3 flex flex-col flex-1 justify-between gap-2">
+                        <h3 className="text-xs font-bold text-gray-200 group-hover:text-neon-red line-clamp-2 transition-colors">
                           {video.title}
-                        </p>
+                        </h3>
 
-                        {video.categories?.length > 1 && (
-                          <p className="text-[10px] text-gray-500 mt-2 line-clamp-1 font-mono">
-                            {video.categories.slice(1, 3).join(" • ")}
-                          </p>
-                        )}
+                        <div className="flex items-center justify-between text-[10px] text-gray-400 border-t border-white/5 pt-2">
+                          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                            HD 1080p
+                          </span>
+                          <span className="text-gray-500 hover:text-white transition-colors">
+                            Tonton &rarr;
+                          </span>
+                        </div>
                       </div>
                     </Link>
                   </motion.div>
@@ -486,39 +652,55 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
               </div>
             )}
 
-            {/* ── PAGINATION ─────────────────────────────────────────── */}
+            {/* ── 6. PAGINATION ───────────────────────────────────────── */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 sm:gap-4 mt-14">
+              <div className="flex justify-center items-center gap-2 pt-10">
                 <button
+                  disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
+                  className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                  title="Halaman Sebelumnya"
                 >
-                  <ChevronLeft size={16} /> Prev
+                  <ChevronLeft size={16} />
                 </button>
-                <div
-                  className="px-4 py-2 rounded-xl text-xs sm:text-sm text-gray-300 font-mono"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                  }}
-                >
-                  Halaman <span className="text-neon-red font-bold">{page}</span> / {totalPages}
+
+                <div className="flex items-center gap-1 text-xs">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
+                    let pageNum = page;
+                    if (totalPages <= 5) {
+                      pageNum = idx + 1;
+                    } else if (page <= 3) {
+                      pageNum = idx + 1;
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + idx;
+                    } else {
+                      pageNum = page - 2 + idx;
+                    }
+
+                    const isCurrent = page === pageNum;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-8 h-8 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                          isCurrent
+                            ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-500/30"
+                            : "bg-white/[0.04] border border-white/10 text-gray-400 hover:text-white hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
                 </div>
+
                 <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                  title="Halaman Selanjutnya"
                 >
-                  Next <ChevronRight size={16} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
             )}

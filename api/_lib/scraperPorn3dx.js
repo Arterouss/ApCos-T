@@ -1,44 +1,16 @@
 import * as cheerio from "cheerio";
-import axios from "axios";
 import { filterBlockedItems, filterBlockedTags } from "./contentFilter.js";
 import { fetchWithProxy } from "./fetchProxy.js";
 
 const BASE_URL = "https://porn3dx.com";
 
 /**
- * Memeriksa status kesehatan server target Porn3dx
- */
-async function checkPorn3dxServer() {
-  try {
-    const res = await axios.get(BASE_URL, {
-      timeout: 8000,
-      validateStatus: () => true,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      }
-    });
-
-    if (res.status === 503 || (typeof res.data === "string" && res.data.includes("down for a bit of maintenance"))) {
-      const err = new Error("MAINTENANCE: Server pusat Porn3dx (porn3dx.com) saat ini sedang dalam pemeliharaan (Maintenance Mode) oleh pengelola aslinya. Konten akan otomatis muncul kembali setelah pemeliharaan selesai.");
-      err.isMaintenance = true;
-      throw err;
-    }
-
-    return res;
-  } catch (err) {
-    if (err.isMaintenance) throw err;
-    return null;
-  }
-}
-
-/**
- * Fetch HTML dari Porn3dx dengan proxy fallback.
+ * Fetch HTML dari Porn3dx dengan proxy/DoH fallback.
  */
 const fetchPorn3dxHtml = async (targetUrl) => {
   const html = await fetchWithProxy(targetUrl, { js: false });
   if (typeof html === "string" && html.includes("down for a bit of maintenance")) {
-    const err = new Error("MAINTENANCE: Server pusat Porn3dx (porn3dx.com) saat ini sedang dalam pemeliharaan (Maintenance Mode) oleh pengelola aslinya. Konten akan otomatis muncul kembali setelah pemeliharaan selesai.");
+    const err = new Error("MAINTENANCE: Server pusat Porn3dx (porn3dx.com) sedang dalam pemeliharaan sementara.");
     err.isMaintenance = true;
     throw err;
   }
@@ -48,24 +20,24 @@ const fetchPorn3dxHtml = async (targetUrl) => {
 export const scrapePorn3dxList = async ({ page = 1, search = "", tag = "" }) => {
   let url;
   if (search) {
-    url = `${BASE_URL}/?search=${encodeURIComponent(search)}&page=${page}`;
+    url = `${BASE_URL}/search?q=${encodeURIComponent(search)}&page=${page}`;
   } else if (tag) {
-    url = `${BASE_URL}/?tag=${encodeURIComponent(tag)}&page=${page}`;
+    url = `${BASE_URL}/tag/${encodeURIComponent(tag)}?page=${page}`;
   } else {
-    url = page > 1 ? `${BASE_URL}/?page=${page}` : BASE_URL;
+    url = page > 1 ? `${BASE_URL}/explore?page=${page}` : `${BASE_URL}/explore`;
   }
 
   let html;
   try {
     html = await fetchPorn3dxHtml(url);
   } catch (fetchErr) {
-    // Jika terjadi kendala / maintenance, periksa apakah ada data cadangan di MongoDB
+    // Jika terjadi kendala koneksi ke server pusat, periksa data cadangan di database
     try {
       const { connectDB } = await import("./telegramDb.js");
       const db = await connectDB();
       const cached = await db.collection("cached_porn3dx").find({}).sort({ savedAt: -1 }).limit(30).toArray();
       if (cached && cached.length > 0) {
-        console.log(`[Porn3dx Cache] Menyajikan ${cached.length} item dari cadangan database selama server maintenance.`);
+        console.log(`[Porn3dx Cache] Menyajikan ${cached.length} item dari cadangan database.`);
         return filterBlockedItems(cached);
       }
     } catch (cacheErr) {
@@ -75,52 +47,91 @@ export const scrapePorn3dxList = async ({ page = 1, search = "", tag = "" }) => 
   }
 
   const $ = cheerio.load(html);
-
   const results = [];
   const seen = new Set();
 
-  // Porn3dx uses: <div wire:key="grid-XXXXX"> <a href="https://porn3dx.com/post/XXXXX/slug">
-  $('[wire\\:key^="grid-"]').each((i, el) => {
-    const $a = $(el).find("a[href*='/post/']").first();
-    if (!$a.length) return;
+  // 1. Selector untuk versi Next.js modern (menggunakan grid cards a[href*="/post/"])
+  $('a[href*="/post/"]').each((i, el) => {
+    const href = $(el).attr("href") || "";
+    if (!href || href === "/post/create" || href.includes("/login")) return;
 
-    const href = $a.attr("href") || "";
-    if (seen.has(href)) return;
-    seen.add(href);
+    const cleanHref = href.startsWith("http") ? href : `${BASE_URL}${href}`;
+    const slugMatch = href.match(/\/post\/([^\s"'?#]+)/);
+    if (!slugMatch) return;
+    const slug = slugMatch[1].replace(/\/$/, "");
+    if (seen.has(slug)) return;
+    seen.add(slug);
 
-    const postId = href.match(/\/post\/(\d+)/)?.[1] || "";
-    const slug = href.split("/post/")[1]?.replace(/\/$/, "") || postId;
-    const title = $a.attr("alt") || $a.find("img").attr("alt") || "Unknown";
+    const postId = slug.split("/")[0];
+    let title = $(el).attr("aria-label") || 
+                $(el).attr("title") || 
+                $(el).find("img").attr("alt") || 
+                $(el).find("h2").text().trim() || 
+                $(el).find("span.truncate").text().trim() || 
+                $(el).text().trim() || 
+                "3D Video";
+    title = title.replace(/\s+/g, " ").trim();
 
-    // Thumbnail is in data-img attribute
-    const $img = $a.find("img").first();
-    const cover = $img.attr("data-img") || $img.attr("src") || "";
+    // Dapatkan poster / thumbnail
+    const $img = $(el).find("img").first();
+    let cover = $img.attr("src") || $img.attr("data-src") || "";
+    if (!cover && $img.attr("srcset")) {
+      cover = $img.attr("srcset").split(",")[0].trim().split(" ")[0];
+    }
+    // Jika gambar cdn-cgi kecil, tingkatkan resolusinya ke 480px agar jernih
+    if (cover.includes("width=192,height=192")) {
+      cover = cover.replace("width=192,height=192", "width=480,height=480");
+    }
 
-    // Check if it has a video (bunny attr) or image
-    const isVideo = $a.attr("bunny") !== undefined;
-
-    // Duration badge
-    const duration = $a.find("span").filter((_, s) => $(s).text().match(/\d+:\d+/)).first().text().trim() || "";
-
-    // Views
-    const views = $a.find("[class*='chart-bar']").parent().find("span").last().text().trim() || "";
+    const isVideo = $(el).find('svg.lucide-play, [class*="play"]').length > 0 || cover.includes("hls-") || cover.includes("poster");
 
     results.push({
       id: postId,
       slug,
-      title: title.replace(/\s+/g, " ").trim(),
+      title,
       cover_url: cover,
       type: isVideo ? "video" : "image",
-      duration,
-      views,
-      original_url: href,
+      duration: "",
+      views: "",
+      original_url: cleanHref,
     });
   });
 
+  // 2. Fallback untuk selector versi lama (Livewire) jika Next.js selector tidak menemukan apapun
+  if (results.length === 0) {
+    $('[wire\\:key^="grid-"]').each((i, el) => {
+      const $a = $(el).find("a[href*='/post/']").first();
+      if (!$a.length) return;
+
+      const href = $a.attr("href") || "";
+      if (seen.has(href)) return;
+      seen.add(href);
+
+      const postId = href.match(/\/post\/(\d+)/)?.[1] || "";
+      const slug = href.split("/post/")[1]?.replace(/\/$/, "") || postId;
+      const title = $a.attr("alt") || $a.find("img").attr("alt") || "Unknown";
+      const $img = $a.find("img").first();
+      const cover = $img.attr("data-img") || $img.attr("src") || "";
+      const isVideo = $a.attr("bunny") !== undefined;
+      const duration = $a.find("span").filter((_, s) => $(s).text().match(/\d+:\d+/)).first().text().trim() || "";
+
+      results.push({
+        id: postId,
+        slug,
+        title: title.replace(/\s+/g, " ").trim(),
+        cover_url: cover,
+        type: isVideo ? "video" : "image",
+        duration,
+        views: "",
+        original_url: href,
+      });
+    });
+  }
+
   const filtered = filterBlockedItems(results);
 
-  // Auto-cache hasil sukses ke database agar memiliki cadangan jika server maintenance lagi
-  if (filtered.length > 0 && !search && !tag && page === 1) {
+  // Background caching ke database MongoDB
+  if (filtered.length > 0 && page === 1 && !search && !tag) {
     (async () => {
       try {
         const { connectDB } = await import("./telegramDb.js");
@@ -148,7 +159,6 @@ export const scrapePorn3dxDetail = async (slug) => {
   try {
     html = await fetchPorn3dxHtml(url);
   } catch (err) {
-    // Jika server sedang maintenance, cek cache detail
     try {
       const { connectDB } = await import("./telegramDb.js");
       const db = await connectDB();
@@ -161,10 +171,9 @@ export const scrapePorn3dxDetail = async (slug) => {
           video_type: cached.type || "video",
           images: cached.cover_url ? [cached.cover_url] : [],
           tags: [],
-          description: "Detail video cadangan. Server pusat Porn3dx saat ini sedang dalam pemeliharaan.",
+          description: "Detail video cadangan. Server pusat Porn3dx sedang offline.",
           original_url: cached.original_url || `${BASE_URL}/post/${slug}`,
           slug,
-          isMaintenance: true,
         };
       }
     } catch (cErr) {
@@ -175,31 +184,22 @@ export const scrapePorn3dxDetail = async (slug) => {
 
   const $ = cheerio.load(html);
 
-  const title = $("h1").first().text().trim() || $("title").text().trim() || "Unknown";
+  const title = $("h1").first().text().trim() || 
+                $("title").text().replace(" - Porn3DX", "").trim() || 
+                "3D Video";
 
-  // Get cover image
-  let cover_url = "";
-  $("img").each((i, el) => {
-    const src = $(el).attr("src") || $(el).attr("data-img") || "";
-    if (src && (src.includes("3dxmedia") || src.includes("b-cdn.net") || src.includes("thumbnail")) && !cover_url) {
-      cover_url = src;
-    }
-  });
+  // 1. Ekstraksi video streaming URL (mendukung HLS master.m3u8, direct video, dan Bunny CDN)
+  let video_url = $("video source").attr("src") || $("video").attr("src") || "";
+  let video_type = "image";
 
-  // 1. Look for HLS master playlist in scripts
-  let video_url = "";
-  let video_type = "image"; // "m3u8" | "video" | "bunny" | "image"
-
-  $("script").each((_, el) => {
-    const text = $(el).html() || "";
-    const m3u8Match = text.match(/https?:\/\/[^"'\s\\]+master\.m3u8/i);
-    if (m3u8Match && !video_url) {
+  if (!video_url) {
+    const m3u8Match = html.match(/https?:\/\/[^"'\s\\]+master\.m3u8/i);
+    if (m3u8Match) {
       video_url = m3u8Match[0];
-      video_type = "m3u8";
     }
-  });
+  }
 
-  // 2. Check for Bunny CDN iframe
+  // Cek Bunny CDN iframe fallback
   if (!video_url) {
     const $iframe = $("iframe[src*='iframe.mediadelivery']").first();
     if ($iframe.length) {
@@ -208,28 +208,46 @@ export const scrapePorn3dxDetail = async (slug) => {
     }
   }
 
-  // If cover_url is still empty and we have a master.m3u8, use its poster.jpg
+  if (video_url) {
+    if (video_url.includes(".m3u8")) {
+      video_type = "m3u8";
+    } else if (video_type !== "bunny") {
+      video_type = "video";
+    }
+  }
+
+  // 2. Poster / Cover URL
+  let cover_url = $("video").attr("poster") || "";
   if (!cover_url && video_url.includes("master.m3u8")) {
     cover_url = video_url.replace("/master.m3u8", "/poster.jpg");
   }
+  if (!cover_url) {
+    $("img").each((i, el) => {
+      const src = $(el).attr("src") || $(el).attr("data-img") || "";
+      if (src && (src.includes("poster") || src.includes("media") || src.includes("3dxmedia")) && !src.includes("avatar") && !cover_url) {
+        cover_url = src;
+      }
+    });
+  }
 
-  // Get all gallery images (for image posts)
+  // 3. Gambar galeri untuk postingan gambar/foto 3D
   const images = [];
-  $("img[data-img], img[src*='3dxmedia'], img[src*='b-cdn.net']").each((i, el) => {
+  $("img").each((i, el) => {
     const src = $(el).attr("src") || $(el).attr("data-img") || "";
-    if (src && !src.includes("logo") && !src.includes("svg") && !src.includes("avatar")) {
+    if (src && !src.includes("avatar") && !src.includes("logo") && !src.includes("icon") && (src.includes("media") || src.includes("cdn-cgi"))) {
       images.push(src);
     }
   });
 
-  // Tags
+  // 4. Tags
   const tags = [];
   $("a[href*='/tag/'], a[href*='/?tag=']").each((i, el) => {
     const t = $(el).text().trim();
     if (t && !tags.includes(t)) tags.push(t);
   });
 
-  // Synopsis/description
+  // 5. Author & Deskripsi
+  const author = $("header a[href^='/'], a[href^='/user']").first().text().trim() || "";
   const description = $("meta[name='description']").attr("content") || "";
 
   return {
@@ -239,6 +257,7 @@ export const scrapePorn3dxDetail = async (slug) => {
     video_type,
     images: [...new Set(images)],
     tags: filterBlockedTags(tags),
+    author,
     description,
     original_url: url,
     slug,

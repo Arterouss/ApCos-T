@@ -4,10 +4,23 @@ import { fetchWithProxy } from './fetchProxy.js';
 
 const BASE_URL = 'https://hentaiplay.net';
 
-// Scrape list: latest, search, or page
-export const scrapeHentaiPlayList = async (page = 1, search = '') => {
+// Scrape list: latest, search, category, or trending
+export const scrapeHentaiPlayList = async (page = 1, search = '', category = '') => {
   let url;
-  if (search) {
+  if (category) {
+    const cat = category.toLowerCase().trim();
+    if (cat === 'trending' || cat === 'new-release') {
+      url = `${BASE_URL}/hentai/episodes/new-release/${page > 1 ? `page/${page}/` : ''}`;
+    } else if (cat === 'uncensored' || cat === 'hentai-uncensored') {
+      url = `${BASE_URL}/hentai/episodes/hentai-uncensored/${page > 1 ? `page/${page}/` : ''}`;
+    } else if (cat === 'english-subbed' || cat === 'hentai-english-subbed') {
+      url = `${BASE_URL}/hentai/episodes/hentai-english-subbed/${page > 1 ? `page/${page}/` : ''}`;
+    } else if (cat === '3d') {
+      url = `${BASE_URL}/?s=3D${page > 1 ? `&paged=${page}` : ''}`;
+    } else {
+      url = `${BASE_URL}/genre/${encodeURIComponent(cat)}/${page > 1 ? `page/${page}/` : ''}`;
+    }
+  } else if (search) {
     url = `${BASE_URL}/?s=${encodeURIComponent(search)}${page > 1 ? `&paged=${page}` : ''}`;
   } else {
     url = page > 1 ? `${BASE_URL}/page/${page}/` : `${BASE_URL}/`;
