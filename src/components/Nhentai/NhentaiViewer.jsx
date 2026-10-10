@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { X, BookOpen, CheckCircle2, SkipForward, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, BookOpen, CheckCircle2, SkipForward, ChevronLeft, ChevronRight, Maximize2, Minimize2, Layers } from "lucide-react";
 import { fetchNhentaiDetail } from "../../services/nhentaiService";
 
 const AUTO_ADVANCE_SECONDS = 5;
@@ -27,6 +27,10 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
   const [showUI,   setShowUI]   = useState(true);
   const [finished, setFinished] = useState(() => isNhentaiRead(gallery.id));
   const [countdown, setCountdown] = useState(null);
+  const [isFullWidth, setIsFullWidth] = useState(() => {
+    try { return localStorage.getItem("nhentai_full_width") !== "false"; } catch { return true; }
+  });
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const lastScrollY        = useRef(0);
   const scrollContainerRef = useRef(null);
@@ -104,6 +108,30 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
     return () => clearTimeout(timerRef.current);
   }, [countdown, nextGallery, currentIdx, goToGallery]);
 
+  const toggleFullWidth = () => {
+    setIsFullWidth((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("nhentai_full_width", String(next)); } catch {}
+      return next;
+    });
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
   const handleScroll = (e) => {
     const y = e.target.scrollTop;
     if (y > lastScrollY.current + 20)      setShowUI(false);
@@ -130,13 +158,13 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200">
       {/* Header */}
-      <div className={`absolute top-0 left-0 right-0 h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 bg-gradient-to-b from-black/90 to-transparent z-20 transition-transform duration-300 ${showUI ? "translate-y-0" : "-translate-y-full"}`}>
-        <div className="flex-1 min-w-0 pr-4">
-          <h2 className="text-white font-bold truncate text-sm sm:text-base drop-shadow-md flex items-center gap-2">
+      <div className={`absolute top-0 left-0 right-0 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 bg-gradient-to-b from-black/95 to-transparent z-20 transition-transform duration-300 ${showUI ? "translate-y-0" : "-translate-y-full"}`}>
+        <div className="flex-1 min-w-0 pr-3">
+          <h2 className="text-white font-bold truncate text-xs sm:text-base drop-shadow-md flex items-center gap-2">
             {detail.title.english || detail.title.japanese}
             {finished && <CheckCircle2 size={16} className="text-emerald-400 flex-shrink-0" />}
           </h2>
-          <div className="text-white/70 text-xs mt-0.5 flex items-center gap-3">
+          <div className="text-white/70 text-[10px] sm:text-xs mt-0.5 flex items-center gap-2 sm:gap-3">
             <span className="flex items-center gap-1"><BookOpen size={12}/> {detail.num_pages} Pages</span>
             {currentIdx >= 0 && galleries.length > 0 && (
               <span className="text-gray-500">{currentIdx + 1} / {galleries.length}</span>
@@ -145,24 +173,46 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
           </div>
         </div>
 
-        {/* Prev / Next buttons in header */}
-        <div className="flex items-center gap-1 mr-2">
+        {/* Action buttons in header */}
+        <div className="flex items-center gap-1 sm:gap-1.5 mr-2">
+          {/* Full Width Toggle */}
+          <button
+            onClick={toggleFullWidth}
+            className={`p-1.5 rounded-full border text-xs transition-colors flex items-center gap-1 cursor-pointer ${
+              isFullWidth
+                ? "bg-pink-600/30 border-pink-500/50 text-pink-300"
+                : "bg-black/50 border-white/10 text-gray-300 hover:bg-white/20"
+            }`}
+            title={isFullWidth ? "Mode: Full Lebar. Klik untuk Fit Layar" : "Mode: Fit Layar. Klik untuk Full Lebar"}
+          >
+            <Layers size={14} />
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 bg-black/50 hover:bg-white/20 rounded-full transition-colors text-white border border-white/10 cursor-pointer"
+            title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh (Fullscreen)"}
+          >
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+
           {prevGallery && (
             <button onClick={() => goToGallery(prevGallery, currentIdx - 1)}
-              className="p-1.5 bg-black/50 hover:bg-white/20 rounded-full transition-colors text-white border border-white/10" title="Galeri Sebelumnya (←)">
+              className="p-1.5 bg-black/50 hover:bg-white/20 rounded-full transition-colors text-white border border-white/10 cursor-pointer" title="Galeri Sebelumnya (←)">
               <ChevronLeft size={16} />
             </button>
           )}
           {nextGallery && (
             <button onClick={() => goToGallery(nextGallery, currentIdx + 1)}
-              className="p-1.5 bg-black/50 hover:bg-white/20 rounded-full transition-colors text-white border border-white/10" title="Galeri Berikutnya (→)">
+              className="p-1.5 bg-black/50 hover:bg-white/20 rounded-full transition-colors text-white border border-white/10 cursor-pointer" title="Galeri Berikutnya (→)">
               <ChevronRight size={16} />
             </button>
           )}
         </div>
 
         <button onClick={handleClose}
-          className="p-2 bg-black/50 hover:bg-red-500/80 rounded-full transition-colors text-white backdrop-blur-md border border-white/10">
+          className="p-2 bg-black/50 hover:bg-red-500/80 rounded-full transition-colors text-white backdrop-blur-md border border-white/10 cursor-pointer">
           <X size={20} />
         </button>
       </div>
@@ -173,17 +223,17 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth bg-[#050505]"
       >
-        <div className="max-w-[800px] mx-auto w-full flex flex-col items-center">
+        <div className={`mx-auto w-full flex flex-col items-center transition-all duration-300 ${isFullWidth ? "max-w-none px-0" : "max-w-[850px] px-2 sm:px-4"}`}>
           {detail.pages.map((page, index) => {
             const rawUrl   = `https://i.nhentai.net/${page.path}`;
             const imageUrl = `/api/nhentai/image?url=${encodeURIComponent(rawUrl)}`;
             return (
-              <div key={index} className="w-full relative min-h-[200px]" onClick={() => setShowUI(v => !v)}>
+              <div key={index} className="w-full relative min-h-[160px] flex justify-center bg-black" onClick={() => setShowUI(v => !v)}>
                 <div className="absolute inset-0 flex justify-center items-center -z-10 bg-[#0a0a0a]">
                   <div className="w-8 h-8 rounded-full border-2 border-pink-500/10 border-t-pink-500/50 animate-spin" />
                 </div>
                 <img src={imageUrl} alt={`Page ${index + 1}`} loading="lazy"
-                  className="w-full block h-auto object-contain select-none m-0 p-0" />
+                  className={`block h-auto object-contain select-none m-0 p-0 ${isFullWidth ? "w-full" : "max-w-full rounded-md shadow-xl my-1"}`} />
               </div>
             );
           })}

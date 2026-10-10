@@ -12,6 +12,11 @@ import {
   BookOpen,
   SkipForward,
   Sparkles,
+  Maximize2,
+  Minimize2,
+  ArrowUp,
+  RefreshCw,
+  Layers,
 } from "lucide-react";
 
 const AUTO_ADVANCE_SECONDS = 5;
@@ -28,14 +33,92 @@ export default function DoujinReaderPage() {
   const [chapterList, setChapterList] = useState(location.state?.chapters || null);
   const [mangaSlug, setMangaSlug] = useState(location.state?.mangaSlug || null);
 
+  // Full width mode (defaults to true for edge-to-edge full immersive reading)
+  const [isFullWidth, setIsFullWidth] = useState(() => {
+    try {
+      return localStorage.getItem("doujin_full_width") !== "false";
+    } catch {
+      return true;
+    }
+  });
+
+  // Native Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Auto-hiding Controls (Navbar)
+  const [showControls, setShowControls] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   // Read-to-bottom detection
   const [finishedReading, setFinishedReading] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const sentinelRef = useRef(null);
   const timerRef = useRef(null);
+  const lastScrollY = useRef(0);
 
   const { isRead, markRead } = useReadProgress(mangaSlug);
   const alreadyRead = isRead(chapter_id);
+
+  // Toggle Full Width & persist
+  const toggleFullWidth = (e) => {
+    e?.stopPropagation?.();
+    setIsFullWidth((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("doujin_full_width", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Toggle native Fullscreen
+  const toggleFullscreen = (e) => {
+    e?.stopPropagation?.();
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  // Smart Scroll: Auto-hide header when scrolling down, reveal when scrolling up
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      setShowScrollTop(currentY > 500);
+
+      if (currentY > lastScrollY.current + 30 && currentY > 120) {
+        // Scrolling down -> hide controls for full immersion
+        setShowControls(false);
+      } else if (lastScrollY.current - currentY > 20 || currentY < 80) {
+        // Scrolling up or near top -> show controls
+        setShowControls(true);
+      }
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Scroll to top handler
+  const scrollToTop = (e) => {
+    e?.stopPropagation?.();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setShowControls(true);
+  };
 
   // Derive nav slugs
   const getNavSlugs = useCallback(() => {
@@ -82,7 +165,7 @@ export default function DoujinReaderPage() {
           setCountdown(AUTO_ADVANCE_SECONDS);
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.4 }
     );
 
     observer.observe(sentinelRef.current);
@@ -105,6 +188,7 @@ export default function DoujinReaderPage() {
     setFinishedReading(false);
     setCountdown(null);
     clearInterval(timerRef.current);
+    setShowControls(true);
   }, [chapter_id]);
 
   // Fetch chapter data
@@ -152,7 +236,7 @@ export default function DoujinReaderPage() {
           </div>
         </div>
         <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-indigo-300">
-          Menyiapkan Panel Komik...
+          Menyiapkan Panel Komik Full...
         </p>
       </div>
     );
@@ -167,7 +251,7 @@ export default function DoujinReaderPage() {
           <p className="text-gray-400 text-sm mb-6">{error || "Data chapter tidak ditemukan."}</p>
           <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-600/30"
+            className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-600/30 cursor-pointer"
           >
             Kembali
           </button>
@@ -177,103 +261,184 @@ export default function DoujinReaderPage() {
   }
 
   return (
-    <div className="min-h-screen text-white bg-black flex flex-col">
-      {/* Top Navbar */}
-      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-2xl">
-        <button
-          onClick={() => {
-            if (mangaSlug) navigate(`/doujin/${mangaSlug}`);
-            else navigate(-1);
-          }}
-          className="p-2 glass-card hover:border-indigo-500/40 rounded-full transition-all text-gray-300 hover:text-white"
-          title="Kembali"
-        >
-          <ArrowLeft size={18} />
-        </button>
-
-        <div className="flex items-center gap-2 max-w-[65vw]">
-          <h1 className="font-bold text-xs sm:text-sm truncate text-gray-100">
-            {data.title}
-          </h1>
-          {alreadyRead && (
-            <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
-              <CheckCircle2 size={12} /> Selesai
-            </span>
-          )}
-        </div>
-
-        {/* Quick Nav arrows */}
-        <div className="flex items-center gap-1">
-          {prevSlug && (
+    <div className="min-h-screen text-white bg-[#030305] flex flex-col select-none relative">
+      {/* ── Top Floating Reader Header (Auto-hides on scroll, tap to toggle) ── */}
+      <header
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+          showControls
+            ? "translate-y-0 opacity-100 pointer-events-auto"
+            : "-translate-y-full opacity-0 pointer-events-none"
+        }`}
+        style={{
+          background: "rgba(5, 5, 8, 0.92)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.7)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3">
+          {/* Back button & Title */}
+          <div className="flex items-center gap-2.5 min-w-0">
             <button
-              onClick={() => goToChapter(prevSlug)}
-              className="p-1.5 rounded-full glass-card hover:border-indigo-500/40 text-gray-400 hover:text-white"
-              title="Chapter Sebelumnya"
+              onClick={() => {
+                if (mangaSlug) navigate(`/doujin/${mangaSlug}`);
+                else navigate(-1);
+              }}
+              className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] active:bg-white/[0.2] border border-white/10 text-gray-200 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+              title="Kembali ke Detail Komik"
+              aria-label="Kembali"
             >
-              <ChevronLeft size={16} />
+              <ArrowLeft size={18} />
             </button>
-          )}
-          {nextSlug && (
-            <button
-              onClick={() => goToChapter(nextSlug)}
-              className="p-1.5 rounded-full glass-card hover:border-indigo-500/40 text-gray-400 hover:text-white"
-              title="Chapter Selanjutnya"
-            >
-              <ChevronRight size={16} />
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Reader Image Stream */}
-      <div className="flex-1 w-full max-w-3xl mx-auto min-h-screen flex flex-col relative pb-32">
+            <div className="min-w-0">
+              <h1 className="font-bold text-xs sm:text-sm truncate text-white max-w-[45vw] sm:max-w-md">
+                {data.title}
+              </h1>
+              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                {data.images?.length > 0 && (
+                  <span>{data.images.length} Halaman</span>
+                )}
+                {alreadyRead && (
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                    <CheckCircle2 size={10} /> Dibaca
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Controls: Full Width toggle, Fullscreen toggle, Prev/Next Chapters */}
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+            {/* Width Toggle: Full (Edge-to-Edge) vs Fit */}
+            <button
+              onClick={toggleFullWidth}
+              className={`p-2 rounded-xl border transition-all flex items-center gap-1 cursor-pointer text-xs font-semibold ${
+                isFullWidth
+                  ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-300 hover:bg-indigo-600/40"
+                  : "bg-white/[0.05] border-white/10 text-gray-300 hover:bg-white/[0.12]"
+              }`}
+              title={isFullWidth ? "Mode: Lebar Penuh (Edge-to-Edge). Klik untuk Mode Fit" : "Mode: Fit. Klik untuk Lebar Penuh"}
+              aria-label="Toggle Reader Width"
+            >
+              <Layers size={16} />
+              <span className="hidden sm:inline text-[11px]">
+                {isFullWidth ? "Full" : "Fit"}
+              </span>
+            </button>
+
+            {/* Native Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] active:bg-white/[0.2] border border-white/10 text-gray-200 hover:text-white transition-all cursor-pointer"
+              title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh (Fullscreen)"}
+              aria-label="Layar Penuh"
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            {/* Quick Prev / Next Buttons */}
+            {prevSlug && (
+              <button
+                onClick={() => goToChapter(prevSlug)}
+                className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 text-gray-200 hover:text-white transition-all cursor-pointer"
+                title="Chapter Sebelumnya"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            )}
+            {nextSlug && (
+              <button
+                onClick={() => goToChapter(nextSlug)}
+                className="p-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-indigo-400/30 text-white font-semibold transition-all shadow-md shadow-indigo-600/30 cursor-pointer flex items-center gap-1"
+                title="Chapter Selanjutnya"
+              >
+                <span className="hidden sm:inline text-xs">Next</span>
+                <ChevronRight size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Main Comic Reader Stream (Tap anywhere to toggle controls) ── */}
+      <main
+        className={`flex-1 w-full min-h-screen flex flex-col relative transition-all duration-300 pt-0 ${
+          isFullWidth ? "max-w-none px-0" : "max-w-4xl mx-auto px-2 sm:px-4"
+        }`}
+        onClick={() => setShowControls((prev) => !prev)}
+      >
         {data.images && data.images.length > 0 ? (
           <>
-            <div className="space-y-0.5">
+            <div className="space-y-0 w-full flex flex-col items-center">
               {data.images.map((imgUrl, idx) => (
-                <div key={idx} className="relative w-full bg-black">
+                <div
+                  key={idx}
+                  className="relative w-full bg-black flex justify-center items-center overflow-hidden"
+                  style={{ minHeight: "120px" }}
+                >
                   <img
                     src={imgUrl}
                     alt={`Halaman ${idx + 1}`}
-                    className="w-full h-auto object-contain block mx-auto select-none"
-                    loading="lazy"
+                    className={`block object-contain select-none transition-all duration-200 ${
+                      isFullWidth
+                        ? "w-full h-auto m-0 p-0"
+                        : "max-w-full h-auto rounded-md shadow-xl my-1"
+                    }`}
+                    loading={idx < 4 ? "eager" : "lazy"}
+                    decoding="async"
                     referrerPolicy="no-referrer"
                   />
                 </div>
               ))}
             </div>
 
-            {/* Scroll Sentinel */}
-            <div ref={sentinelRef} className="h-6" aria-hidden="true" />
+            {/* Scroll Sentinel for Read Progress & Auto Advance */}
+            <div ref={sentinelRef} className="h-10" aria-hidden="true" />
 
-            {/* End of Chapter Panel */}
-            {finishedReading && (
-              <div className="mx-4 my-8 rounded-3xl glass-card border border-white/10 overflow-hidden shadow-2xl relative">
-                <div className="p-6 border-b border-white/5 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
-                    <CheckCircle2 size={20} />
+            {/* ── End of Chapter Clean Panel (No blocking menus!) ── */}
+            <div
+              className="w-full max-w-3xl mx-auto px-4 py-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="rounded-3xl glass-card border border-white/10 overflow-hidden shadow-2xl relative bg-black/60 backdrop-blur-xl">
+                <div className="p-6 border-b border-white/5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      <CheckCircle2 size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-emerald-300">
+                        Chapter Selesai Dibaca!
+                      </h3>
+                      <p className="text-gray-400 text-xs">
+                        Progres membaca tersimpan otomatis
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-emerald-300">
-                      Chapter Selesai Dibaca!
-                    </h3>
-                    <p className="text-gray-400 text-xs">
-                      Progres membaca tersimpan otomatis
-                    </p>
-                  </div>
+                  <button
+                    onClick={scrollToTop}
+                    className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-all text-xs flex items-center gap-1 cursor-pointer"
+                    title="Kembali ke atas"
+                  >
+                    <ArrowUp size={14} />
+                    <span className="hidden sm:inline">Ke Atas</span>
+                  </button>
                 </div>
 
                 {nextSlug ? (
                   <div className="p-6 space-y-4">
                     <p className="text-gray-300 text-xs flex items-center gap-2">
                       <SkipForward size={14} className="text-indigo-400" />
-                      Melanjutkan ke chapter berikutnya secara otomatis...
+                      Melanjutkan ke chapter berikutnya...
                     </p>
 
-                    {/* Countdown bar */}
+                    {/* Countdown Progress Bar */}
                     {countdown !== null && (
                       <div>
-                        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-1000"
                             style={{
@@ -285,7 +450,7 @@ export default function DoujinReaderPage() {
                             }}
                           />
                         </div>
-                        <div className="flex justify-between items-center mt-1.5 text-xs">
+                        <div className="flex justify-between items-center mt-2 text-xs">
                           <span className="text-gray-500">Auto Advance</span>
                           <span className="text-indigo-300 font-bold">
                             {countdown}s
@@ -297,11 +462,11 @@ export default function DoujinReaderPage() {
                     <div className="flex flex-col sm:flex-row gap-3 pt-2">
                       <button
                         onClick={() => goToChapter(nextSlug)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 font-bold text-sm text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.02]"
+                        className="flex-1 flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 font-bold text-sm text-white shadow-xl shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-95 cursor-pointer"
                       >
-                        <BookOpen size={16} />
+                        <BookOpen size={18} />
                         Baca Chapter Selanjutnya
-                        <ChevronRight size={16} />
+                        <ChevronRight size={18} />
                       </button>
 
                       {countdown !== null && (
@@ -310,7 +475,7 @@ export default function DoujinReaderPage() {
                             clearTimeout(timerRef.current);
                             setCountdown(null);
                           }}
-                          className="px-5 py-3 rounded-2xl glass-card border border-white/10 text-xs text-gray-400 hover:text-white transition-all"
+                          className="px-5 py-3.5 rounded-2xl glass-card border border-white/10 text-xs text-gray-400 hover:text-white transition-all cursor-pointer"
                         >
                           Batalkan Auto-Play
                         </button>
@@ -330,21 +495,33 @@ export default function DoujinReaderPage() {
                       onClick={() =>
                         navigate(mangaSlug ? `/doujin/${mangaSlug}` : "/doujin")
                       }
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-semibold transition-all"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-semibold transition-all cursor-pointer"
                     >
                       Kembali ke Detail Manga
                     </button>
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </>
         ) : (
-          <div className="text-center py-20 text-gray-500">
+          <div className="text-center py-24 text-gray-500">
             Tidak ada gambar di dalam chapter ini.
           </div>
         )}
-      </div>
+      </main>
+
+      {/* ── Floating Quick Scroll to Top & Controls Toggle (Floating Pill) ── */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 p-3 rounded-full bg-black/80 hover:bg-indigo-600 text-white/80 hover:text-white border border-white/15 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
+          title="Kembali ke Paling Atas"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp size={20} />
+        </button>
+      )}
     </div>
   );
 }

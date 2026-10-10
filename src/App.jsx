@@ -190,6 +190,9 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
   const neon = isAdultMode ? '#ff2d55' : '#00e5ff';
   const neonSecondary = isAdultMode ? '#ffb347' : '#7c4dff';
 
+  const location = useLocation();
+  const isReaderRoute = location.pathname.startsWith('/doujin/chapter');
+
   return (
     <div className="min-h-screen text-white relative bg-surface noise-overlay">
       {/* ── Global Ambient Background Orbs & Cyber Auroras ─────────── */}
@@ -246,81 +249,87 @@ function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSear
 
       {/* ── Sidebar & Content Wrapper ────────────────────────────── */}
       <div className="relative z-10 flex">
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onOpenSearch={onOpenSearch}
-        />
+        {!isReaderRoute && (
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            onOpenSearch={onOpenSearch}
+          />
+        )}
 
-        <main className="flex-1 md:pl-72 min-h-screen transition-all duration-300 w-full overflow-x-clip pb-20 md:pb-0">
-          {/* ── Mobile Top Bar ────────────────────────────────────── */}
-          <div className="md:hidden sticky top-0 z-40 px-4 py-3 flex items-center justify-between"
-            style={{
-              background: 'rgba(8,8,12,0.92)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              borderBottom: '1px solid rgba(255,255,255,0.05)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-            }}
-          >
-            <button
-              onClick={onOpenSidebar}
-              className="p-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.06] rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
-              aria-label="Open Menu"
+        <main className={`flex-1 ${isReaderRoute ? 'pl-0 pb-0' : 'md:pl-72 pb-20 md:pb-0'} min-h-screen transition-all duration-300 w-full overflow-x-clip`}>
+          {/* ── Mobile Top Bar (Hidden on reader routes) ──────────── */}
+          {!isReaderRoute && (
+            <div className="md:hidden sticky top-0 z-40 px-4 py-3 flex items-center justify-between"
+              style={{
+                background: 'rgba(8,8,12,0.92)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              }}
             >
-              <Menu size={20} style={{ color: neon }} />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{
-                  background: `${neon}15`,
-                  border: `1px solid ${neon}25`,
-                }}
-              >
-                <Zap size={14} style={{ color: neon }} />
-              </div>
-              <span className="font-display font-black text-base bg-clip-text text-transparent tracking-tight transition-all duration-500"
-                style={{
-                  backgroundImage: `linear-gradient(135deg, ${neon}, ${neonSecondary})`,
-                }}
-              >
-                ApiCos
-              </span>
               <button
-                onClick={togglePortalMode}
-                className="text-[9px] font-extrabold px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
-                style={{
-                  background: `${neon}15`,
-                  color: neon,
-                  border: `1px solid ${neon}25`,
-                }}
-                title={`Beralih ke ${isAdultMode ? "Mode Anime (HUB)" : "Mode Cinema (18+)"}`}
-                aria-label="Ganti Mode Portal"
+                onClick={onOpenSidebar}
+                className="p-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.06] rounded-xl text-white transition-all flex items-center justify-center cursor-pointer"
+                aria-label="Open Menu"
               >
-                {isAdultMode ? <Shield size={10} /> : <Globe size={10} />}
-                <span>{isAdultMode ? "CINEMA" : "HUB"}</span>
+                <Menu size={20} style={{ color: neon }} />
+              </button>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{
+                    background: `${neon}15`,
+                    border: `1px solid ${neon}25`,
+                  }}
+                >
+                  <Zap size={14} style={{ color: neon }} />
+                </div>
+                <span className="font-display font-black text-base bg-clip-text text-transparent tracking-tight transition-all duration-500"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, ${neon}, ${neonSecondary})`,
+                  }}
+                >
+                  ApiCos
+                </span>
+                <button
+                  onClick={togglePortalMode}
+                  className="text-[9px] font-extrabold px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                  style={{
+                    background: `${neon}15`,
+                    color: neon,
+                    border: `1px solid ${neon}25`,
+                  }}
+                  title={`Beralih ke ${isAdultMode ? "Mode Anime (HUB)" : "Mode Cinema (18+)"}`}
+                  aria-label="Ganti Mode Portal"
+                >
+                  {isAdultMode ? <Shield size={10} /> : <Globe size={10} />}
+                  <span>{isAdultMode ? "CINEMA" : "HUB"}</span>
+                </button>
+              </div>
+              <button
+                onClick={onOpenSearch}
+                className="p-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.06] rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                style={{ color: neon }}
+                aria-label="Cari di semua platform"
+                title="Pencarian Cepat"
+              >
+                <Search size={18} />
               </button>
             </div>
-            <button
-              onClick={onOpenSearch}
-              className="p-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.06] rounded-xl transition-all flex items-center justify-center cursor-pointer"
-              style={{ color: neon }}
-              aria-label="Cari di semua platform"
-              title="Pencarian Cepat"
-            >
-              <Search size={18} />
-            </button>
-          </div>
+          )}
 
           <AnimatedRoutes onOpenSidebar={onOpenSidebar} />
         </main>
       </div>
 
-      {/* ── Mobile Bottom Navigation Bar ─────────────────────────────── */}
-      <MobileBottomNav
-        onOpenSidebar={onOpenSidebar}
-        onOpenSearch={onOpenSearch}
-      />
+      {/* ── Mobile Bottom Navigation Bar (Hidden on reader routes) ───── */}
+      {!isReaderRoute && (
+        <MobileBottomNav
+          onOpenSidebar={onOpenSidebar}
+          onOpenSearch={onOpenSearch}
+        />
+      )}
 
       {/* Global Search Modal */}
       <GlobalSearchModal

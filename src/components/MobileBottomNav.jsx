@@ -16,6 +16,11 @@ export default function MobileBottomNav({ onOpenSidebar, onOpenSearch }) {
   const isHome = location.pathname === "/";
   const isFavorites = location.pathname === "/favorites" || location.pathname === "/bookmark-anime";
 
+  // Sembunyikan bottom navigation saat membaca manga/manhwa agar tidak menghalangi panel bacaan
+  if (location.pathname.startsWith("/doujin/chapter")) {
+    return null;
+  }
+
   return (
     <nav
       className="md:hidden fixed bottom-0 inset-x-0 z-40 transition-all duration-300"
