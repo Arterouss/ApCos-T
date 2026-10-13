@@ -6,7 +6,7 @@ import { usePortalMode } from "../context/PortalContext";
 
 export default function MobileBottomNav({ onOpenSidebar, onOpenSearch }) {
   const location = useLocation();
-  const { isAdultMode, togglePortalMode } = usePortalMode();
+  const { isAdultMode, togglePortalMode, isReaderOpen } = usePortalMode();
 
   const neon = isAdultMode ? "#ff2d55" : "#00e5ff";
   const neonGlow = isAdultMode
@@ -16,14 +16,18 @@ export default function MobileBottomNav({ onOpenSidebar, onOpenSearch }) {
   const isHome = location.pathname === "/";
   const isFavorites = location.pathname === "/favorites" || location.pathname === "/bookmark-anime";
 
-  // Sembunyikan bottom navigation saat membaca manga/manhwa agar tidak menghalangi panel bacaan
-  if (location.pathname.startsWith("/doujin/chapter")) {
+  // Sembunyikan bottom navigation saat membaca manga/manhwa/nhentai agar tidak menghalangi panel bacaan
+  if (
+    isReaderOpen ||
+    location.pathname.startsWith("/doujin/chapter") ||
+    (typeof document !== "undefined" && document.body?.classList?.contains("reader-active"))
+  ) {
     return null;
   }
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 transition-all duration-300"
+      className="mobile-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 transition-all duration-300"
       style={{
         background: "rgba(8, 8, 12, 0.94)",
         backdropFilter: "blur(12px)",

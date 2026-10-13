@@ -23,10 +23,12 @@ import {
   getBalbumsAlbumDetail,
   getBalbumsFileDirect,
 } from "../services/balbumsService";
+import { usePortalMode } from "../context/PortalContext";
 
 export default function BalbumsDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { setIsReaderOpen } = usePortalMode();
 
   const [album, setAlbum] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,8 +42,29 @@ export default function BalbumsDetailPage() {
     currentIndex: 0,
   });
 
-  const [directLinks, setDirectLinks] = useState({}); // { [fileId]: { download_url, stream_url } }
+  const [directLinks, setDirectLinks] = useState({}); // { [fileId]: { download_url, stream_url, signed_url } }
   const [loadingDirect, setLoadingDirect] = useState(false);
+  const [videoFallback, setVideoFallback] = useState(false);
+
+  // Sembunyikan bottom navigation saat Lightbox media terbuka
+  useEffect(() => {
+    if (lightbox.isOpen) {
+      setIsReaderOpen(true);
+      document.body.classList.add("reader-active");
+    } else {
+      setIsReaderOpen(false);
+      document.body.classList.remove("reader-active");
+    }
+    return () => {
+      setIsReaderOpen(false);
+      document.body.classList.remove("reader-active");
+    };
+  }, [lightbox.isOpen, setIsReaderOpen]);
+
+  // Reset video fallback saat berganti media di lightbox
+  useEffect(() => {
+    setVideoFallback(false);
+  }, [lightbox.currentIndex]);
 
   const touchStartRef = useRef({ x: 0, y: 0 });
   const touchEndRef = useRef({ x: 0, y: 0 });
@@ -503,13 +526,28 @@ export default function BalbumsDetailPage() {
                     >
                       {currentMedia?.isVideo ? (
                         currentDirect?.stream_url ? (
-                          <video
-                            src={currentDirect.stream_url}
-                            controls
-                            autoPlay
-                            playsInline
-                            className="max-h-[72vh] sm:max-h-[78vh] max-w-full rounded-2xl shadow-2xl border border-white/10 bg-black"
-                          />
+                          <div className="relative w-full h-full flex flex-col items-center justify-center">
+                            <video
+                              key={`${currentMedia.id}-${videoFallback}`}
+                              src={videoFallback && currentDirect.signed_url ? currentDirect.signed_url : currentDirect.stream_url}
+                              controls
+                              autoPlay
+                              playsInline
+                              preload="metadata"
+                              onError={() => {
+                                if (!videoFallback && currentDirect?.signed_url) {
+                                  console.log("Switching video to direct signed stream");
+                                  setVideoFallback(true);
+                                }
+                              }}
+                              className="max-h-[72vh] sm:max-h-[78vh] max-w-full rounded-2xl shadow-2xl border border-white/10 bg-black"
+                            />
+                            {videoFallback && (
+                              <p className="mt-2 text-[11px] text-amber-400/80 bg-black/60 px-3 py-1 rounded-full border border-amber-500/20">
+                                Mode Direct Stream Aktif
+                              </p>
+                            )}
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center gap-3 p-6 glass-card rounded-2xl border border-white/10 max-w-md text-center">
                             {currentMedia.thumbnail && (

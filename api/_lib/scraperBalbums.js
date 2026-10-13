@@ -169,6 +169,91 @@ export async function getBalbumsAlbumDetail(albumId) {
 }
 
 /**
+ * Resolve signed streaming and download URL from Bunkr's dl landing page
+ */
+async function resolveBunkrDownloadUrl(downloadUrl, fileTitle = '') {
+  try {
+    if (!downloadUrl) return null;
+
+    // If it's already a direct media URL (not a /file/ landing page)
+    if (/\.(mp4|m4v|webm|mkv|mov|jpg|jpeg|png|webp|gif)(\?|$)/i.test(downloadUrl) && !downloadUrl.includes('/file/')) {
+      return downloadUrl;
+    }
+
+    const dlUrlObj = new URL(downloadUrl);
+    const dlOrigin = dlUrlObj.origin;
+
+    // Fetch the download landing page HTML
+    const dlHtml = await fetchHtml(downloadUrl);
+    const $ = cheerio.load(dlHtml);
+
+    // Look for download button data-id or numeric id in URL
+    let dataId = $('#download-btn').attr('data-id') || $('[data-id]').first().attr('data-id');
+    if (!dataId) {
+      const match = downloadUrl.match(/\/file\/([a-zA-Z0-9_-]+)/);
+      if (match) dataId = match[1];
+    }
+
+    if (!dataId) {
+      console.warn('[Bunkr Resolver] No data-id found on download page:', downloadUrl);
+      return downloadUrl;
+    }
+
+    // Call Bunkr's metadata API
+    const metaRes = await fetchWithDoH(`${dlOrigin}/api/_001_v2`, {
+      method: 'POST',
+      headers: {
+        ...COMMON_HEADERS,
+        'Content-Type': 'application/json',
+        'Referer': downloadUrl,
+        'Origin': dlOrigin,
+      },
+      body: JSON.stringify({ id: dataId }),
+      timeout: 15000,
+    });
+
+    if (!metaRes.ok) {
+      console.warn(`[Bunkr Resolver] _001_v2 returned HTTP ${metaRes.status}`);
+      return downloadUrl;
+    }
+
+    const meta = await metaRes.json();
+    if (!meta || !meta.mediafiles || !meta.path) {
+      console.warn('[Bunkr Resolver] Invalid meta response from _001_v2:', meta);
+      return downloadUrl;
+    }
+
+    // Call sign service to get token and expiry
+    const cleanPath = decodeURIComponent(meta.path);
+    const signUrl = `https://glb-apisign.cdn.cr/sign?path=${encodeURIComponent(cleanPath)}`;
+    const signRes = await fetchWithDoH(signUrl, {
+      headers: {
+        ...COMMON_HEADERS,
+        'Referer': `${dlOrigin}/`,
+      },
+      timeout: 15000,
+    });
+
+    if (!signRes.ok) {
+      console.warn(`[Bunkr Resolver] sign service returned HTTP ${signRes.status}`);
+      return downloadUrl;
+    }
+
+    const signData = await signRes.json();
+    const finalUrl = new URL(meta.mediafiles + meta.path);
+    const originalName = meta.original || fileTitle || '';
+    if (originalName) finalUrl.searchParams.set('n', originalName);
+    if (signData.token) finalUrl.searchParams.set('token', signData.token);
+    if (signData.ex) finalUrl.searchParams.set('ex', signData.ex);
+
+    return finalUrl.toString();
+  } catch (err) {
+    console.error('[Bunkr Resolver Error]', err.message);
+    return downloadUrl;
+  }
+}
+
+/**
  * Scrape single file direct download/stream link from Bunkr
  */
 export async function getBalbumsFileDirect(fileId) {
@@ -181,14 +266,26 @@ export async function getBalbumsFileDirect(fileId) {
       const $ = cheerio.load(html);
 
       const title = $('h1, .truncate, title').first().text().replace(/\|.*$/, '').trim();
-      const downloadLink = $('a:contains("Download"), a[download]').attr('href');
+      let downloadLink = $('a:contains("Download"), a[download]').attr('href') || $('a[href*="/file/"]').attr('href');
 
       if (downloadLink) {
+        if (downloadLink.startsWith('/')) {
+          downloadLink = new URL(downloadLink, domain).toString();
+        }
+
+        const resolvedUrl = await resolveBunkrDownloadUrl(downloadLink, title);
+        const isMediaFile = /\.(mp4|m4v|webm|mkv|mov|jpg|jpeg|png|webp|gif)(\?|$)/i.test(resolvedUrl);
+        const streamProxyUrl = isMediaFile
+          ? `/api/balbums/media?url=${encodeURIComponent(resolvedUrl)}`
+          : resolvedUrl;
+
         return {
           id: fileId,
           title,
-          download_url: downloadLink,
-          stream_url: downloadLink,
+          download_url: resolvedUrl,
+          stream_url: streamProxyUrl,
+          signed_url: resolvedUrl,
+          landing_url: downloadLink,
         };
       }
     } catch (err) {
@@ -199,3 +296,4 @@ export async function getBalbumsFileDirect(fileId) {
 
   throw lastErr || new Error(`Failed to resolve direct download for file ${fileId}.`);
 }
+

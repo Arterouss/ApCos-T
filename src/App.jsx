@@ -185,13 +185,13 @@ function App() {
 
 // Inner component that can use PortalContext (inside PortalProvider)
 function AppContent({ isSidebarOpen, setIsSidebarOpen, onOpenSidebar, onOpenSearch, isGlobalSearchOpen, onCloseSearch }) {
-  const { isAdultMode, togglePortalMode } = usePortalMode();
+  const { isAdultMode, togglePortalMode, isReaderOpen } = usePortalMode();
 
   const neon = isAdultMode ? '#ff2d55' : '#00e5ff';
   const neonSecondary = isAdultMode ? '#ffb347' : '#7c4dff';
 
   const location = useLocation();
-  const isReaderRoute = location.pathname.startsWith('/doujin/chapter');
+  const isReaderRoute = location.pathname.startsWith('/doujin/chapter') || isReaderOpen;
 
   return (
     <div className="min-h-screen text-white relative bg-surface noise-overlay">

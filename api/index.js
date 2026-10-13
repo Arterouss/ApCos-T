@@ -947,9 +947,20 @@ app.get("/api/balbums/media", async (req, res) => {
 
   try {
     const { fetchWithDoH } = await import("./_lib/dohAgent.js");
+
+    let referer = "https://bunkr.cr/";
+    try {
+      const u = new URL(targetUrl);
+      if (u.hostname.includes("balbums") || u.hostname.includes("scdn.st")) {
+        referer = "https://balbums.st/";
+      } else if (u.hostname.includes("bunkr") || u.hostname.includes("cdn.cr")) {
+        referer = "https://bunkr.cr/";
+      }
+    } catch {}
+
     const headers = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      "Referer": "https://balbums.st/",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Referer": referer,
     };
     if (req.headers.range) {
       headers["Range"] = req.headers.range;
@@ -957,23 +968,40 @@ app.get("/api/balbums/media", async (req, res) => {
 
     const upstream = await fetchWithDoH(targetUrl, {
       headers,
-      timeout: 20000,
+      timeout: 30000,
     });
 
     if (!upstream.ok && upstream.status !== 206) {
-      return res.status(upstream.status).send("Media fetch failed");
+      return res.status(upstream.status).send("Media fetch failed: " + upstream.statusText);
     }
 
     res.status(upstream.status);
+
+    const isVideo = /\.(mp4|m4v|webm|mkv|mov)(\?|$)/i.test(targetUrl) || /video/i.test(targetUrl);
+
     for (const [key, val] of upstream.headers.entries()) {
-      if (["content-type", "content-length", "content-range", "accept-ranges"].includes(key.toLowerCase())) {
+      const lowerKey = key.toLowerCase();
+      if (["content-length", "content-range", "accept-ranges"].includes(lowerKey)) {
         res.setHeader(key, val);
+      } else if (lowerKey === "content-type") {
+        if (isVideo || val === "application/octet-stream") {
+          res.setHeader("Content-Type", "video/mp4");
+        } else {
+          res.setHeader(key, val);
+        }
       }
     }
+
+    if (!res.getHeader("Content-Type") && isVideo) {
+      res.setHeader("Content-Type", "video/mp4");
+    }
+
+    res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cache-Control", "public, max-age=86400");
     upstream.body.pipe(res);
   } catch (err) {
+    console.error("[Balbums media proxy error]", err.message);
     res.status(500).send("Balbums media proxy error: " + err.message);
   }
 });

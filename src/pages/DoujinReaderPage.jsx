@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { getDoujinChapter, getDoujinDetail } from "../services/doujinService";
 import { useReadProgress } from "../hooks/useReadProgress";
+import { usePortalMode } from "../context/PortalContext";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -26,6 +27,19 @@ export default function DoujinReaderPage() {
   const chapter_id = params["*"] || "";
   const navigate = useNavigate();
   const location = useLocation();
+  const { setIsReaderOpen } = usePortalMode();
+
+  useEffect(() => {
+    setIsReaderOpen(true);
+    document.body.classList.add("reader-active");
+    window.dispatchEvent(new CustomEvent("reader-mode", { detail: true }));
+
+    return () => {
+      setIsReaderOpen(false);
+      document.body.classList.remove("reader-active");
+      window.dispatchEvent(new CustomEvent("reader-mode", { detail: false }));
+    };
+  }, [setIsReaderOpen]);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

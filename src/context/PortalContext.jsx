@@ -25,12 +25,14 @@ export function PortalProvider({ children }) {
     setMode((prev) => (prev === "adult" ? "general" : "adult"));
   }, []);
 
+  const [isReaderOpen, setIsReaderOpen] = useState(false);
+
   const isAdultMode = mode === "adult";
   const isGeneralMode = mode === "general";
 
   return (
     <PortalContext.Provider
-      value={{ mode, togglePortalMode, isAdultMode, isGeneralMode }}
+      value={{ mode, togglePortalMode, isAdultMode, isGeneralMode, isReaderOpen, setIsReaderOpen }}
     >
       {children}
     </PortalContext.Provider>

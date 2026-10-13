@@ -59,6 +59,15 @@ body {
   margin: 0 auto;
 }
 
+/* ─── Reader Immersive Mode (Manga/Manhwa/NHentai) ─────────────────────── */
+body.reader-active .mobile-bottom-nav,
+body.reader-active nav[aria-label="Mobile Navigation"],
+body.reader-active .mobile-nav-bar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* ─── Premium Scrollbar ───────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 5px;

@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { X, BookOpen, CheckCircle2, SkipForward, ChevronLeft, ChevronRight, Maximize2, Minimize2, Layers } from "lucide-react";
 import { fetchNhentaiDetail } from "../../services/nhentaiService";
+import { usePortalMode } from "../../context/PortalContext";
 
 const AUTO_ADVANCE_SECONDS = 5;
 
@@ -21,6 +23,8 @@ export function isNhentaiRead(id) {
 }
 
 export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1, onNavigate, onClose }) {
+  const { setIsReaderOpen } = usePortalMode();
+
   const [detail,   setDetail]   = useState(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
@@ -31,6 +35,19 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
     try { return localStorage.getItem("nhentai_full_width") !== "false"; } catch { return true; }
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Set global reader mode so MobileBottomNav and sidebars are completely hidden while reading
+  useEffect(() => {
+    setIsReaderOpen(true);
+    document.body.classList.add("reader-active");
+    window.dispatchEvent(new CustomEvent("reader-mode", { detail: true }));
+
+    return () => {
+      setIsReaderOpen(false);
+      document.body.classList.remove("reader-active");
+      window.dispatchEvent(new CustomEvent("reader-mode", { detail: false }));
+    };
+  }, [setIsReaderOpen]);
 
   const lastScrollY        = useRef(0);
   const scrollContainerRef = useRef(null);
@@ -140,23 +157,25 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
   };
 
   // ── Loading ──────────────────────────────────────────────────────────
-  if (loading) return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm">
+  if (loading) return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center backdrop-blur-sm">
       <div className="w-12 h-12 rounded-full border-4 border-pink-500/30 border-t-pink-500 animate-spin" />
-    </div>
+    </div>,
+    document.body
   );
 
-  if (error || !detail) return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm" onClick={handleClose}>
+  if (error || !detail) return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center backdrop-blur-sm" onClick={handleClose}>
       <div className="text-white text-center">
         <p className="text-xl text-red-400 mb-4">{error}</p>
         <button onClick={handleClose} className="px-6 py-2 bg-white/10 rounded-lg hover:bg-white/20">Tutup</button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col animate-in fade-in duration-200">
       {/* Header */}
       <div className={`absolute top-0 left-0 right-0 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 bg-gradient-to-b from-black/95 to-transparent z-20 transition-transform duration-300 ${showUI ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="flex-1 min-w-0 pr-3">
@@ -313,6 +332,7 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
           Scroll ke bawah untuk sembunyikan UI • ← → untuk navigasi galeri
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
