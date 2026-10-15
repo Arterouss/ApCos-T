@@ -1,8 +1,25 @@
 import { fetchWithDoH } from './dohAgent.js';
 import * as cheerio from 'cheerio';
+import { filterBlockedItems, filterBlockedTags, isBlockedItem, isBlockedText } from './contentFilter.js';
 
 const BASE = 'https://realbooru.com';
 const POSTS_PER_PAGE = 42; // realbooru uses 42 per page
+
+const REALBOORU_BLACKLIST = [
+  '-gay',
+  '-yaoi',
+  '-male_only',
+  '-males_only',
+  '-male_on_male',
+  '-bara',
+  '-shounen_ai',
+  '-boys_love',
+  '-bussy',
+  '-danmei',
+  '-twink',
+  '-twinks',
+  '-gachimuchi',
+];
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -25,12 +42,34 @@ async function fetchHtml(url) {
  * @param {number} options.limit - Results per page (for our pagination display)
  */
 export async function getRealbooruPosts({ tags = '', page = 1, limit = 40 } = {}) {
+  // If user searched for explicitly blocked terms (yaoi, gay, etc.), block it directly
+  if (tags && isBlockedText(tags)) {
+    return {
+      posts: [],
+      page,
+      totalPages: 0,
+      hasMore: false,
+      tags: tags.trim(),
+      blocked: true,
+      message: 'Pencarian diblokir karena memuat konten terlarang (Yaoi / Gay / BL).',
+      postsPerPage: POSTS_PER_PAGE,
+    };
+  }
+
   // Realbooru uses pid offset (pid = (page-1) * POSTS_PER_PAGE)
   const pid = (page - 1) * POSTS_PER_PAGE;
-  const tagQuery = tags.trim() ? encodeURIComponent(tags.trim()) : '';
-  const url = tagQuery
-    ? `${BASE}/index.php?page=post&s=list&tags=${tagQuery}&pid=${pid}`
-    : `${BASE}/index.php?page=post&s=list&pid=${pid}`;
+
+  // Append blacklist tags to search query so Realbooru backend excludes them
+  const userTagList = tags.trim().split(/\s+/).filter(Boolean);
+  const combinedTagList = [...userTagList];
+  for (const b of REALBOORU_BLACKLIST) {
+    if (!combinedTagList.includes(b)) {
+      combinedTagList.push(b);
+    }
+  }
+
+  const tagQuery = encodeURIComponent(combinedTagList.join(' '));
+  const url = `${BASE}/index.php?page=post&s=list&tags=${tagQuery}&pid=${pid}`;
 
   const html = await fetchHtml(url);
   const $ = cheerio.load(html);
@@ -85,8 +124,11 @@ export async function getRealbooruPosts({ tags = '', page = 1, limit = 40 } = {}
 
   const hasMore = posts.length >= POSTS_PER_PAGE || $('a').filter((_, el) => $(el).text().trim() === '>').length > 0;
 
+  // Double-filter on parsed items to ensure zero blocked content leaks through
+  const safePosts = filterBlockedItems(posts);
+
   return {
-    posts,
+    posts: safePosts,
     page,
     totalPages,
     hasMore,
@@ -112,7 +154,6 @@ export async function getRealbooruPost(id) {
   // Also check for video link in original link
   let fileUrl = isVideo ? videoSrc : mainImg;
   if (!fileUrl) {
-    // Try to find the "Original" link which is the full-res file
     const origLink = $('a[href*="/images/"]').filter((_, el) => {
       return $(el).text().toLowerCase().includes('original') || $(el).text().trim() === 'Original';
     }).first().attr('href');
@@ -133,15 +174,14 @@ export async function getRealbooruPost(id) {
   });
 
   // Tags from sidebar - look for links like index.php?page=post&s=list&tags=xxx
-  const tags = [];
+  const rawTags = [];
   const tagTypes = {};
   $('a[href*="tags="]').each((_, el) => {
     const href = $(el).attr('href') || '';
     const text = $(el).text().trim();
     if (!text || text.includes('?') || text.includes('+') || text.includes('-') || text.length < 2) return;
-    if (!tags.includes(text)) {
-      tags.push(text);
-      // Try to detect tag type from parent <li> class
+    if (!rawTags.includes(text)) {
+      rawTags.push(text);
       const liClass = $(el).parent('li').attr('class') || '';
       if (liClass.includes('artist')) tagTypes[text] = 'artist';
       else if (liClass.includes('character')) tagTypes[text] = 'character';
@@ -150,10 +190,28 @@ export async function getRealbooruPost(id) {
     }
   });
 
-  // Post stats
   const title = $('title').text().replace(/\s*\|.*$/, '').trim() || `Post #${id}`;
   const score = $('[title*="score"], #score').text().trim() || '0';
   const rating = $('li:contains("Rating")').text().replace('Rating:', '').trim() || 'explicit';
+
+  // Check if post itself is blocked
+  const postData = {
+    id,
+    url,
+    title,
+    tags: rawTags,
+  };
+
+  if (isBlockedItem(postData)) {
+    return {
+      id,
+      isBlocked: true,
+      message: 'Post ini tidak dapat ditampilkan karena termasuk konten terlarang (Yaoi / Gay / BL).',
+    };
+  }
+
+  // Filter tags list to exclude blocked tags
+  const safeTags = filterBlockedTags(rawTags);
 
   return {
     id,
@@ -163,7 +221,7 @@ export async function getRealbooruPost(id) {
     fileType: isVideo ? (videoSrc?.endsWith('.webm') ? 'webm' : 'mp4') : 'image',
     isVideo,
     thumbnail: fileUrl ? fileUrl.replace('/images/', '/thumbnails/').replace(/\.(mp4|webm|gif|png|jpg)$/, '.jpg') : null,
-    tags,
+    tags: safeTags,
     tagTypes,
     altLinks,
     score,
@@ -176,6 +234,10 @@ export async function getRealbooruPost(id) {
  */
 export async function getRealbooruTags(search = '') {
   try {
+    if (search && isBlockedText(search)) {
+      return [];
+    }
+
     const url = search
       ? `${BASE}/index.php?page=tags&s=list&search=${encodeURIComponent(search)}&sort=count&order=desc`
       : `${BASE}/index.php?page=tags&s=list&sort=count&order=desc`;
@@ -195,7 +257,8 @@ export async function getRealbooruTags(search = '') {
       }
     });
 
-    return tags.slice(0, 50);
+    const safeTags = filterBlockedTags(tags);
+    return safeTags.slice(0, 50);
   } catch (e) {
     console.error('[Realbooru Tags Error]', e.message);
     return [];

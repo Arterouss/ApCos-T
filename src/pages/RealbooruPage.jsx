@@ -3,14 +3,16 @@ import { createPortal } from "react-dom";
 import {
   Search, X, Tag, Image as ImageIcon, Video, ChevronLeft, ChevronRight,
   Download, ExternalLink, Loader2, Flame, Sparkles, Hash, ZoomIn, Heart,
-  Play, Filter, RefreshCw,
+  Play, Filter, RefreshCw, ShieldAlert
 } from "lucide-react";
 import { getRealbooruPosts, getRealbooruPost, getRealbooruMediaProxyUrl } from "../services/realbooruService";
 import { usePortalMode } from "../context/PortalContext";
+import { filterBlockedItems, filterBlockedTags, isBlockedText } from "../utils/contentFilter";
 
 // ── Hot tags to display as quick chips ────────────────────────────────────
 const HOT_TAGS = [
   { label: "🔥 Trending", tags: "" },
+  { label: "Yuri / Lesbian 👩‍❤️‍💋‍👩", tags: "lesbian" },
   { label: "Asian", tags: "asian" },
   { label: "Blonde", tags: "blonde" },
   { label: "Teen", tags: "teen" },
@@ -181,6 +183,14 @@ function MediaViewer({ post, detail, loading, onClose, onTagClick, onPrev, onNex
               <Loader2 size={40} className="animate-spin text-red-400" />
               <p className="text-gray-400 text-sm">Memuat media...</p>
             </div>
+          ) : detail?.isBlocked ? (
+            <div className="flex flex-col items-center gap-3 text-center p-8 max-w-md bg-neutral-900/90 border border-red-500/30 rounded-2xl">
+              <ShieldAlert size={44} className="text-red-400" />
+              <h3 className="text-white font-semibold text-base">Konten Diblokir</h3>
+              <p className="text-gray-400 text-xs leading-relaxed">
+                Postingan ini diblokir sesuai filter konten (BL / Yaoi / Gay). Konten Yuri dan Lesbian tetap dapat diakses.
+              </p>
+            </div>
           ) : isVideo && proxyUrl ? (
             <video
               src={proxyUrl}
@@ -212,7 +222,7 @@ function MediaViewer({ post, detail, loading, onClose, onTagClick, onPrev, onNex
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20">
-            {tags.map((tag) => (
+            {filterBlockedTags(tags).map((tag) => (
               <button
                 key={tag}
                 onClick={() => { onClose(); onTagClick(tag); }}
@@ -251,12 +261,29 @@ export default function RealbooruPage({ onOpenSidebar }) {
   // Fetch posts
   const fetchPosts = useCallback(async (tags = "", pg = 1, append = false) => {
     try {
+      if (tags && isBlockedText(tags)) {
+        setError("Pencarian untuk kata kunci ini diblokir (Yaoi / Gay / BL). Konten Yuri & Lesbian tetap diizinkan.");
+        setPosts([]);
+        setHasMore(false);
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+
       if (pg === 1) setLoading(true);
       else setLoadingMore(true);
       setError(null);
 
       const data = await getRealbooruPosts({ tags, page: pg });
-      const newPosts = data.posts || [];
+      if (data?.blocked) {
+        setError(data.message || "Konten ini diblokir (Yaoi / Gay / BL).");
+        setPosts([]);
+        setHasMore(false);
+        return;
+      }
+
+      const rawPosts = data?.posts || [];
+      const newPosts = filterBlockedItems(rawPosts);
 
       if (append) {
         setPosts(prev => {
@@ -297,6 +324,14 @@ export default function RealbooruPage({ onOpenSidebar }) {
 
   // Search handler
   const handleSearch = useCallback((tags) => {
+    if (tags && isBlockedText(tags)) {
+      setError("Pencarian untuk kata kunci ini diblokir (Yaoi / Gay / BL). Konten Yuri & Lesbian tetap diizinkan.");
+      setPosts([]);
+      setHasMore(false);
+      setCurrentTag(tags);
+      setActiveHotTag(-1);
+      return;
+    }
     setCurrentTag(tags);
     setActiveHotTag(-1);
     fetchPosts(tags, 1, false);
