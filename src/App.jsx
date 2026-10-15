@@ -41,6 +41,7 @@ import PersonalPhotoPage from "./pages/PersonalPhotoPage";
 import AnimePage from "./pages/AnimePage";
 import AnimeDetailPage from "./pages/AnimeDetailPage";
 import AnimeWatchPage from "./pages/AnimeWatchPage";
+import RealbooruPage from "./pages/RealbooruPage";
 
 import { PortalProvider, usePortalMode } from "./context/PortalContext";
 
@@ -135,6 +136,11 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         <Route
           path="/nhentai"
           element={<NhentaiPage onOpenSidebar={onOpenSidebar} />}
+        />
+
+        <Route
+          path="/realbooru"
+          element={<RealbooruPage onOpenSidebar={onOpenSidebar} />}
         />
 
         {/* Anime Routes (HUB Mode) */}

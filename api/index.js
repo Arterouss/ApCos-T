@@ -1006,6 +1006,87 @@ app.get("/api/balbums/media", async (req, res) => {
   }
 });
 
+// ==========================================
+// REALBOORU API ROUTES
+// ==========================================
+app.get("/api/realbooru/posts", async (req, res) => {
+  try {
+    const { tags = "", page = 1 } = req.query;
+    const { getRealbooruPosts } = await import("./_lib/scraperRealbooru.js");
+    const data = await getRealbooruPosts({ tags, page: parseInt(page) || 1 });
+    res.json(data);
+  } catch (err) {
+    console.error("[Realbooru Posts Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/realbooru/post/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { getRealbooruPost } = await import("./_lib/scraperRealbooru.js");
+    const data = await getRealbooruPost(id);
+    res.json(data);
+  } catch (err) {
+    console.error("[Realbooru Post Detail Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/realbooru/tags", async (req, res) => {
+  try {
+    const { search = "" } = req.query;
+    const { getRealbooruTags } = await import("./_lib/scraperRealbooru.js");
+    const data = await getRealbooruTags(search);
+    res.json(data);
+  } catch (err) {
+    console.error("[Realbooru Tags Error]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Media proxy for Realbooru images and videos
+app.get("/api/realbooru/media", async (req, res) => {
+  const { url: targetUrl } = req.query;
+  if (!targetUrl) return res.status(400).send("Missing url parameter");
+
+  try {
+    const { fetchWithDoH } = await import("./_lib/dohAgent.js");
+    const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(targetUrl);
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Referer": "https://realbooru.com/",
+    };
+    if (req.headers.range) headers["Range"] = req.headers.range;
+
+    const upstream = await fetchWithDoH(targetUrl, { headers, timeout: 30000 });
+
+    if (!upstream.ok && upstream.status !== 206) {
+      return res.status(upstream.status).send("Media fetch failed");
+    }
+
+    res.status(upstream.status);
+    for (const [key, val] of upstream.headers.entries()) {
+      const lk = key.toLowerCase();
+      if (["content-length", "content-range", "accept-ranges"].includes(lk)) {
+        res.setHeader(key, val);
+      } else if (lk === "content-type") {
+        res.setHeader("Content-Type", isVideo ? "video/mp4" : val);
+      }
+    }
+    if (!res.getHeader("Content-Type")) {
+      res.setHeader("Content-Type", isVideo ? "video/mp4" : "image/jpeg");
+    }
+    res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error("[Realbooru Media Proxy Error]", err.message);
+    res.status(500).send("Realbooru media proxy error: " + err.message);
+  }
+});
+
 
 
 app.get("/api/hnime/search", async (req, res) => {

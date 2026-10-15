@@ -29,6 +29,7 @@ const adultMenuCategories = [
       { name: "Porn3dx (3D)", path: "/porn3dx", icon: <Film size={18} /> },
       { name: "CavPorn", path: "/cavporn", icon: <Video size={18} /> },
       { name: "Rule34", path: "/rule34", icon: <Image size={18} /> },
+      { name: "Realbooru", path: "/realbooru", icon: <Image size={18} /> },
     ]
   },
   {
