@@ -111,7 +111,9 @@ export async function getRealbooruPosts({ tags = '', page = 1, limit = 40 } = {}
   let totalPages = page;
   const lastPageLink = $('a').filter((_, el) => {
     const href = $(el).attr('href') || '';
-    return href.includes('pid=') && !href.includes('pid=0') && $(el).text().trim() === '>>';
+    const alt = $(el).attr('alt') || '';
+    const txt = $(el).text().trim();
+    return href.includes('pid=') && !href.includes('pid=0') && (alt === 'last page' || txt === '>>' || txt === '&gt;&gt;');
   }).attr('href');
 
   if (lastPageLink) {
@@ -120,9 +122,16 @@ export async function getRealbooruPosts({ tags = '', page = 1, limit = 40 } = {}
       const lastPid = parseInt(lastPidMatch[1]);
       totalPages = Math.ceil(lastPid / POSTS_PER_PAGE) + 1;
     }
+  } else {
+    let maxFound = page;
+    $('.pagination a').each((_, el) => {
+      const num = parseInt($(el).text().trim());
+      if (!isNaN(num) && num > maxFound) maxFound = num;
+    });
+    totalPages = maxFound;
   }
 
-  const hasMore = posts.length >= POSTS_PER_PAGE || $('a').filter((_, el) => $(el).text().trim() === '>').length > 0;
+  const hasMore = page < totalPages || $('a').filter((_, el) => $(el).text().trim() === '>' || $(el).attr('alt') === 'next').length > 0;
 
   // Double-filter on parsed items to ensure zero blocked content leaks through
   const safePosts = filterBlockedItems(posts);

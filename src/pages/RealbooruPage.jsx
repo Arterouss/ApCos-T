@@ -243,9 +243,9 @@ function MediaViewer({ post, detail, loading, onClose, onTagClick, onPrev, onNex
 export default function RealbooruPage({ onOpenSidebar }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [currentTag, setCurrentTag] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -256,22 +256,19 @@ export default function RealbooruPage({ onOpenSidebar }) {
   const [viewerDetail, setViewerDetail] = useState(null);
   const [viewerLoading, setViewerLoading] = useState(false);
 
-  const loaderRef = useRef(null);
-
-  // Fetch posts
-  const fetchPosts = useCallback(async (tags = "", pg = 1, append = false) => {
+  // Fetch posts by page
+  const fetchPosts = useCallback(async (tags = "", pg = 1) => {
     try {
       if (tags && isBlockedText(tags)) {
         setError("Pencarian untuk kata kunci ini diblokir (Yaoi / Gay / BL). Konten Yuri & Lesbian tetap diizinkan.");
         setPosts([]);
         setHasMore(false);
+        setTotalPages(1);
         setLoading(false);
-        setLoadingMore(false);
         return;
       }
 
-      if (pg === 1) setLoading(true);
-      else setLoadingMore(true);
+      setLoading(true);
       setError(null);
 
       const data = await getRealbooruPosts({ tags, page: pg });
@@ -279,48 +276,35 @@ export default function RealbooruPage({ onOpenSidebar }) {
         setError(data.message || "Konten ini diblokir (Yaoi / Gay / BL).");
         setPosts([]);
         setHasMore(false);
+        setTotalPages(1);
         return;
       }
 
       const rawPosts = data?.posts || [];
       const newPosts = filterBlockedItems(rawPosts);
 
-      if (append) {
-        setPosts(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          return [...prev, ...newPosts.filter(p => !existingIds.has(p.id))];
-        });
-      } else {
-        setPosts(newPosts);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-
-      setHasMore(data.hasMore ?? newPosts.length >= 40);
+      setPosts(newPosts);
       setPage(pg);
+      setTotalPages(data?.totalPages || (newPosts.length >= 40 ? pg + 5 : pg));
+      setHasMore(data?.hasMore ?? (pg < (data?.totalPages || 1)));
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError("Gagal memuat postingan. Coba lagi.");
       console.error(err);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchPosts("", 1, false);
+    fetchPosts("", 1);
   }, [fetchPosts]);
 
-  // Infinite scroll
-  useEffect(() => {
-    if (!loaderRef.current) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
-        fetchPosts(currentTag, page + 1, true);
-      }
-    }, { threshold: 0.1 });
-    observer.observe(loaderRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, currentTag, page, fetchPosts]);
+  const goToPage = useCallback((newPage) => {
+    if (newPage < 1 || (totalPages && newPage > totalPages) || newPage === page) return;
+    fetchPosts(currentTag, newPage);
+  }, [currentTag, page, totalPages, fetchPosts]);
 
   // Search handler
   const handleSearch = useCallback((tags) => {
@@ -328,20 +312,21 @@ export default function RealbooruPage({ onOpenSidebar }) {
       setError("Pencarian untuk kata kunci ini diblokir (Yaoi / Gay / BL). Konten Yuri & Lesbian tetap diizinkan.");
       setPosts([]);
       setHasMore(false);
+      setTotalPages(1);
       setCurrentTag(tags);
       setActiveHotTag(-1);
       return;
     }
     setCurrentTag(tags);
     setActiveHotTag(-1);
-    fetchPosts(tags, 1, false);
+    fetchPosts(tags, 1);
   }, [fetchPosts]);
 
   const handleHotTag = useCallback((idx, tags) => {
     setActiveHotTag(idx);
     setCurrentTag(tags);
     setSearchInput(tags);
-    fetchPosts(tags, 1, false);
+    fetchPosts(tags, 1);
   }, [fetchPosts]);
 
   // Viewer
@@ -416,9 +401,14 @@ export default function RealbooruPage({ onOpenSidebar }) {
           </div>
 
           {/* Stats badge */}
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Sparkles size={14} className="text-red-400" />
-            <span>{posts.length} postingan dimuat</span>
+          <div className="flex items-center gap-3 text-xs text-gray-400">
+            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-gray-300 font-medium">
+              Halaman {page} dari {totalPages}
+            </span>
+            <div className="flex items-center gap-1.5 text-gray-500">
+              <Sparkles size={13} className="text-red-400" />
+              <span>{posts.length} foto/video</span>
+            </div>
           </div>
         </div>
 
@@ -521,18 +511,95 @@ export default function RealbooruPage({ onOpenSidebar }) {
           </div>
         )}
 
-        {/* Infinite scroll loader */}
-        <div ref={loaderRef} className="flex justify-center py-6">
-          {loadingMore && (
-            <div className="flex items-center gap-2 text-gray-500">
-              <Loader2 size={20} className="animate-spin" />
-              <span className="text-sm">Memuat lebih banyak...</span>
+        {/* ── Numbered Pagination ────────────────────────────────── */}
+        {!loading && posts.length > 0 && totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-8 border-t border-white/10 mt-8">
+            <div className="text-xs text-gray-400">
+              Halaman <span className="font-bold text-white">{page}</span> dari{" "}
+              <span className="font-bold text-white">{totalPages}</span>
             </div>
-          )}
-          {!hasMore && posts.length > 0 && (
-            <p className="text-gray-600 text-sm">Semua postingan sudah dimuat</p>
-          )}
-        </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+              {/* Prev button */}
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1 || loading}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+              >
+                <ChevronLeft size={15} />
+                <span>Prev</span>
+              </button>
+
+              {/* Number buttons with ellipsis */}
+              {(() => {
+                const maxVisible = 5;
+                let start = Math.max(1, page - Math.floor(maxVisible / 2));
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                if (end - start + 1 < maxVisible) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+                const pageNumbers = [];
+                for (let i = start; i <= end; i++) pageNumbers.push(i);
+
+                return (
+                  <>
+                    {start > 1 && (
+                      <>
+                        <button
+                          onClick={() => goToPage(1)}
+                          className="w-9 h-9 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                        >
+                          1
+                        </button>
+                        {start > 2 && <span className="text-gray-600 px-1 text-xs">...</span>}
+                      </>
+                    )}
+
+                    {pageNumbers.map((p) => {
+                      const isActive = p === page;
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => goToPage(p)}
+                          disabled={loading}
+                          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${
+                            isActive
+                              ? "bg-gradient-to-r from-red-600 to-rose-600 text-white border border-red-500/60 shadow-lg shadow-red-500/30 scale-105"
+                              : "bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+
+                    {end < totalPages && (
+                      <>
+                        {end < totalPages - 1 && <span className="text-gray-600 px-1 text-xs">...</span>}
+                        <button
+                          onClick={() => goToPage(totalPages)}
+                          className="w-9 h-9 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Next button */}
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages || loading}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+              >
+                <span>Next</span>
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Media Viewer */}
