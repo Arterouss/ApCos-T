@@ -1,0 +1,56 @@
+{
+  "name": "ApiCos - Stream & Manga Hub",
+  "short_name": "ApiCos",
+  "description": "Portal Streaming Anime, Komik Manga/Manhwa, Video Cinema, dan Galeri Seni",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07070b",
+  "theme_color": "#07070b",
+  "categories": ["entertainment", "photo", "video"],
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Anime Stream",
+      "short_name": "Anime",
+      "description": "Nonton Anime Subtitle Indonesia",
+      "url": "/anime",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Manga Reader",
+      "short_name": "Manga",
+      "description": "Baca Manga & Doujin",
+      "url": "/doujin",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Realbooru",
+      "short_name": "Realbooru",
+      "description": "Galeri Foto & Video Realbooru",
+      "url": "/realbooru",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
