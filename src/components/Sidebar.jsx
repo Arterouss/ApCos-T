@@ -176,16 +176,13 @@ const SidebarContent = ({ onClose, location, onOpenSearch }) => {
           <div className="flex items-center gap-2.5">
             <Link to="/" onClick={onClose} className="group flex items-center gap-2">
               {/* Logo Mark */}
-              <div className="relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden"
+              <div className="relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden shadow-md group-hover:scale-105 transition-transform duration-300"
                 style={{
-                  background: `linear-gradient(135deg, ${accent.neon}20, transparent)`,
-                  border: `1px solid ${accent.neon}30`,
+                  border: `1px solid ${accent.neon}40`,
+                  boxShadow: `0 0 12px ${accent.neon}25`,
                 }}
               >
-                <Zap size={18} style={{ color: accent.neon }} />
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{ background: `radial-gradient(circle, ${accent.neon}15, transparent)` }}
-                />
+                <img src="/icon-192x192.png" alt="ApiCos Logo" className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col">
                 <span className={`text-xl font-display font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${accent.logoGradient} group-hover:brightness-125 transition-all duration-300`}>
