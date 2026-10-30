@@ -103,9 +103,9 @@ export async function getCoomerCreators({ service = '', offset = 0, limit = 40, 
 /**
  * Map file path to proxy URL
  */
-function buildProxyMediaUrl(path) {
+function buildProxyMediaUrl(path, isVid = false) {
   if (!path) return null;
-  return `/api/coomer/media?path=${encodeURIComponent(path)}`;
+  return `/api/coomer/media?path=${encodeURIComponent(path)}${isVid ? '&video=1' : ''}`;
 }
 
 /**
@@ -120,10 +120,10 @@ function mapPost(p) {
 
   for (const f of files) {
     if (!f || !f.path) continue;
-    const mediaUrl = buildProxyMediaUrl(f.path);
-    const directUrl = `${IMG_BASE}/thumbnail/data${f.path}`;
     const ext = (f.path || f.name || '').split('.').pop()?.toLowerCase();
     const isVid = ['mp4', 'webm', 'mov', 'avi', 'm4v'].includes(ext);
+    const mediaUrl = buildProxyMediaUrl(f.path, isVid);
+    const directUrl = isVid ? `${BASE}/data${f.path}` : `${IMG_BASE}/thumbnail/data${f.path}`;
 
     if (isVid) {
       videos.push({
@@ -143,8 +143,8 @@ function mapPost(p) {
   }
 
   // First image or thumbnail
-  const firstMediaPath = files[0]?.path;
-  const thumbnail = firstMediaPath ? buildProxyMediaUrl(firstMediaPath) : null;
+  const firstImage = images[0];
+  const thumbnail = firstImage ? firstImage.url : null;
 
   return {
     id: p.id,

@@ -28,6 +28,7 @@ export default function CoomerDetailPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [videoError, setVideoError] = useState(false);
 
   // Gallery Lightbox state
   const [lightbox, setLightbox] = useState({
@@ -43,11 +44,12 @@ export default function CoomerDetailPage() {
 
   const openLightbox = (mediaList, startIndex = 0, title = "") => {
     if (!mediaList || mediaList.length === 0) return;
+    setVideoError(false);
     const formatted = mediaList.map((m) => {
       const isVideo = ["mp4", "webm", "mov", "m4v", "avi"].some((ext) =>
         (m.path || m.name || m.url || "").toLowerCase().endsWith(ext)
       );
-      return { ...m, isVideo };
+      return { ...m, isVideo, directUrl: m.direct_url || m.directUrl };
     });
     setLightbox({
       isOpen: true,
@@ -59,9 +61,11 @@ export default function CoomerDetailPage() {
 
   const closeLightbox = () => {
     setLightbox((prev) => ({ ...prev, isOpen: false }));
+    setVideoError(false);
   };
 
   const nextMedia = useCallback(() => {
+    setVideoError(false);
     setLightbox((prev) => {
       if (!prev.isOpen || prev.mediaList.length <= 1) return prev;
       const nextIdx = (prev.currentIndex + 1) % prev.mediaList.length;
@@ -70,6 +74,7 @@ export default function CoomerDetailPage() {
   }, []);
 
   const prevMedia = useCallback(() => {
+    setVideoError(false);
     setLightbox((prev) => {
       if (!prev.isOpen || prev.mediaList.length <= 1) return prev;
       const prevIdx =
@@ -79,6 +84,7 @@ export default function CoomerDetailPage() {
   }, []);
 
   const goToMedia = (index) => {
+    setVideoError(false);
     setLightbox((prev) => ({
       ...prev,
       currentIndex: Math.max(0, Math.min(index, prev.mediaList.length - 1)),
@@ -346,19 +352,29 @@ export default function CoomerDetailPage() {
                                 onClick={() => openLightbox(allMedia, idx, post.title)}
                                 className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group border border-white/5 hover:border-rose-500/50 transition-all shadow-md"
                               >
-                                <img
-                                  src={m.url}
-                                  alt={m.name || "Media"}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                                {isVideo && (
-                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                    <div className="w-10 h-10 rounded-full bg-rose-600/90 flex items-center justify-center shadow-lg shadow-rose-600/40">
-                                      <Video size={18} className="text-white" />
+                                {isVideo ? (
+                                  <div className="w-full h-full relative overflow-hidden bg-neutral-950 flex items-center justify-center">
+                                    <video
+                                      src={m.url}
+                                      muted
+                                      preload="metadata"
+                                      playsInline
+                                      className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                                    />
+                                    <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                                      <div className="w-10 h-10 rounded-full bg-rose-600/90 flex items-center justify-center shadow-lg shadow-rose-600/40">
+                                        <Video size={18} className="text-white" />
+                                      </div>
                                     </div>
                                   </div>
+                                ) : (
+                                  <img
+                                    src={m.url}
+                                    alt={m.name || "Media"}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
                                 )}
                                 {isLastPreview && (
                                   <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white backdrop-blur-sm group-hover:bg-black/70 transition-all p-2 text-center">
@@ -440,8 +456,8 @@ export default function CoomerDetailPage() {
                 {/* Left: Counter & Title */}
                 <div className="flex items-center gap-3 min-w-0 pr-2">
                   <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shadow-sm">
-                    <ImageIcon size={13} />
-                    Foto {lightbox.currentIndex + 1} / {totalMedia}
+                    {currentMedia?.isVideo ? <Video size={13} /> : <ImageIcon size={13} />}
+                    {currentMedia?.isVideo ? "Video" : "Foto"} {lightbox.currentIndex + 1} / {totalMedia}
                   </span>
                   {lightbox.postTitle && (
                     <span className="text-xs text-gray-300 font-medium truncate max-w-[200px] sm:max-w-md hidden xs:inline-block">
@@ -454,14 +470,14 @@ export default function CoomerDetailPage() {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {currentMedia?.url && (
                     <a
-                      href={currentMedia.url}
+                      href={currentMedia.directUrl || currentMedia.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-1.5 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-rose-300 hover:text-white flex items-center gap-1.5 transition-all shadow-md"
-                      title="Unduh Berkas Asli"
+                      title={currentMedia.isVideo ? "Buka / Unduh Berkas Asli" : "Unduh Foto Asli"}
                     >
-                      <Download size={13} />
-                      <span className="hidden sm:inline">Unduh</span>
+                      {currentMedia.isVideo ? <ExternalLink size={13} /> : <Download size={13} />}
+                      <span className="hidden sm:inline">{currentMedia.isVideo ? "Buka Asli" : "Unduh"}</span>
                     </a>
                   )}
                   <button
@@ -512,13 +528,48 @@ export default function CoomerDetailPage() {
                       className="w-full h-full flex items-center justify-center"
                     >
                       {currentMedia?.isVideo ? (
-                        <video
-                          src={currentMedia.url}
-                          controls
-                          autoPlay
-                          playsInline
-                          className="max-h-[72vh] sm:max-h-[78vh] max-w-full rounded-2xl shadow-2xl border border-white/10 bg-black"
-                        />
+                        !videoError ? (
+                          <video
+                            key={currentMedia.url}
+                            src={currentMedia.url}
+                            controls
+                            autoPlay
+                            playsInline
+                            onError={() => setVideoError(true)}
+                            className="max-h-[72vh] sm:max-h-[78vh] max-w-full rounded-2xl shadow-2xl border border-white/10 bg-black"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-6 sm:p-8 bg-neutral-900/90 border border-rose-500/30 rounded-2xl max-w-md text-center shadow-2xl backdrop-blur-md mx-4">
+                            <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-3 shadow-inner">
+                              <Video size={28} />
+                            </div>
+                            <h4 className="text-base font-bold text-white mb-1">
+                              Video Tidak Dapat Diputar Langsung
+                            </h4>
+                            <p className="text-xs text-gray-300 mb-4 leading-relaxed">
+                              Server media Coomer membutuhkan koneksi langsung atau jaringan ISP Anda membatasi streaming ini.
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                              <a
+                                href={currentMedia.directUrl || currentMedia.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-semibold shadow-lg shadow-rose-950/40 flex items-center gap-1.5 transition-all active:scale-95"
+                              >
+                                <ExternalLink size={14} />
+                                Buka di Tab Baru
+                              </a>
+                              <a
+                                href={currentMedia.directUrl || currentMedia.url}
+                                download
+                                className="px-4 py-2 rounded-xl glass-card hover:bg-white/15 text-gray-200 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                              >
+                                <Download size={14} />
+                                Unduh Video
+                              </a>
+                            </div>
+                          </div>
+                        )
                       ) : (
                         <img
                           src={currentMedia?.url}
@@ -584,16 +635,17 @@ export default function CoomerDetailPage() {
                               : "border border-white/10 opacity-40 hover:opacity-85 hover:border-white/30"
                           }`}
                         >
-                          <img
-                            src={m.url}
-                            alt={`Thumbnail ${idx + 1}`}
-                            loading="lazy"
-                            className="w-full h-full object-cover pointer-events-none"
-                          />
-                          {m.isVideo && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <Video size={12} className="text-white" />
+                          {m.isVideo ? (
+                            <div className="w-full h-full bg-neutral-900 flex items-center justify-center">
+                              <Video size={16} className="text-rose-400" />
                             </div>
+                          ) : (
+                            <img
+                              src={m.url}
+                              alt={`Thumbnail ${idx + 1}`}
+                              loading="lazy"
+                              className="w-full h-full object-cover pointer-events-none"
+                            />
                           )}
                           <div className="absolute bottom-0.5 right-1 text-[9px] font-bold text-white drop-shadow bg-black/60 px-1 rounded">
                             {idx + 1}

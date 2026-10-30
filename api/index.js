@@ -850,40 +850,77 @@ app.get("/api/coomer/creator/:service/:id/profile", async (req, res) => {
   }
 });
 
-// Coomer Media Proxy (for thumbnails and creator avatars)
+// Coomer Media & Video Streaming Proxy (supports Range seek for HTML5 video)
 app.get("/api/coomer/media", async (req, res) => {
-  const { path: mediaPath, icon, service, id } = req.query;
+  const { path: mediaPath, icon, service, id, video } = req.query;
 
   try {
     const { fetchWithDoH } = await import("./_lib/dohAgent.js");
     let targetUrl;
+    const ext = (mediaPath || "").split(".").pop()?.toLowerCase();
+    const isVideo = video === "1" || ["mp4", "webm", "mov", "m4v", "avi"].includes(ext);
 
     if (icon && service && id) {
       targetUrl = `https://img.coomer.st/icons/${encodeURIComponent(service)}/${encodeURIComponent(id)}`;
     } else if (mediaPath) {
-      targetUrl = `https://img.coomer.st/thumbnail/data${mediaPath}`;
+      targetUrl = isVideo ? `https://coomer.st/data${mediaPath}` : `https://img.coomer.st/thumbnail/data${mediaPath}`;
     } else {
       return res.status(400).send("Missing path or icon parameters");
     }
 
-    const upstream = await fetchWithDoH(targetUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://coomer.st/",
-      },
-      timeout: 15000,
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Referer": "https://coomer.st/",
+      "Accept": "*/*",
+    };
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    let upstream = await fetchWithDoH(targetUrl, {
+      headers,
+      timeout: isVideo ? 40000 : 15000,
     });
 
-    if (!upstream.ok) {
+    // Fallback for videos if coomer.st root 404s/fails: try direct storage nodes
+    if (isVideo && !upstream.ok && upstream.status !== 206) {
+      const fallbackNodes = ["https://n1.coomer.st", "https://n2.coomer.st", "https://n3.coomer.st", "https://n4.coomer.st"];
+      for (const node of fallbackNodes) {
+        try {
+          const fallbackRes = await fetchWithDoH(`${node}/data${mediaPath}`, {
+            headers,
+            timeout: 10000,
+          });
+          if (fallbackRes.ok || fallbackRes.status === 206) {
+            upstream = fallbackRes;
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!upstream.ok && upstream.status !== 206) {
       return res.status(upstream.status).send("Media not found");
     }
 
-    const contentType = upstream.headers.get("content-type") || "image/jpeg";
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.status(upstream.status);
+    for (const [key, val] of upstream.headers.entries()) {
+      const lk = key.toLowerCase();
+      if (["content-length", "content-range", "accept-ranges"].includes(lk)) {
+        res.setHeader(key, val);
+      } else if (lk === "content-type") {
+        res.setHeader("Content-Type", isVideo ? (mediaPath.endsWith(".webm") ? "video/webm" : "video/mp4") : val);
+      }
+    }
+    if (!res.getHeader("Content-Type")) {
+      res.setHeader("Content-Type", isVideo ? "video/mp4" : "image/jpeg");
+    }
+    res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=86400");
     upstream.body.pipe(res);
   } catch (err) {
+    console.error("[Coomer Media Proxy Error]", err.message);
     res.status(500).send("Proxy media error: " + err.message);
   }
 });
