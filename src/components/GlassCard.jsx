@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Bug } from "lucide-react";
+import FavoriteButton from "./FavoriteButton";
 
 /**
  * A reusable Glassmorphic Card component.
@@ -13,6 +14,7 @@ import { Bug } from "lucide-react";
  * - category: Category label
  * - subtitle: Optional subtitle/meta info
  * - fallbackIcon: Icon to show if no thumbnail
+ * - favItem: Optional object to enable favorite button
  */
 const GlassCard = ({
   to,
@@ -21,11 +23,19 @@ const GlassCard = ({
   category,
   subtitle,
   fallbackIcon: FallbackIcon = Bug,
+  favItem,
 }) => {
   return (
     <div
-      className="glass-card group flex flex-col rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
+      className="glass-card group relative flex flex-col rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
     >
+      {favItem && (
+        <FavoriteButton
+          item={favItem}
+          variant="card"
+          className="absolute top-2 right-2"
+        />
+      )}
       <Link to={to} className="block relative aspect-[2/3] overflow-hidden w-full" style={{ background: '#0c0c14' }}>
         {thumb ? (
           <img

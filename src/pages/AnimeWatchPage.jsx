@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   ShieldAlert,
 } from "lucide-react";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function AnimeWatchPage() {
   const { slug } = useParams();
@@ -247,6 +248,18 @@ export default function AnimeWatchPage() {
           </button>
 
           <div className="flex items-center gap-2">
+            <FavoriteButton
+              item={{
+                id: `anime-${episode.animeSlug || slug}`,
+                link: `/anime/detail/${episode.animeSlug || ""}`,
+                title: episode.title || "Anime Episode",
+                cover_url: null,
+                type: "Anime",
+                source: "Anime HUB",
+              }}
+              size={15}
+              className="!p-2 !rounded-xl"
+            />
             {episode.allEpisodes && (
               <Link
                 to={`/anime/detail/${episode.animeSlug || ""}`}

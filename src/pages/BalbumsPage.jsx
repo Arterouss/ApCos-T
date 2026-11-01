@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getBalbumsAlbums } from "../services/balbumsService";
 import { usePersistentState } from "../hooks/usePersistentState";
+import FavoriteButton from "../components/FavoriteButton";
 
 const SORTS = [
   { key: "latest", label: "Terbaru" },
@@ -286,7 +287,19 @@ export default function BalbumsPage({ onOpenSidebar }) {
                     </span>
                   </div>
 
-                  {/* Files Count Badge */}
+                  {/* Files Count Badge & Favorite */}
+                  <FavoriteButton
+                    item={{
+                      id: `balbum-${album.id}`,
+                      link: `/balbums/album/${encodeURIComponent(album.id)}`,
+                      title: album.title,
+                      cover_url: album.thumbnail || null,
+                      type: "Album",
+                      source: "Bunkr Albums",
+                    }}
+                    variant="card"
+                    className="absolute top-2.5 left-2.5"
+                  />
                   <div className="absolute top-2.5 right-2.5 z-10">
                     <span className="px-2.5 py-1 rounded-full bg-black/75 text-amber-300 border border-amber-500/30 text-[10.5px] font-bold backdrop-blur-md flex items-center gap-1 shadow-md">
                       <Layers size={11} /> {album.files_count} Berkas

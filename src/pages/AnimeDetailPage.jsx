@@ -16,6 +16,7 @@ import {
   Sparkles,
   Info,
 } from "lucide-react";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function AnimeDetailPage() {
   const { slug } = useParams();
@@ -182,6 +183,21 @@ export default function AnimeDetailPage() {
                     {anime.titleJapanese}
                   </p>
                 )}
+
+                <div className="mb-4">
+                  <FavoriteButton
+                    item={{
+                      id: `anime-${slug}`,
+                      link: `/anime/detail/${slug}`,
+                      title: anime.title,
+                      cover_url: anime.poster,
+                      type: "Anime",
+                      source: "Anime HUB",
+                    }}
+                    variant="banner"
+                    showText={true}
+                  />
+                </div>
 
                 {/* Genre Chips */}
                 {anime.genres && anime.genres.length > 0 && (

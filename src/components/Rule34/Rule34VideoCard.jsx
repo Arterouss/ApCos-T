@@ -1,5 +1,6 @@
 import React from "react";
 import { Play } from "lucide-react";
+import FavoriteButton from "../FavoriteButton";
 
 export default function Rule34VideoCard({ video, onClick }) {
   if (!video) return null;
@@ -22,7 +23,21 @@ export default function Rule34VideoCard({ video, onClick }) {
             No Image
           </div>
         )}
-        
+
+        {/* Favorite Button */}
+        <FavoriteButton
+          item={{
+            id: `r34video-${video.slug}`,
+            link: `/rule34?video=${video.slug}`,
+            title: video.title,
+            cover_url: video.image_url || video.thumbnail_url || null,
+            type: "R34 Video",
+            source: "Rule34",
+          }}
+          variant="card"
+          className="absolute top-2.5 left-2.5"
+        />
+
         {/* Play Overlay */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
           <div className="w-12 h-12 rounded-full bg-violet-600/90 text-white flex items-center justify-center transform scale-75 group-hover:scale-100 transition-all duration-300">

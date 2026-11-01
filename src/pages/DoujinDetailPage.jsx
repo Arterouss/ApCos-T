@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { filterBlockedTags } from "../utils/contentFilter";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function DoujinDetailPage() {
   const params = useParams();
@@ -139,9 +140,23 @@ export default function DoujinDetailPage() {
                   <Sparkles size={12} className="text-indigo-400" /> Doujin Series
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight font-display mb-4">
-                  {data.title}
-                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight font-display flex-1">
+                    {data.title}
+                  </h1>
+                  <FavoriteButton
+                    item={{
+                      id: slug,
+                      link: `/doujin/${slug}`,
+                      title: data.title,
+                      cover_url: data.cover_url,
+                      type: "Doujin",
+                      source: "Doujin Desu",
+                    }}
+                    variant="detail"
+                    showText={true}
+                  />
+                </div>
 
                 {/* Genres */}
                 <div className="flex flex-wrap gap-2 mb-6">

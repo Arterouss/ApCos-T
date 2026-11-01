@@ -75,6 +75,7 @@ const AnimatedRoutes = ({ onOpenSidebar }) => {
         <Route path="/creator/:service/:id" element={<CreatorPosts />} />
         
         <Route path="/favorites" element={<FavoritesPage onOpenSidebar={onOpenSidebar} />} />
+        <Route path="/bookmark-anime" element={<Navigate to="/favorites" replace />} />
         <Route path="/personal" element={<PersonalVideoPage onOpenSidebar={onOpenSidebar} />} />
         <Route path="/personal-photo" element={<PersonalPhotoPage onOpenSidebar={onOpenSidebar} />} />
 

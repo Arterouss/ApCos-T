@@ -13,6 +13,7 @@ import {
   Sparkles,
   Calendar,
 } from "lucide-react";
+import FavoriteButton from "../components/FavoriteButton";
 
 const isVideo = (path = "") => {
   return /\.(mp4|webm|m4v|mov|avi|mkv)$/i.test(path);
@@ -128,7 +129,19 @@ const CreatorPosts = () => {
                 <p className="text-xs text-purple-300 font-mono mt-1">ID: @{id}</p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <FavoriteButton
+                  item={{
+                    id: `pawchive-${service}-${id}`,
+                    link: `/creator/${encodeURIComponent(service)}/${encodeURIComponent(id)}`,
+                    title: `Creator ${id} (${service})`,
+                    cover_url: posts[0]?.file?.path ? getMediaUrl(posts[0].file.path, "thumb") : null,
+                    type: "Creator",
+                    source: `Pawchive (${service})`,
+                  }}
+                  variant="detail"
+                  showText={true}
+                />
                 <span className="px-3.5 py-1.5 rounded-full glass-card border border-white/10 text-xs font-semibold text-gray-300">
                   {posts.length} Postingan
                 </span>

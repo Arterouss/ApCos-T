@@ -201,6 +201,14 @@ export default function HanimeTvPage({ onOpenSidebar }) {
                       : "Jav.Guru"
                   }
                   fallbackIcon={Play}
+                  favItem={{
+                    id: item?.slug || item?.id,
+                    link: `/hanimetv/${item?.slug || item?.id || ''}`,
+                    title: item?.name || 'Unknown Title',
+                    cover_url: item?.poster_url || item?.cover_url || '',
+                    type: "JAV Video",
+                    source: "Jav.Guru",
+                  }}
                 />
               ))}
             </motion.div>

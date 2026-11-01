@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getDoujinList } from "../services/doujinService";
 import { Book, Search, X, ChevronDown, ChevronUp, Tag, AlertTriangle, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
+import FavoriteButton from "../components/FavoriteButton";
 
 // ── All available genre/tag chips ────────────────────────────────────────
 const ALL_TAGS = filterBlockedTags([
@@ -354,10 +355,9 @@ export default function DoujinPage() {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
               {data.map((item, idx) => (
-                <Link
+                <div
                   key={`${item.id}-${idx}`}
-                  to={`/doujin/${item.slug}`}
-                  className="group flex flex-col h-full rounded-2xl overflow-hidden transition-all duration-300"
+                  className="group relative flex flex-col h-full rounded-2xl overflow-hidden transition-all duration-300"
                   style={{
                     background: 'rgba(14, 16, 26, 0.6)',
                     backdropFilter: 'blur(16px)',
@@ -374,6 +374,22 @@ export default function DoujinPage() {
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
+                  <FavoriteButton
+                    item={{
+                      id: item.slug || item.id,
+                      link: `/doujin/${item.slug}`,
+                      title: item.title,
+                      cover_url: item.cover_url,
+                      type: "Doujin",
+                      source: "Doujin Desu",
+                    }}
+                    variant="card"
+                    className="absolute top-2.5 right-2.5"
+                  />
+                  <Link
+                    to={`/doujin/${item.slug}`}
+                    className="flex flex-col h-full"
+                  >
                   <div className="relative aspect-[3/4] overflow-hidden bg-neutral-900">
                     <img
                       src={item.cover_url}
@@ -406,7 +422,8 @@ export default function DoujinPage() {
                     </h3>
                   </div>
                 </Link>
-              ))}
+              </div>
+            ))}
             </div>
 
             {/* Pagination Controls */}

@@ -1,5 +1,6 @@
 import React from "react";
 import { Play, Image as ImageIcon } from "lucide-react";
+import FavoriteButton from "../FavoriteButton";
 
 export default function PostCard({ post, onClick }) {
   const isVideo = post.tags.includes("video");
@@ -15,6 +16,20 @@ export default function PostCard({ post, onClick }) {
         alt={post.tags}
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         loading="lazy"
+      />
+
+      {/* Favorite Button */}
+      <FavoriteButton
+        item={{
+          id: `rule34-${post.id}`,
+          link: `/rule34?id=${post.id}`,
+          title: `Rule34 #${post.id}`,
+          cover_url: post.sample_url || post.preview_url || post.file_url,
+          type: isVideo ? "R34 Video" : "R34 Image",
+          source: "Rule34",
+        }}
+        variant="card"
+        className="absolute top-3 left-3"
       />
 
       {/* Overlay */}

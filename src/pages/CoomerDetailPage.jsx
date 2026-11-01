@@ -17,6 +17,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { getCoomerCreatorPosts, getCoomerCreatorProfile } from "../services/coomerService";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function CoomerDetailPage() {
   const { service, id } = useParams();
@@ -236,13 +237,27 @@ export default function CoomerDetailPage() {
 
             {/* Profile Info */}
             <div className="flex-1 text-center sm:text-left space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-black text-white font-display">
-                  {profile?.name || id}
-                </h1>
-                <span className="self-center sm:self-auto text-[11px] uppercase font-bold px-3 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                  {service}
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <h1 className="text-2xl sm:text-3xl font-black text-white font-display">
+                    {profile?.name || id}
+                  </h1>
+                  <span className="self-center sm:self-auto text-[11px] uppercase font-bold px-3 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                    {service}
+                  </span>
+                </div>
+                <FavoriteButton
+                  item={{
+                    id: `coomer-${service}-${id}`,
+                    link: `/coomer/${encodeURIComponent(service)}/${encodeURIComponent(id)}`,
+                    title: profile?.name || id,
+                    cover_url: `/api/coomer/media?icon=1&service=${encodeURIComponent(service)}&id=${encodeURIComponent(id)}`,
+                    type: "Creator",
+                    source: `Coomer (${service})`,
+                  }}
+                  variant="detail"
+                  showText={true}
+                />
               </div>
 
               <p className="text-xs text-gray-400 font-mono">ID: @{id}</p>
@@ -468,6 +483,20 @@ export default function CoomerDetailPage() {
 
                 {/* Right: Actions (Download & Close) */}
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {currentMedia && (
+                    <FavoriteButton
+                      item={{
+                        id: `coomer-media-${currentMedia.path || currentMedia.url}`,
+                        link: `/coomer/${encodeURIComponent(service)}/${encodeURIComponent(id)}`,
+                        title: `${profile?.name || id}: ${lightbox.postTitle || (currentMedia.isVideo ? "Video" : "Foto")}`,
+                        cover_url: currentMedia.url,
+                        type: currentMedia.isVideo ? "Video" : "Foto",
+                        source: `Coomer (${service})`,
+                      }}
+                      size={13}
+                      className="!p-1.5 !rounded-full"
+                    />
+                  )}
                   {currentMedia?.url && (
                     <a
                       href={currentMedia.directUrl || currentMedia.url}

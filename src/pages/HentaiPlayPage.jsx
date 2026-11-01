@@ -23,6 +23,7 @@ import {
 import { getHentaiPlayList } from "../services/hentaiPlayService";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
+import FavoriteButton from "../components/FavoriteButton";
 
 // ── Tab Kategori Utama (Termasuk "Lagi Rame / Trending") ─────────────
 const MAIN_TABS = [
@@ -582,10 +583,23 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(i * 0.02, 0.25), duration: 0.25 }}
                   >
-                    <Link
-                      to={`/hentaiplay/video/${encodeURIComponent(video.slug)}`}
-                      className="glass-card group flex flex-col h-full rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
-                    >
+                    <div className="glass-card group relative flex flex-col h-full rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10">
+                      <FavoriteButton
+                        item={{
+                          id: video.id || video.slug,
+                          link: `/hentaiplay/video/${encodeURIComponent(video.slug)}`,
+                          title: video.title,
+                          cover_url: video.cover_url,
+                          type: "Hentai",
+                          source: "HentaiPlay",
+                        }}
+                        variant="card"
+                        className="absolute top-2 right-2"
+                      />
+                      <Link
+                        to={`/hentaiplay/video/${encodeURIComponent(video.slug)}`}
+                        className="flex flex-col h-full"
+                      >
                       {/* Thumbnail Image */}
                       <div className="relative aspect-video overflow-hidden bg-neutral-900">
                         {video.cover_url ? (
@@ -647,7 +661,8 @@ export default function HentaiPlayPage({ onOpenSidebar }) {
                         </div>
                       </div>
                     </Link>
-                  </motion.div>
+                  </div>
+                </motion.div>
                 ))}
               </div>
             )}

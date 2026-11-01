@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getCoomerCreators, getCoomerPosts } from "../services/coomerService";
 import { usePersistentState } from "../hooks/usePersistentState";
+import FavoriteButton from "../components/FavoriteButton";
 
 const SERVICES = [
   { key: "all", label: "Semua", color: "from-rose-500 to-violet-500" },
@@ -317,6 +318,18 @@ export default function CoomerPage({ onOpenSidebar }) {
                         e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
+                      <FavoriteButton
+                        item={{
+                          id: `coomer-${c.service}-${c.id}`,
+                          link: `/coomer/${encodeURIComponent(c.service)}/${encodeURIComponent(c.id)}`,
+                          title: c.name,
+                          cover_url: c.avatar,
+                          type: "Creator",
+                          source: `Coomer (${c.service})`,
+                        }}
+                        variant="card"
+                        className="absolute top-2.5 right-2.5"
+                      />
                       {/* Avatar */}
                       <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-neutral-800 border-2 border-white/10 group-hover:border-rose-500/50 transition-colors mb-3 relative shrink-0">
                         <img
@@ -423,6 +436,18 @@ export default function CoomerPage({ onOpenSidebar }) {
                   >
                     {/* Thumbnail / Media Preview */}
                     <div className="aspect-video bg-neutral-900 relative overflow-hidden">
+                      <FavoriteButton
+                        item={{
+                          id: `coomer-post-${post.id}`,
+                          link: `/coomer/${encodeURIComponent(post.service)}/${encodeURIComponent(post.user)}`,
+                          title: post.title || `@${post.user}`,
+                          cover_url: post.thumbnail || null,
+                          type: post.has_video ? "Video" : "Foto",
+                          source: `Coomer (${post.service})`,
+                        }}
+                        variant="card"
+                        className="absolute top-2.5 left-2.5"
+                      />
                       {post.thumbnail ? (
                         <img
                           src={post.thumbnail}

@@ -12,6 +12,7 @@ import { Menu, Play, Clock, ThumbsUp, Tag, Grid, Filter, ChevronLeft, ChevronRig
 import SearchBar from "../components/SearchBar";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function CavPornPage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
@@ -306,11 +307,26 @@ export default function CavPornPage({ onOpenSidebar }) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
             {data.map((item) => (
-              <Link
+              <div
                 key={item.id}
-                to={`/cavporn/${item.id}/${item.slug}`}
-                className="glass-card group flex flex-col h-full rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
+                className="glass-card group relative flex flex-col h-full rounded-2xl overflow-hidden transition-transform duration-200 active:scale-98 md:hover:-translate-y-1.5 border border-white/10"
               >
+                <FavoriteButton
+                  item={{
+                    id: item.id,
+                    link: `/cavporn/${item.id}/${item.slug || ""}`,
+                    title: item.title,
+                    cover_url: item.thumbnail || null,
+                    type: "JAV",
+                    source: "CavPorn",
+                  }}
+                  variant="card"
+                  className="absolute top-2.5 right-2.5"
+                />
+                <Link
+                  to={`/cavporn/${item.id}/${item.slug}`}
+                  className="flex flex-col h-full"
+                >
                 <div className="aspect-video overflow-hidden relative bg-neutral-900">
                   <img
                     src={
@@ -366,6 +382,7 @@ export default function CavPornPage({ onOpenSidebar }) {
                   </div>
                 </div>
               </Link>
+            </div>
             ))}
           </div>
         )}

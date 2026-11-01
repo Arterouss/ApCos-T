@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BookOpen, Heart, CheckCircle2 } from "lucide-react";
 import { isNhentaiRead } from "./NhentaiViewer";
 import { filterBlockedTags } from "../../utils/contentFilter";
+import FavoriteButton from "../FavoriteButton";
 
 export default function NhentaiCard({ gallery, onClick }) {
   const rawThumbUrl = `https://t.nhentai.net/${gallery.thumbnail}`;
@@ -58,6 +59,20 @@ export default function NhentaiCard({ gallery, onClick }) {
             <span className="text-xs font-bold text-white">{gallery.num_favorites}</span>
           </div>
         )}
+
+        {/* User Favorite Button */}
+        <FavoriteButton
+          item={{
+            id: `nhentai-${gallery.id}`,
+            link: `/nhentai?id=${gallery.id}`,
+            title: title,
+            cover_url: thumbUrl,
+            type: "Manga",
+            source: "Nhentai",
+          }}
+          variant="card"
+          className="absolute bottom-2 right-2"
+        />
       </div>
 
       <div className="p-3 flex-1 flex flex-col">

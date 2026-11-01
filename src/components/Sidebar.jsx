@@ -67,9 +67,9 @@ const generalMenuCategories = [
     ]
   },
   {
-    title: "Koleksi",
+    title: "Koleksi & Favorit",
     items: [
-      { name: "Bookmark Anime", path: "/bookmark-anime", icon: <Bookmark size={18} /> },
+      { name: "Favorit Saya", path: "/favorites", icon: <Heart size={18} /> },
     ]
   }
 ];

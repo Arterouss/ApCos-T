@@ -24,6 +24,7 @@ import {
   getBalbumsFileDirect,
 } from "../services/balbumsService";
 import { usePortalMode } from "../context/PortalContext";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function BalbumsDetailPage() {
   const { id } = useParams();
@@ -280,15 +281,30 @@ export default function BalbumsDetailPage() {
             </div>
 
             {/* Quick Actions */}
-            {album?.files && album.files.length > 0 && (
-              <button
-                onClick={() => openLightbox(0)}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xs sm:text-sm transition-all shadow-xl shadow-amber-600/25 flex items-center gap-2 cursor-pointer"
-              >
-                <Play size={16} className="fill-white" />
-                <span>Buka Galeri & Player</span>
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <FavoriteButton
+                item={{
+                  id: `balbum-${id}`,
+                  link: `/balbums/album/${id}`,
+                  title: album?.title || `Album ${id}`,
+                  cover_url:
+                    album?.files?.find((f) => f.thumbnail)?.thumbnail || null,
+                  type: "Album",
+                  source: "Bunkr Albums",
+                }}
+                variant="banner"
+                showText={true}
+              />
+              {album?.files && album.files.length > 0 && (
+                <button
+                  onClick={() => openLightbox(0)}
+                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xs sm:text-sm transition-all shadow-xl shadow-amber-600/25 flex items-center gap-2 cursor-pointer"
+                >
+                  <Play size={16} className="fill-white" />
+                  <span>Buka Galeri & Player</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

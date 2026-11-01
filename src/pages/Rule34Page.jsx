@@ -52,6 +52,22 @@ export default function Rule34Page({ onOpenSidebar }) {
 
     searchPosts("");
     searchVideos("");
+
+    // Auto-open if query param is provided (e.g. from Favorites)
+    const params = new URLSearchParams(window.location.search);
+    const videoSlug = params.get("video");
+    const postId = params.get("id");
+    if (videoSlug) {
+      setSelectedVideo({ slug: videoSlug, title: "Video Rule34" });
+    } else if (postId) {
+      fetch(`/api/rule34/post/${postId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((post) => {
+          if (isMounted && post && post.id) setSelectedPost(post);
+        })
+        .catch(console.error);
+    }
+
     return () => {
       isMounted = false;
     };

@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import axios from "axios";
+import FavoriteButton from "../components/FavoriteButton";
 
 // Services
 import { getHentaiPlayList } from "../services/hentaiPlayService";
@@ -159,15 +160,26 @@ const CarouselCard = ({
   hoverColor = "#ff2d55",
   aspectClass = "aspect-video",
   widthClass = "w-52 sm:w-64",
+  favItem,
 }) => (
   <div
-    onClick={onClick}
-    className={`${widthClass} shrink-0 rounded-2xl overflow-hidden cursor-pointer transition-transform duration-200 active:scale-95 md:hover:-translate-y-1.5 group glass-card border border-white/10 flex flex-col justify-between`}
+    className={`${widthClass} shrink-0 rounded-2xl overflow-hidden relative transition-transform duration-200 active:scale-95 md:hover:-translate-y-1.5 group glass-card border border-white/10 flex flex-col justify-between`}
     style={{
       boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
     }}
   >
-    <div className={`relative ${aspectClass} overflow-hidden bg-neutral-900 pointer-events-none`}>
+    {favItem && (
+      <FavoriteButton
+        item={favItem}
+        variant="card"
+        className="absolute top-2.5 right-2.5 z-20"
+      />
+    )}
+    <div
+      onClick={onClick}
+      className="flex flex-col h-full cursor-pointer"
+    >
+      <div className={`relative ${aspectClass} overflow-hidden bg-neutral-900 pointer-events-none`}>
       {image ? (
         <img
           src={image}
@@ -226,6 +238,7 @@ const CarouselCard = ({
       </h3>
     </div>
   </div>
+</div>
 );
 
 export default function Home({ onOpenSidebar }) {
@@ -428,19 +441,35 @@ export default function Home({ onOpenSidebar }) {
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 {featuredItem ? (
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/hentaiplay/video/${encodeURIComponent(
+                  <>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/hentaiplay/video/${encodeURIComponent(
+                            featuredItem.slug
+                          )}`
+                        )
+                      }
+                      className="px-7 py-3.5 rounded-full bg-gradient-to-r from-[#ff2d55] via-rose-600 to-[#ff6b35] hover:from-rose-500 hover:to-orange-500 text-white font-black text-sm tracking-wide shadow-xl shadow-[#ff2d55]/40 transition-all duration-300 hover:scale-105 flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Play size={18} className="fill-white" />
+                      <span>Putar Sekarang</span>
+                    </button>
+                    <FavoriteButton
+                      item={{
+                        id: featuredItem.id || featuredItem.slug,
+                        link: `/hentaiplay/video/${encodeURIComponent(
                           featuredItem.slug
-                        )}`
-                      )
-                    }
-                    className="px-7 py-3.5 rounded-full bg-gradient-to-r from-[#ff2d55] via-rose-600 to-[#ff6b35] hover:from-rose-500 hover:to-orange-500 text-white font-black text-sm tracking-wide shadow-xl shadow-[#ff2d55]/40 transition-all duration-300 hover:scale-105 flex items-center gap-2.5 cursor-pointer"
-                  >
-                    <Play size={18} className="fill-white" />
-                    <span>Putar Sekarang</span>
-                  </button>
+                        )}`,
+                        title: featuredItem.title,
+                        cover_url: featuredItem.cover_url,
+                        type: "Hentai",
+                        source: "HentaiPlay",
+                      }}
+                      variant="banner"
+                      showText={true}
+                    />
+                  </>
                 ) : (
                   <button
                     onClick={() => navigate("/hentaiplay")}
@@ -583,6 +612,14 @@ export default function Home({ onOpenSidebar }) {
               badge={item.categories?.[0] || "Premier"}
               badgeColor="#ff2d55"
               hoverColor="#ff2d55"
+              favItem={{
+                id: item.id || item.slug,
+                link: `/hentaiplay/video/${encodeURIComponent(item.slug)}`,
+                title: item.title,
+                cover_url: item.cover_url || item.thumbnail,
+                type: "Hentai",
+                source: "HentaiPlay",
+              }}
             />
           ))
         ) : (
@@ -624,6 +661,14 @@ export default function Home({ onOpenSidebar }) {
               duration={item.duration}
               widthClass="w-48 sm:w-56"
               aspectClass="aspect-[4/3]"
+              favItem={{
+                id: item.id || item.slug,
+                link: `/porn3dx/${encodeURIComponent(item.slug)}`,
+                title: item.title,
+                cover_url: item.cover_url,
+                type: "3D Porn",
+                source: "Porn3dx",
+              }}
             />
           ))
         ) : (
@@ -670,6 +715,14 @@ export default function Home({ onOpenSidebar }) {
               hoverColor="#ffb347"
               widthClass="w-40 sm:w-48"
               aspectClass="aspect-[3/4]"
+              favItem={{
+                id: item.slug,
+                link: `/doujin/${encodeURIComponent(item.slug)}`,
+                title: item.title,
+                cover_url: item.cover_url || item.thumbnail,
+                type: "Doujin",
+                source: "Doujin Desu",
+              }}
             />
           ))
         ) : (

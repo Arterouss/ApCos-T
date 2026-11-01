@@ -3,6 +3,7 @@ import { useParams, useLocation, Link } from "react-router-dom";
 import { getHanimeVideo } from "../services/hanimeTvService";
 import Hls from "hls.js";
 import { filterBlockedTags } from "../utils/contentFilter";
+import FavoriteButton from "../components/FavoriteButton";
 import {
   ArrowLeft,
   ExternalLink,
@@ -257,9 +258,23 @@ export default function HanimeTvDetailPage() {
           <span>Kembali ke Jav.Guru</span>
         </Link>
 
-        <h1 className="text-2xl sm:text-3xl font-display font-black mb-3 leading-tight tracking-tight text-white">
-          {data.name}
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+          <h1 className="text-2xl sm:text-3xl font-display font-black leading-tight tracking-tight text-white flex-1">
+            {data.name}
+          </h1>
+          <FavoriteButton
+            item={{
+              id: slug,
+              link: `/hanimetv/${slug}`,
+              title: data.name,
+              cover_url: data.poster_url || data.cover_url || null,
+              type: "JAV Video",
+              source: "Jav.Guru",
+            }}
+            variant="detail"
+            showText={true}
+          />
+        </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-6">
           {data.views != null && (

@@ -16,6 +16,7 @@ import {
   Flame,
   X,
 } from "lucide-react";
+import FavoriteButton from "../components/FavoriteButton";
 
 const tabs = [
   { id: "ongoing", label: "Anime Ongoing", icon: Tv, color: "text-neon-cyan" },
@@ -76,6 +77,20 @@ const AnimeCard = ({ anime, index }) => (
             <span>{anime.day}</span>
           </div>
         )}
+
+        {/* Favorite Button */}
+        <FavoriteButton
+          item={{
+            id: `anime-${anime.slug}`,
+            link: `/anime/detail/${anime.slug}`,
+            title: anime.title,
+            cover_url: anime.poster,
+            type: "Anime",
+            source: "Anime HUB",
+          }}
+          variant="card"
+          className="absolute bottom-2.5 right-2.5"
+        />
 
         {/* Play overlay on hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">

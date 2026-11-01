@@ -107,6 +107,16 @@ export default function NhentaiPage() {
 
   useModalBack(!!selectedGallery, closeGallery);
 
+  // Auto-open gallery if id is in URL search param (e.g. from Favorites)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const idFromUrl = params.get("id") || params.get("read");
+    if (idFromUrl && (!selectedGallery || String(selectedGallery.id) !== String(idFromUrl))) {
+      setSelectedGallery({ id: idFromUrl });
+      setSelectedGalleryIdx(0);
+    }
+  }, []);
+
   const [searchInput, setSearchInput] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [activeTag, setActiveTag] = useState("");

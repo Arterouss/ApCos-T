@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCosplayDetail } from "../services/cosplayService";
+import FavoriteButton from "../components/FavoriteButton";
 import {
   ArrowLeft,
   Download,
@@ -140,9 +141,23 @@ export default function CosplayDetailPage() {
         {/* Hero Card */}
         <div className="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl mb-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight font-display mb-4">
-            {data.title}
-          </h1>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight font-display flex-1">
+              {data.title}
+            </h1>
+            <FavoriteButton
+              item={{
+                id: slug,
+                link: `/cosplay/${slug}`,
+                title: data.title,
+                cover_url: data.images?.[0] || null,
+                type: "Cosplay",
+                source: "Cosplay Tele",
+              }}
+              variant="detail"
+              showText={true}
+            />
+          </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 pt-2 border-t border-white/5">
             {data.images && (

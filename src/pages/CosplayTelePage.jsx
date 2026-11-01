@@ -7,6 +7,7 @@ import {
 } from "../services/cosplayService";
 import { Camera, Sparkles, Loader2, ArrowRight } from "lucide-react";
 import SearchBar from "../components/SearchBar";
+import FavoriteButton from "../components/FavoriteButton";
 
 export default function CosplayTelePage({ onOpenSidebar }) {
   const [data, setData] = useState([]);
@@ -126,10 +127,23 @@ export default function CosplayTelePage({ onOpenSidebar }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: (index % 12) * 0.03 }}
                 >
-                  <Link
-                    to={`/cosplay/${item.slug}`}
-                    className="group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden border border-white/10 hover:border-pink-500/40 hover:shadow-xl hover:shadow-pink-500/10 transition-all duration-300 hover:-translate-y-1.5"
-                  >
+                  <div className="relative flex flex-col h-full rounded-2xl glass-card overflow-hidden border border-white/10 hover:border-pink-500/40 hover:shadow-xl hover:shadow-pink-500/10 transition-all duration-300 hover:-translate-y-1.5">
+                    <FavoriteButton
+                      item={{
+                        id: item.slug,
+                        link: `/cosplay/${item.slug}`,
+                        title: item.title,
+                        cover_url: item.thumbnail,
+                        type: "Cosplay",
+                        source: "Cosplay Tele",
+                      }}
+                      variant="card"
+                      className="absolute top-2.5 right-2.5"
+                    />
+                    <Link
+                      to={`/cosplay/${item.slug}`}
+                      className="group flex flex-col h-full"
+                    >
                     {/* Media Container */}
                     <div className="aspect-[2/3] overflow-hidden relative w-full bg-neutral-900/60">
                       <img
@@ -168,7 +182,8 @@ export default function CosplayTelePage({ onOpenSidebar }) {
                       </div>
                     </div>
                   </Link>
-                </motion.div>
+                </div>
+              </motion.div>
               ))}
             </AnimatePresence>
           </motion.div>

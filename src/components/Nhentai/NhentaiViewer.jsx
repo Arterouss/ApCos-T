@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X, BookOpen, CheckCircle2, SkipForward, ChevronLeft, ChevronRight, Maximize2, Minimize2, Layers } from "lucide-react";
 import { fetchNhentaiDetail } from "../../services/nhentaiService";
 import { usePortalMode } from "../../context/PortalContext";
+import FavoriteButton from "../FavoriteButton";
 
 const AUTO_ADVANCE_SECONDS = 5;
 
@@ -194,6 +195,26 @@ export default function NhentaiViewer({ gallery, galleries = [], currentIdx = -1
 
         {/* Action buttons in header */}
         <div className="flex items-center gap-1 sm:gap-1.5 mr-2">
+          {/* Favorite Button */}
+          <FavoriteButton
+            item={{
+              id: `nhentai-${gallery.id}`,
+              link: `/nhentai?id=${gallery.id}`,
+              title:
+                detail?.title?.english ||
+                detail?.title?.japanese ||
+                gallery.english_title ||
+                `Nhentai #${gallery.id}`,
+              cover_url: detail?.images?.cover
+                ? `/api/nhentai/image?url=${encodeURIComponent(`https://t.nhentai.net/galleries/${detail.media_id}/cover.jpg`)}`
+                : null,
+              type: "Manga",
+              source: "Nhentai",
+            }}
+            size={14}
+            className="!p-1.5 !rounded-full"
+          />
+
           {/* Full Width Toggle */}
           <button
             onClick={toggleFullWidth}

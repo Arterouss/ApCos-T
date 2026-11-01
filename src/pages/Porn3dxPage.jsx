@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getPorn3dxList } from "../services/porn3dxService";
+import FavoriteButton from "../components/FavoriteButton";
 import { usePersistentState, useScrollRestoration } from "../hooks/usePersistentState";
 import { filterBlockedItems, filterBlockedTags } from "../utils/contentFilter";
 
@@ -83,6 +84,18 @@ const Porn3dxCard = ({ item, onClick }) => {
         <div className="absolute inset-0 bg-gradient-to-t from-[#07070c] via-transparent to-transparent opacity-75 group-hover:opacity-40 transition-opacity" />
 
         {/* Type Badge */}
+        <FavoriteButton
+          item={{
+            id: item.slug || item.id,
+            link: `/porn3dx/${encodeURIComponent(item.slug || '')}`,
+            title: item.title,
+            cover_url: item.cover_url,
+            type: "3D Porn",
+            source: "Porn3dx",
+          }}
+          variant="card"
+          className="absolute top-2.5 right-2.5"
+        />
         <div
           className="absolute top-2.5 left-2.5 flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg border text-white"
           style={{

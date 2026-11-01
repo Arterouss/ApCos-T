@@ -8,6 +8,7 @@ import {
 import { getRealbooruPosts, getRealbooruPost, getRealbooruMediaProxyUrl } from "../services/realbooruService";
 import { usePortalMode } from "../context/PortalContext";
 import { filterBlockedItems, filterBlockedTags, isBlockedText } from "../utils/contentFilter";
+import FavoriteButton from "../components/FavoriteButton";
 
 // ── Hot tags to display as quick chips ────────────────────────────────────
 const HOT_TAGS = [
@@ -69,10 +70,22 @@ function RealbooruCard({ post, onClick }) {
         </div>
       </div>
 
-      {/* Post ID */}
+      {/* Post ID & Favorite Button */}
       <div className="absolute top-2 right-2 bg-black/60 text-white/60 text-[9px] px-1.5 py-0.5 rounded backdrop-blur-sm">
         #{post.id}
       </div>
+      <FavoriteButton
+        item={{
+          id: `realbooru-${post.id}`,
+          link: `/realbooru?id=${post.id}`,
+          title: `Realbooru #${post.id}`,
+          cover_url: post.previewUrl || post.sampleUrl,
+          type: post.isVideo ? "Video" : "Foto",
+          source: "Realbooru",
+        }}
+        variant="card"
+        className="absolute bottom-2 right-2"
+      />
     </div>
   );
 }
@@ -125,6 +138,18 @@ function MediaViewer({ post, detail, loading, onClose, onTagClick, onPrev, onNex
         </div>
 
         <div className="flex items-center gap-2">
+          <FavoriteButton
+            item={{
+              id: `realbooru-${post.id}`,
+              link: `/realbooru?id=${post.id}`,
+              title: `Realbooru #${post.id}`,
+              cover_url: post.previewUrl || post.sampleUrl || detail?.fileUrl,
+              type: isVideo ? "Video" : "Foto",
+              source: "Realbooru",
+            }}
+            size={15}
+            className="!p-2 !rounded-lg"
+          />
           {detail?.fileUrl && (
             <a
               href={detail.fileUrl}
@@ -300,6 +325,24 @@ export default function RealbooruPage({ onOpenSidebar }) {
   useEffect(() => {
     fetchPosts("", 1);
   }, [fetchPosts]);
+
+  // Auto-open post if id is in URL search param (e.g. from Favorites)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const idFromUrl = params.get("id");
+    if (idFromUrl) {
+      setViewerLoading(true);
+      getRealbooruPost(idFromUrl)
+        .then((detail) => {
+          if (detail) {
+            setViewerDetail(detail);
+            setSelectedIndex(-1);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setViewerLoading(false));
+    }
+  }, []);
 
   const goToPage = useCallback((newPage) => {
     if (newPage < 1 || (totalPages && newPage > totalPages) || newPage === page) return;
@@ -603,9 +646,9 @@ export default function RealbooruPage({ onOpenSidebar }) {
       </div>
 
       {/* Media Viewer */}
-      {selectedIndex !== null && (
+      {(selectedIndex !== null || viewerDetail !== null) && (
         <MediaViewer
-          post={posts[selectedIndex]}
+          post={selectedIndex >= 0 ? posts[selectedIndex] : viewerDetail}
           detail={viewerDetail}
           loading={viewerLoading}
           onClose={closeViewer}
@@ -613,7 +656,7 @@ export default function RealbooruPage({ onOpenSidebar }) {
           onPrev={prevPost}
           onNext={nextPost}
           hasPrev={selectedIndex > 0}
-          hasNext={selectedIndex < posts.length - 1}
+          hasNext={selectedIndex >= 0 && selectedIndex < posts.length - 1}
         />
       )}
     </div>
