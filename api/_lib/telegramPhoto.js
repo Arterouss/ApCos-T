@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { connectDB } from './telegramDb.js';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "GANTI_DENGAN_TOKEN_BOT_ANDA";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
 
 /**
  * Mengambil daftar foto dari Database MongoDB.

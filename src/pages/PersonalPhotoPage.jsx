@@ -132,19 +132,36 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
             </p>
           </div>
 
-          {!loading && !error && (
-            <button
-              onClick={fetchPhotos}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
+          <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-between sm:justify-end">
+            <a
+              href="https://t.me/inimyvideo_bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-cyan-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: "rgba(0, 229, 255, 0.08)",
+                border: "1px solid rgba(0, 229, 255, 0.25)",
               }}
+              title="Buka Chat Bot Telegram"
             >
-              <RefreshCw size={13} />
-              <span>Refresh Vault</span>
-            </button>
-          )}
+              <Send size={13} />
+              <span>@inimyvideo_bot</span>
+            </a>
+
+            {!loading && !error && (
+              <button
+                onClick={fetchPhotos}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <RefreshCw size={13} />
+                <span>Refresh Vault</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filter Tabs */}
@@ -253,16 +270,27 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
               <Camera size={32} />
             </div>
             <h3 className="text-white font-bold text-lg">Belum Ada Foto</h3>
-            <p className="text-gray-400 text-xs">
-              Kirimkan foto ke bot Telegram Anda, lalu tekan tombol Refresh untuk memunculkannya di sini.
+            <p className="text-gray-400 text-xs leading-relaxed max-w-xs">
+              Kirimkan foto ke bot Telegram <a href="https://t.me/inimyvideo_bot" target="_blank" rel="noreferrer" className="text-cyan-400 font-semibold underline">@inimyvideo_bot</a> di chat pribadi, lalu tekan tombol Refresh untuk memunculkannya di sini.
             </p>
-            <button
-              onClick={fetchPhotos}
-              className="px-6 py-2.5 rounded-xl text-black text-xs font-bold transition-all cursor-pointer"
-              style={{ background: '#00e5ff' }}
-            >
-              Refresh Sekarang
-            </button>
+            <div className="flex items-center gap-2.5 mt-2">
+              <a
+                href="https://t.me/inimyvideo_bot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-cyan-400 hover:text-white border border-cyan-500/40 hover:bg-cyan-500/10 transition-all flex items-center gap-1.5"
+              >
+                <Send size={13} />
+                <span>Kirim Foto</span>
+              </a>
+              <button
+                onClick={fetchPhotos}
+                className="px-5 py-2.5 rounded-xl text-black text-xs font-bold transition-all cursor-pointer"
+                style={{ background: '#00e5ff' }}
+              >
+                Refresh Vault
+              </button>
+            </div>
           </div>
         )}
 

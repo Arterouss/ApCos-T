@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Gunakan Environment Variable atau hardcode sementara
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "GANTI_DENGAN_TOKEN_BOT_ANDA";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID || "GANTI_DENGAN_ID_CHANNEL_ANDA";
 
 /**

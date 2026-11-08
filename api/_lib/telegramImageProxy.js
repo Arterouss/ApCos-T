@@ -1,5 +1,5 @@
 import axios from 'axios';
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "GANTI_DENGAN_TOKEN_BOT_ANDA";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
 
 /**
  * Proxy untuk gambar Telegram.
