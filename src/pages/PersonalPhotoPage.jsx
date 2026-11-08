@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Camera, AlertCircle, X, ZoomIn, Trash2, RefreshCw, Send, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  Camera,
+  AlertCircle,
+  X,
+  ZoomIn,
+  Trash2,
+  RefreshCw,
+  Send,
+  Download,
+  CheckCircle2,
+} from "lucide-react";
+import { downloadMedia, getSafeFilename } from "../utils/downloadHelper";
 
 const HIDDEN_KEY = "apicos_hidden_photos";
 
@@ -11,16 +23,68 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
   const [error, setError] = useState(null);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [activeTab, setActiveTab] = useState("Semua");
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const toastTimeoutRef = useRef(null);
+
   const [hiddenIds, setHiddenIds] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || "[]")); }
-    catch { return new Set(); }
+    try {
+      return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || "[]"));
+    } catch {
+      return new Set();
+    }
   });
+
+  const showToast = (type, message) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ type, message });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3800);
+  };
+
+  const handleDownload = async (photo, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!photo || !photo.url) return;
+
+    const id = photo.id;
+    setDownloadingId(id);
+
+    const title = photo.caption
+      ? photo.caption.replace(/#/g, "").trim().slice(0, 30)
+      : `Foto_Pribadi_${photo.message_id || photo.id || Date.now()}`;
+    const filename = getSafeFilename(title, photo.url, "photo");
+
+    showToast("info", `Mengunduh ${filename}...`);
+
+    try {
+      let downloadUrl = photo.url;
+      if (
+        downloadUrl.startsWith("/api/telegram/image") &&
+        !downloadUrl.includes("download=1")
+      ) {
+        downloadUrl += `&download=1&filename=${encodeURIComponent(filename)}`;
+      }
+
+      await downloadMedia(downloadUrl, filename);
+      showToast("success", `Foto "${filename}" berhasil diunduh!`);
+    } catch (err) {
+      console.error("Gagal download foto:", err);
+      showToast("error", `Gagal mengunduh: ${err.message || "Kesalahan jaringan"}`);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const deletePhoto = async (id, e) => {
     e.stopPropagation();
     if (!window.confirm("Apakah Anda yakin ingin menghapus foto ini selamanya?")) return;
 
-    setHiddenIds(prev => {
+    setHiddenIds((prev) => {
       const next = new Set(prev);
       next.add(id);
       return next;
@@ -28,15 +92,16 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
 
     try {
       await axios.delete(`/api/personal/photos?id=${encodeURIComponent(id)}`);
-      setPhotos(prev => prev.filter(p => p.id !== id));
+      setPhotos((prev) => prev.filter((p) => p.id !== id));
+      showToast("success", "Foto berhasil dihapus.");
     } catch (err) {
       console.error("Gagal menghapus foto:", err);
-      setHiddenIds(prev => {
+      setHiddenIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-      alert("Gagal menghapus foto.");
+      showToast("error", "Gagal menghapus foto.");
     }
   };
 
@@ -73,6 +138,40 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
         <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-cyan-600/[0.05] blur-[170px]" />
       </div>
 
+      {/* ── Toast Notification ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -24, scale: 0.95 }}
+            className={`fixed top-5 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium backdrop-blur-xl border ${
+              toast.type === "success"
+                ? "bg-emerald-950/90 text-emerald-200 border-emerald-500/30 shadow-emerald-900/30"
+                : toast.type === "error"
+                ? "bg-rose-950/90 text-rose-200 border-rose-500/30 shadow-rose-900/30"
+                : "bg-neutral-900/90 text-cyan-200 border-cyan-500/30 shadow-cyan-900/30"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+            ) : toast.type === "error" ? (
+              <AlertCircle size={16} className="text-rose-400 shrink-0" />
+            ) : (
+              <Loader2 size={16} className="animate-spin text-cyan-400 shrink-0" />
+            )}
+            <span className="max-w-xs sm:max-w-md truncate">{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-1 text-gray-400 hover:text-white p-0.5 rounded cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Lightbox Modal */}
       <AnimatePresence>
         {selectedPhoto && (
@@ -83,12 +182,33 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
             className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4"
             onClick={() => setSelectedPhoto(null)}
           >
-            <button
-              className="absolute top-5 right-5 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-              onClick={() => setSelectedPhoto(null)}
-            >
-              <X size={22} />
-            </button>
+            {/* Modal Actions */}
+            <div className="absolute top-5 right-5 flex items-center gap-2 z-20">
+              <button
+                type="button"
+                className="px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 text-cyan-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer text-xs font-semibold backdrop-blur-md border border-white/10"
+                onClick={(e) => handleDownload(selectedPhoto, e)}
+                disabled={downloadingId === selectedPhoto.id}
+                title="Unduh Foto Ini"
+              >
+                {downloadingId === selectedPhoto.id ? (
+                  <Loader2 size={16} className="animate-spin text-cyan-400" />
+                ) : (
+                  <Download size={16} className="text-cyan-400" />
+                )}
+                <span className="hidden sm:inline">Unduh Foto</span>
+              </button>
+
+              <button
+                type="button"
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                onClick={() => setSelectedPhoto(null)}
+                title="Tutup"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
             <motion.img
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -96,7 +216,7 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
               src={selectedPhoto.url}
               alt={selectedPhoto.caption || "Foto Pribadi"}
               className="max-h-[90vh] max-w-full object-contain rounded-2xl shadow-2xl"
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             />
             {selectedPhoto.caption && (
               <p className="absolute bottom-6 left-0 right-0 text-center text-xs sm:text-sm text-gray-300 px-4 drop-shadow">
@@ -114,9 +234,9 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
             <div
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3"
               style={{
-                background: 'rgba(0, 229, 255, 0.1)',
-                color: '#00e5ff',
-                border: '1px solid rgba(0, 229, 255, 0.3)',
+                background: "rgba(0, 229, 255, 0.1)",
+                color: "#00e5ff",
+                border: "1px solid rgba(0, 229, 255, 0.3)",
               }}
             >
               <Camera size={12} />
@@ -153,8 +273,8 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
                 onClick={fetchPhotos}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: "rgba(255, 255, 255, 0.04)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
                 }}
               >
                 <RefreshCw size={13} />
@@ -167,7 +287,7 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
         {/* Filter Tabs */}
         {!loading && !error && photos.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-8">
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveTab(cat)}
@@ -175,13 +295,15 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
                   activeTab === cat ? "text-black shadow-lg" : "text-gray-400 hover:text-white"
                 }`}
                 style={{
-                  background: activeTab === cat
-                    ? 'linear-gradient(135deg, #00e5ff, #0070f3)'
-                    : 'rgba(255, 255, 255, 0.03)',
-                  border: activeTab === cat
-                    ? '1px solid rgba(0, 229, 255, 0.8)'
-                    : '1px solid rgba(255, 255, 255, 0.06)',
-                  boxShadow: activeTab === cat ? '0 0 15px rgba(0, 229, 255, 0.35)' : 'none',
+                  background:
+                    activeTab === cat
+                      ? "linear-gradient(135deg, #00e5ff, #0070f3)"
+                      : "rgba(255, 255, 255, 0.03)",
+                  border:
+                    activeTab === cat
+                      ? "1px solid rgba(0, 229, 255, 0.8)"
+                      : "1px solid rgba(255, 255, 255, 0.06)",
+                  boxShadow: activeTab === cat ? "0 0 15px rgba(0, 229, 255, 0.35)" : "none",
                 }}
               >
                 {cat === "Semua" ? "Semua" : `#${cat}`}
@@ -195,62 +317,59 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
           <div
             className="rounded-3xl p-8 max-w-xl mx-auto my-12 text-center"
             style={{
-              background: 'rgba(14, 16, 26, 0.7)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(0, 229, 255, 0.25)',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6)',
+              background: "rgba(14, 16, 26, 0.7)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(0, 229, 255, 0.25)",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.6)",
             }}
           >
             <Camera size={44} className="mx-auto mb-4 text-neon-cyan" />
-            <h3 className="font-display font-black text-white text-xl mb-2">Setup Bot Telegram Diperlukan</h3>
+            <h3 className="font-display font-black text-white text-xl mb-2">
+              Setup Bot Telegram Diperlukan
+            </h3>
             <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-6">
-              Tambahkan <code className="bg-white/10 px-2 py-0.5 rounded text-xs text-neon-cyan font-mono">TELEGRAM_BOT_TOKEN</code> ke Environment Variables Anda, lalu restart server.
+              Tambahkan{" "}
+              <code className="bg-white/10 px-2 py-0.5 rounded text-xs text-neon-cyan font-mono">
+                TELEGRAM_BOT_TOKEN
+              </code>{" "}
+              ke Environment Variables Anda, lalu restart server.
             </p>
             <div
               className="rounded-2xl p-4 text-left text-xs font-mono space-y-1"
               style={{
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                background: "rgba(0, 0, 0, 0.4)",
+                border: "1px solid rgba(255, 255, 255, 0.06)",
               }}
             >
-              <p>Key: <span className="text-neon-cyan">TELEGRAM_BOT_TOKEN</span></p>
-              <p>Value: <span className="text-gray-500">token dari @BotFather</span></p>
+              <p>
+                Key: <span className="text-neon-cyan">TELEGRAM_BOT_TOKEN</span>
+              </p>
+              <p>
+                Value: <span className="text-gray-500">token dari @BotFather</span>
+              </p>
             </div>
           </div>
         )}
 
-        {/* Loading Skeletons */}
+        {/* Loading State */}
         {loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-2xl aspect-[3/4] bg-white/[0.04] relative overflow-hidden animate-pulse"
-                style={{
-                  border: '1px solid rgba(255, 255, 255, 0.04)',
-                }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-shimmer" />
-              </div>
-            ))}
+          <div className="py-32 flex flex-col items-center justify-center gap-3">
+            <Loader2 size={36} className="text-cyan-400 animate-spin" />
+            <p className="text-xs text-gray-400 font-mono tracking-wider">
+              MEMUAT FOTO VAULT...
+            </p>
           </div>
         )}
 
-        {/* Error */}
+        {/* Error State */}
         {!loading && error && !isTokenNotSet && (
-          <div
-            className="py-24 text-center rounded-3xl p-8 max-w-md mx-auto flex flex-col items-center gap-4"
-            style={{
-              background: 'rgba(18, 18, 28, 0.5)',
-              border: '1px solid rgba(255, 45, 85, 0.2)',
-            }}
-          >
-            <AlertCircle size={40} className="text-neon-red" />
-            <p className="text-neon-red text-sm">{error}</p>
+          <div className="py-20 text-center glass-card rounded-3xl p-8 max-w-md mx-auto border border-rose-500/20">
+            <AlertCircle size={36} className="text-rose-400 mx-auto mb-3" />
+            <h3 className="text-white font-bold text-base mb-1">Gagal Mengambil Foto</h3>
+            <p className="text-gray-400 text-xs mb-4">{error}</p>
             <button
               onClick={fetchPhotos}
-              className="px-5 py-2.5 rounded-xl text-black text-xs font-bold transition-all cursor-pointer"
-              style={{ background: '#00e5ff' }}
+              className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold transition-all cursor-pointer"
             >
               Coba Lagi
             </button>
@@ -262,8 +381,8 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
           <div
             className="py-24 text-center rounded-3xl p-8 max-w-md mx-auto flex flex-col items-center gap-4"
             style={{
-              background: 'rgba(14, 16, 26, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              background: "rgba(14, 16, 26, 0.5)",
+              border: "1px solid rgba(255, 255, 255, 0.06)",
             }}
           >
             <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center text-gray-500">
@@ -271,7 +390,16 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
             </div>
             <h3 className="text-white font-bold text-lg">Belum Ada Foto</h3>
             <p className="text-gray-400 text-xs leading-relaxed max-w-xs">
-              Kirimkan foto ke bot Telegram <a href="https://t.me/inimyvideo_bot" target="_blank" rel="noreferrer" className="text-cyan-400 font-semibold underline">@inimyvideo_bot</a> di chat pribadi, lalu tekan tombol Refresh untuk memunculkannya di sini.
+              Kirimkan foto ke bot Telegram{" "}
+              <a
+                href="https://t.me/inimyvideo_bot"
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 font-semibold underline"
+              >
+                @inimyvideo_bot
+              </a>{" "}
+              di chat pribadi, lalu tekan tombol Refresh untuk memunculkannya di sini.
             </p>
             <div className="flex items-center gap-2.5 mt-2">
               <a
@@ -286,7 +414,7 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
               <button
                 onClick={fetchPhotos}
                 className="px-5 py-2.5 rounded-xl text-black text-xs font-bold transition-all cursor-pointer"
-                style={{ background: '#00e5ff' }}
+                style={{ background: "#00e5ff" }}
               >
                 Refresh Vault
               </button>
@@ -298,8 +426,8 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
         {!loading && !error && photos.length > 0 && (
           <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-3 space-y-3">
             {photos
-              .filter(photo => !hiddenIds.has(photo.id))
-              .filter(photo => {
+              .filter((photo) => !hiddenIds.has(photo.id))
+              .filter((photo) => {
                 if (activeTab === "Semua") return true;
                 const caption = (photo.caption || "").toLowerCase();
                 return caption.includes(`#${activeTab.toLowerCase()}`);
@@ -312,18 +440,19 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
                   transition={{ delay: Math.min(i * 0.03, 0.3) }}
                   className="relative group break-inside-avoid rounded-2xl overflow-hidden cursor-pointer transition-all duration-300"
                   style={{
-                    background: 'rgba(14, 16, 26, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    background: "rgba(14, 16, 26, 0.6)",
+                    border: "1px solid rgba(255, 255, 255, 0.06)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.4)';
-                    e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 229, 255, 0.15)';
-                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)";
+                    e.currentTarget.style.boxShadow =
+                      "0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 229, 255, 0.15)";
+                    e.currentTarget.style.transform = "translateY(-3px)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
+                    e.currentTarget.style.boxShadow = "none";
+                    e.currentTarget.style.transform = "translateY(0)";
                   }}
                   onClick={() => setSelectedPhoto(photo)}
                 >
@@ -335,31 +464,53 @@ export default function PersonalPhotoPage({ onOpenSidebar }) {
                   />
 
                   {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center"
                       style={{
-                        background: '#00e5ff',
-                        boxShadow: '0 0 20px rgba(0, 229, 255, 0.6)',
+                        background: "#00e5ff",
+                        boxShadow: "0 0 20px rgba(0, 229, 255, 0.6)",
                       }}
                     >
                       <ZoomIn size={20} className="text-black" />
                     </div>
                   </div>
 
-                  {/* Trash Button */}
-                  <button
-                    onClick={(e) => deletePhoto(photo.id, e)}
-                    className="absolute top-2.5 right-2.5 p-2 rounded-xl text-neon-red opacity-0 group-hover:opacity-100 transition-all cursor-pointer z-10"
-                    style={{
-                      background: 'rgba(0, 0, 0, 0.7)',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(255, 45, 85, 0.3)',
-                    }}
-                    title="Hapus foto permanen"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {/* Action Buttons: Download & Delete */}
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => handleDownload(photo, e)}
+                      disabled={downloadingId === photo.id}
+                      className="p-2 rounded-xl text-gray-200 hover:text-cyan-300 active:scale-95 transition-all shadow-xl cursor-pointer opacity-90 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-50"
+                      style={{
+                        background: "rgba(0, 0, 0, 0.75)",
+                        backdropFilter: "blur(8px)",
+                        border: "1px solid rgba(0, 229, 255, 0.3)",
+                      }}
+                      title="Unduh foto ini"
+                    >
+                      {downloadingId === photo.id ? (
+                        <Loader2 size={13} className="animate-spin text-cyan-400" />
+                      ) : (
+                        <Download size={13} className="text-cyan-400" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => deletePhoto(photo.id, e)}
+                      className="p-2 rounded-xl text-neon-red opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-all cursor-pointer"
+                      style={{
+                        background: "rgba(0, 0, 0, 0.75)",
+                        backdropFilter: "blur(8px)",
+                        border: "1px solid rgba(255, 45, 85, 0.3)",
+                      }}
+                      title="Hapus foto permanen"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
 
                   {/* Caption */}
                   {photo.caption && (

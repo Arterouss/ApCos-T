@@ -23,8 +23,15 @@ export async function proxyTelegramImage(req, res) {
     // 2. Ambil gambar dan proxy ke client
     const imageRes = await axios.get(targetUrl, { responseType: 'stream' });
     
-    res.setHeader("Content-Type", imageRes.headers["content-type"]);
+    res.setHeader("Content-Type", imageRes.headers["content-type"] || "image/jpeg");
     res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache 1 tahun di browser
+
+    if (req.query.download === "1" || req.query.download === "true") {
+      const rawName = req.query.filename || "foto_pribadi.jpg";
+      const safeName = String(rawName).replace(/["\r\n]/g, "");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+      res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    }
 
     imageRes.data.pipe(res);
   } catch (error) {
