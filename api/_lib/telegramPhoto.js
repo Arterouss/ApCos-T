@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { connectDB } from './telegramDb.js';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 /**
  * Mengambil daftar foto dari Database MongoDB.
@@ -12,7 +12,7 @@ export async function getTelegramPhotos() {
   const collection = db.collection("telegram_photos");
 
   // Fallback Sync: Cek pesan 24 jam terakhir dari Telegram agar tidak ada yang hilang sebelum Webhook aktif
-  if (BOT_TOKEN !== "GANTI_DENGAN_TOKEN_BOT_ANDA") {
+  if (BOT_TOKEN) {
     try {
       const response = await axios.get(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=100`);
       if (response.data.ok) {

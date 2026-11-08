@@ -1,3 +1,9 @@
+try {
+  process.loadEnvFile();
+} catch {
+  // Ignored if .env is missing or already loaded
+}
+
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";

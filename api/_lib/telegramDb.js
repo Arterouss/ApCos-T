@@ -1,6 +1,10 @@
 import { MongoClient } from 'mongodb';
 import dns from 'dns';
 
+try {
+  process.loadEnvFile();
+} catch {}
+
 // Ensure resilient DNS resolution for mongodb+srv across all network environments
 try {
   dns.setServers(['1.1.1.1', '8.8.8.8']);

@@ -1,7 +1,7 @@
 import { connectDB } from './telegramDb.js';
 import axios from 'axios';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 // Track recently replied media groups to avoid spamming replies for albums
 const repliedGroups = new Set();
@@ -12,6 +12,11 @@ const repliedGroups = new Set();
 export async function handleTelegramWebhook(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  if (!BOT_TOKEN) {
+    console.warn("[Webhook] TELEGRAM_BOT_TOKEN is not configured");
+    return res.status(200).send("OK");
   }
 
   const update = req.body;
@@ -150,6 +155,9 @@ export async function handleTelegramWebhook(req, res) {
  * Mendaftarkan Webhook Telegram ke URL domain saat ini
  */
 export async function setTelegramWebhook(req, res) {
+  if (!BOT_TOKEN) {
+    return res.status(500).json({ success: false, error: "TELEGRAM_BOT_TOKEN is not configured" });
+  }
   const host = req.headers.host;
   const webhookUrl = `https://${host}/api/telegram/webhook`;
   

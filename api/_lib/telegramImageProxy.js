@@ -1,5 +1,5 @@
 import axios from 'axios';
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 /**
  * Proxy untuk gambar Telegram.
@@ -9,6 +9,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoV
 export async function proxyTelegramImage(req, res) {
   const { file_id } = req.query;
   if (!file_id) return res.status(400).send("Missing file_id");
+  if (!BOT_TOKEN) return res.status(500).send("TELEGRAM_BOT_TOKEN is not configured");
 
   try {
     // 1. Dapatkan path file terbaru

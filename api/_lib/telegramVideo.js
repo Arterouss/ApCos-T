@@ -1,16 +1,16 @@
 import axios from 'axios';
 
-// Gunakan Environment Variable atau hardcode sementara
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8364333668:AAGnUFj-TKucwUoVSR4wZAK40UgQXufO0A8";
-const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID || "GANTI_DENGAN_ID_CHANNEL_ANDA";
+// Gunakan Environment Variable
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID;
 
 /**
  * Mengambil daftar pesan dari Channel Telegram.
  * Channel harus bersifat Publik atau Bot harus menjadi admin di Channel Private.
  */
 export async function getTelegramVideos() {
-  if (BOT_TOKEN === "GANTI_DENGAN_TOKEN_BOT_ANDA" || CHANNEL_ID === "GANTI_DENGAN_ID_CHANNEL_ANDA") {
-    throw new Error("Telegram Bot Token atau Channel ID belum diatur!");
+  if (!BOT_TOKEN || !CHANNEL_ID) {
+    throw new Error("Telegram Bot Token atau Channel ID belum diatur di Environment Variables!");
   }
 
   try {
