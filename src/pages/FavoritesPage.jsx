@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,8 +15,21 @@ import {
   Camera,
   Users,
   Tv,
+  Download,
+  Upload,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  FileDown,
 } from "lucide-react";
 import { useFavorites } from "../hooks/useFavorites";
+import {
+  getDownloadableUrl,
+  getSafeFilename,
+  downloadMedia,
+  exportFavoritesAsJson,
+  importFavoritesFromJson,
+} from "../utils/downloadHelper";
 
 const CATEGORIES = [
   { id: "all", label: "Semua", icon: Sparkles },
@@ -28,9 +41,84 @@ const CATEGORIES = [
 ];
 
 export default function FavoritesPage({ onOpenSidebar }) {
-  const { favorites, removeFavorite } = useFavorites();
+  const { favorites, removeFavorite, importFavorites } = useFavorites();
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = (type, message) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ type, message });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3800);
+  };
+
+  const handleDownloadItem = async (e, fav) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const mediaUrl = getDownloadableUrl(fav);
+    if (!mediaUrl) {
+      showToast("error", "URL berkas atau gambar tidak ditemukan untuk item ini.");
+      return;
+    }
+
+    const id = fav.id || fav.link;
+    setDownloadingId(id);
+    const filename = getSafeFilename(fav.title, mediaUrl, fav.type);
+
+    showToast("info", `Memulai download ${fav.title?.slice(0, 25) || "media"}...`);
+
+    try {
+      await downloadMedia(mediaUrl, filename, {
+        referer: fav.referer || (fav.link?.startsWith("http") ? fav.link : ""),
+      });
+      showToast("success", `Berhasil mengunduh "${fav.title?.slice(0, 25) || filename}"!`);
+    } catch (err) {
+      console.error("Gagal download media:", err);
+      showToast("error", `Gagal mengunduh: ${err.message || "Kesalahan jaringan"}`);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleExportBackup = () => {
+    try {
+      exportFavoritesAsJson(favorites);
+      showToast("success", `Berhasil mengekspor ${favorites.length} item favorit.`);
+    } catch (err) {
+      showToast("error", err.message);
+    }
+  };
+
+  const handleImportClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const parsedItems = await importFavoritesFromJson(file);
+      const added = importFavorites(parsedItems);
+      showToast(
+        "success",
+        `Berhasil memuat ${parsedItems.length} item (${added} baru ditambahkan)!`
+      );
+    } catch (err) {
+      showToast("error", err.message);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const filteredFavorites = useMemo(() => {
     return favorites.filter((fav) => {
@@ -111,6 +199,40 @@ export default function FavoritesPage({ onOpenSidebar }) {
         <div className="absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-pink-600/[0.05] blur-[170px]" />
       </div>
 
+      {/* ── Toast Notification ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -24, scale: 0.95 }}
+            className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium backdrop-blur-xl border ${
+              toast.type === "success"
+                ? "bg-emerald-950/90 text-emerald-200 border-emerald-500/30 shadow-emerald-900/30"
+                : toast.type === "error"
+                ? "bg-rose-950/90 text-rose-200 border-rose-500/30 shadow-rose-900/30"
+                : "bg-neutral-900/90 text-cyan-200 border-cyan-500/30 shadow-cyan-900/30"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+            ) : toast.type === "error" ? (
+              <AlertCircle size={16} className="text-rose-400 shrink-0" />
+            ) : (
+              <Loader2 size={16} className="animate-spin text-cyan-400 shrink-0" />
+            )}
+            <span className="max-w-xs sm:max-w-md truncate">{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-1 text-gray-400 hover:text-white p-0.5 rounded cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-white/[0.06] pb-8">
@@ -118,27 +240,36 @@ export default function FavoritesPage({ onOpenSidebar }) {
             <div
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3"
               style={{
-                background: "rgba(255, 45, 85, 0.1)",
-                color: "#ff2d55",
-                border: "1px solid rgba(255, 45, 85, 0.3)",
+                background: "rgba(225, 29, 72, 0.1)",
+                border: "1px solid rgba(225, 29, 72, 0.2)",
+                color: "#fb7185",
               }}
             >
-              <Heart size={12} className="fill-current" />
-              <span>Koleksi Tersimpan</span>
+              <Heart size={12} className="fill-[#fb7185]" />
+              Koleksi Pribadi
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-black tracking-tight mb-2">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-rose-500 via-pink-500 to-red-500">
                 Favorit Saya
               </span>
             </h1>
-            <p className="text-gray-400 text-xs sm:text-sm max-w-lg leading-relaxed">
+            <p className="text-gray-400 text-xs sm:text-sm max-w-lg leading-relaxed mt-1.5">
               Koleksi video, anime, cosplay, manga, dan creator favorit Anda yang disimpan di seluruh menu aplikasi.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
+          {/* Action Header: Total & Backup Export/Import */}
+          <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto justify-between sm:justify-end">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportFile}
+              accept=".json"
+              className="hidden"
+            />
+
             <div
-              className="px-4 py-2 rounded-xl text-xs font-mono font-semibold text-gray-300"
+              className="px-3.5 py-2 rounded-xl text-xs font-mono font-semibold text-gray-300"
               style={{
                 background: "rgba(255, 255, 255, 0.03)",
                 border: "1px solid rgba(255, 255, 255, 0.06)",
@@ -146,6 +277,28 @@ export default function FavoritesPage({ onOpenSidebar }) {
             >
               Total: <span className="text-neon-red font-bold">{favorites.length}</span> item
             </div>
+
+            <button
+              type="button"
+              onClick={handleImportClick}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all cursor-pointer"
+              title="Impor Cadangan Favorit (JSON)"
+            >
+              <Upload size={13} className="text-amber-400" />
+              <span className="hidden sm:inline">Impor</span>
+            </button>
+
+            {favorites.length > 0 && (
+              <button
+                type="button"
+                onClick={handleExportBackup}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all cursor-pointer"
+                title="Unduh Cadangan Seluruh Favorit (.json)"
+              >
+                <FileDown size={13} className="text-cyan-400" />
+                <span className="hidden sm:inline">Ekspor JSON</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -220,17 +373,29 @@ export default function FavoritesPage({ onOpenSidebar }) {
             <p className="text-gray-400 text-xs mb-6">
               Tekan ikon hati di halaman konten, video, cosplay, atau anime mana saja untuk menyimpannya ke koleksi Anda.
             </p>
-            <Link
-              to="/"
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-2"
-              style={{
-                background: "linear-gradient(135deg, #ff2d55, #ff6b35)",
-                boxShadow: "0 4px 20px rgba(255, 45, 85, 0.4)",
-              }}
-            >
-              <span>Jelajahi Beranda</span>
-              <ArrowRight size={14} />
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to="/"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-2"
+                style={{
+                  background: "linear-gradient(135deg, #ff2d55, #ff6b35)",
+                  boxShadow: "0 4px 20px rgba(255, 45, 85, 0.4)",
+                }}
+              >
+                <span>Jelajahi Beranda</span>
+                <ArrowRight size={14} />
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleImportClick}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-all cursor-pointer flex items-center gap-2"
+                title="Impor dari cadangan JSON"
+              >
+                <Upload size={14} className="text-amber-400" />
+                <span>Pulihkan Cadangan</span>
+              </button>
+            </div>
           </div>
         ) : filteredFavorites.length === 0 ? (
           <div className="text-center py-20 glass-card rounded-2xl border border-white/5 max-w-md mx-auto p-6">
@@ -247,6 +412,7 @@ export default function FavoritesPage({ onOpenSidebar }) {
                 const linkProps = isExternal
                   ? { href: fav.link, target: "_blank", rel: "noopener noreferrer" }
                   : { to: fav.link || "#" };
+                const isDownloading = downloadingId === (fav.id || fav.link);
 
                 return (
                   <motion.div
@@ -291,23 +457,45 @@ export default function FavoritesPage({ onOpenSidebar }) {
                       <div className="absolute inset-0 bg-gradient-to-t from-[#07070c] via-black/30 to-transparent opacity-85 group-hover:opacity-60 transition-opacity" />
                     </CardWrapper>
 
-                    {/* Hapus dari Favorit Button */}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        removeFavorite(fav.id || fav.link);
-                      }}
-                      className="absolute top-2.5 right-2.5 p-2 rounded-xl text-gray-300 hover:text-white transition-all transform hover:scale-110 shadow-xl opacity-0 group-hover:opacity-100 cursor-pointer z-10"
-                      style={{
-                        background: "rgba(0, 0, 0, 0.7)",
-                        backdropFilter: "blur(8px)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                      }}
-                      title="Hapus dari Favorit"
-                    >
-                      <Trash2 size={14} className="text-neon-red" />
-                    </button>
+                    {/* Action Buttons: Download & Delete */}
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-20">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDownloadItem(e, fav)}
+                        disabled={isDownloading}
+                        className="p-2 rounded-xl text-gray-200 hover:text-cyan-300 active:scale-95 transition-all shadow-xl cursor-pointer opacity-90 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-50"
+                        style={{
+                          background: "rgba(0, 0, 0, 0.75)",
+                          backdropFilter: "blur(10px)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                        }}
+                        title="Unduh Berkas Media / Sampul"
+                      >
+                        {isDownloading ? (
+                          <Loader2 size={14} className="animate-spin text-cyan-400" />
+                        ) : (
+                          <Download size={14} className="text-cyan-400" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeFavorite(fav.id || fav.link);
+                        }}
+                        className="p-2 rounded-xl text-gray-200 hover:text-rose-400 active:scale-95 transition-all shadow-xl cursor-pointer opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
+                        style={{
+                          background: "rgba(0, 0, 0, 0.75)",
+                          backdropFilter: "blur(10px)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                        }}
+                        title="Hapus dari Favorit"
+                      >
+                        <Trash2 size={14} className="text-neon-red" />
+                      </button>
+                    </div>
 
                     {/* Info Label / Type */}
                     <div

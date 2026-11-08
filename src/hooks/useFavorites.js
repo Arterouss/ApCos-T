@@ -120,5 +120,36 @@ export function useFavorites() {
     }
   }, []);
 
-  return { favorites, addFavorite, removeFavorite, isFavorite, toggleFavorite };
+  const importFavorites = useCallback((newItems) => {
+    if (!Array.isArray(newItems) || newItems.length === 0) return 0;
+    const current = getStored();
+    const existingIds = new Set(
+      current.map((f) => String(f.id || f.link || f.slug)).filter(Boolean)
+    );
+
+    let addedCount = 0;
+    const itemsToAdd = [];
+
+    for (const item of newItems) {
+      if (!item) continue;
+      const key = String(item.id || item.link || item.slug || "");
+      if (!key || !existingIds.has(key)) {
+        if (key) existingIds.add(key);
+        itemsToAdd.push({
+          ...item,
+          id: item.id || item.link,
+          cover_url: item.cover_url || item.thumbnail || item.poster || null,
+          addedAt: item.addedAt || Date.now(),
+        });
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      saveFavorites([...itemsToAdd, ...current]);
+    }
+    return addedCount;
+  }, []);
+
+  return { favorites, addFavorite, removeFavorite, isFavorite, toggleFavorite, importFavorites };
 }

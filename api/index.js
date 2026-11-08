@@ -1446,6 +1446,26 @@ app.get("/api/proxy", async (req, res) => {
       }
     }
 
+    // Follow redirect if 301/302/307/308
+    if (
+      response &&
+      (response.status === 301 ||
+        response.status === 302 ||
+        response.status === 307 ||
+        response.status === 308)
+    ) {
+      const loc = response.headers.get("location");
+      if (loc) {
+        const nextUrl = new URL(loc, decodedUrl).href;
+        try {
+          console.log(`[Proxy] Following redirect to: ${nextUrl}`);
+          response = await fetch(nextUrl, { headers });
+        } catch (redirErr) {
+          console.warn("[Proxy] Follow redirect failed:", redirErr.message);
+        }
+      }
+    }
+
     if (!response.ok && response.status !== 206)
       console.warn(`Proxy fetch warning: ${response.status} for ${decodedUrl}`);
 
@@ -1462,6 +1482,17 @@ app.get("/api/proxy", async (req, res) => {
     if (contentRange) res.setHeader("Content-Range", contentRange);
     if (contentLength) res.setHeader("Content-Length", contentLength);
     if (acceptRanges) res.setHeader("Accept-Ranges", acceptRanges);
+
+    // If download flag is set, force Content-Disposition attachment
+    if (req.query.download === "1" || req.query.download === "true") {
+      const rawName = req.query.filename || "download";
+      const safeName = String(rawName).replace(/["\r\n]/g, "");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, Content-Length, Content-Range"
+      );
+    }
 
     // Forward Set-Cookie (Rewrite Domain to localhost)
     const rawSetCookie = response.headers.get("set-cookie");
