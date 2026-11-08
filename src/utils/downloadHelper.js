@@ -221,3 +221,4 @@ export function importFavoritesFromJson(file) {
     reader.readAsText(file);
   });
 }
+
