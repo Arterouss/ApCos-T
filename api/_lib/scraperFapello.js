@@ -18,8 +18,10 @@ const fetchZenRows = async (targetUrl) => {
 
 export const scrapeFapelloList = async ({ page = 1, search = "", sort = "trending" }) => {
   let url;
-  if (search) {
-    url = `${BASE_URL}/search_v2/?q=${encodeURIComponent(search)}&page=${page}`;
+  const cleanSearch = (search || "").trim();
+  if (cleanSearch) {
+    const pageParam = page > 1 ? `?page=${page}` : "";
+    url = `${BASE_URL}/search/${encodeURIComponent(cleanSearch)}/${pageParam}`;
   } else if (sort === "new") {
     url = `${BASE_URL}/new/?page=${page}`;
   } else if (sort === "top") {
@@ -33,6 +35,38 @@ export const scrapeFapelloList = async ({ page = 1, search = "", sort = "trendin
 
   const results = [];
   const seen = new Set();
+  const systemSlugs = new Set([
+    "search", "trending", "popular", "top-likes", "new", "random", "videos",
+    "dmca", "contact", "privacy-policy", "terms", "search_by_photo", "contact_us", "login", "register"
+  ]);
+
+  // Extract from search result container
+  if (cleanSearch) {
+    $("#content a").each((i, el) => {
+      const href = $(el).attr("href") || "";
+      const match = href.match(/fapello\.(?:com|su)\/([a-zA-Z0-9_-]+)\/?$/i);
+      if (!match) return;
+      const slug = match[1].toLowerCase();
+      if (systemSlugs.has(slug) || seen.has(slug)) return;
+      seen.add(slug);
+
+      const $parent = $(el).closest(".shadow, .rounded-md, div[class*='relative'], div");
+      const cover = $(el).find("img").attr("src") || $parent.find("img").attr("src") || "";
+      let name = $(el).text().replace(/\s+/g, " ").trim();
+      if (!name || name === slug) {
+        name = slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+
+      results.push({
+        id: slug,
+        slug,
+        name,
+        cover_url: cover,
+        followers: "",
+        original_url: `https://fapello.com/${slug}/`,
+      });
+    });
+  }
 
   // Fapello model cards: div.flex.flex-1.items-center with inner <a> and <img>
   $("div.flex.flex-1.items-center").each((i, el) => {
@@ -41,14 +75,17 @@ export const scrapeFapelloList = async ({ page = 1, search = "", sort = "trendin
     if (!$a.length || !$img.length) return;
 
     const href = $a.attr("href") || "";
-    if (seen.has(href) || !href.match(/fapello\.(com|su)\/[a-z0-9_-]+\/?$/i)) return;
-    seen.add(href);
+    const match = href.match(/fapello\.(?:com|su)\/([a-zA-Z0-9_-]+)\/?$/i);
+    if (!match) return;
+    const slug = match[1].toLowerCase();
+    if (systemSlugs.has(slug) || seen.has(slug)) return;
+    seen.add(slug);
 
-    const slug = href.replace(/https?:\/\/fapello\.(com|su)\//, "").replace(/\/$/, "");
-    const name = $(el).text().replace(/\s+/g, " ").trim() || slug;
+    let name = $(el).text().replace(/\s+/g, " ").trim();
+    if (!name || name === slug) {
+      name = slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    }
     const cover = $img.attr("src") || $img.attr("data-src") || "";
-
-    // Follower count if available
     const followers = $(el).find("[class*='follow']").text().trim() || "";
 
     results.push({
@@ -57,9 +94,23 @@ export const scrapeFapelloList = async ({ page = 1, search = "", sort = "trendin
       name,
       cover_url: cover,
       followers,
-      original_url: href,
+      original_url: `https://fapello.com/${slug}/`,
     });
   });
+
+  // Prioritize exact / closest matches to the top
+  if (cleanSearch) {
+    const q = cleanSearch.toLowerCase().replace(/[-_\s]/g, "");
+    results.sort((a, b) => {
+      const aSlug = a.slug.replace(/[-_\s]/g, "");
+      const bSlug = b.slug.replace(/[-_\s]/g, "");
+      if (aSlug === q && bSlug !== q) return -1;
+      if (bSlug === q && aSlug !== q) return 1;
+      if (aSlug.startsWith(q) && !bSlug.startsWith(q)) return -1;
+      if (bSlug.startsWith(q) && !aSlug.startsWith(q)) return 1;
+      return 0;
+    });
+  }
 
   return results;
 };
