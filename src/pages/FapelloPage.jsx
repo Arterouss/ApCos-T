@@ -16,6 +16,7 @@ import {
   Menu,
 } from "lucide-react";
 import { getFapelloList } from "../services/fapelloService";
+import FavoriteButton from "../components/FavoriteButton";
 
 const SORT_OPTIONS = [
   { key: "trending", label: "Trending", icon: <TrendingUp size={13} /> },
@@ -58,6 +59,20 @@ const FapelloCard = ({ item, onClick }) => {
 
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-300" />
+
+        {/* Favorite Button */}
+        <div className="absolute top-2.5 right-2.5 z-10" onClick={(e) => e.stopPropagation()}>
+          <FavoriteButton
+            item={{
+              id: `fapello_${item.slug}`,
+              title: item.name || item.slug,
+              cover_url: item.cover_url,
+              link: `/fapello/${encodeURIComponent(item.slug)}`,
+              type: "Creator / Model",
+              source: "Fapello",
+            }}
+          />
+        </div>
 
         {/* Hover pill */}
         <div className="absolute bottom-2.5 inset-x-2.5 p-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-between">

@@ -36,6 +36,7 @@ const adultMenuCategories = [
     title: "Cosplay & Foto",
     items: [
       { name: "Coomer.su", path: "/coomer", icon: <Users size={18} /> },
+      { name: "Fapello", path: "/fapello", icon: <Camera size={18} /> },
       { name: "Bunkr Albums", path: "/balbums", icon: <FolderArchive size={18} /> },
       { name: "Cosplay Tele", path: "/cosplay", icon: <Camera size={18} /> },
     ]

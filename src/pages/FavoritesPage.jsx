@@ -178,6 +178,7 @@ export default function FavoritesPage({ onOpenSidebar }) {
         return (
           type.includes("creator") ||
           source.includes("coomer") ||
+          source.includes("fapello") ||
           source.includes("pawchive") ||
           source.includes("kemono")
         );

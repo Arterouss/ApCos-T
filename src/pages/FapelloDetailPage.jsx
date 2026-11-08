@@ -11,8 +11,11 @@ import {
   X,
   Sparkles,
   Maximize2,
+  Download,
 } from "lucide-react";
 import { getFapelloModel } from "../services/fapelloService";
+import FavoriteButton from "../components/FavoriteButton";
+import { downloadMedia, getSafeFilename } from "../utils/downloadHelper";
 
 export default function FapelloDetailPage() {
   const { slug } = useParams();
@@ -21,6 +24,7 @@ export default function FapelloDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -41,6 +45,27 @@ export default function FapelloDetailPage() {
     };
     fetchDetail();
   }, [slug]);
+
+  const handleDownloadMedia = async (media) => {
+    if (!media) return;
+    const targetUrl = media.full_url || media.cover_url;
+    if (!targetUrl) return;
+
+    setDownloading(true);
+    const filename = getSafeFilename(
+      `${data?.name || "fapello"}_post_${media.id || Date.now()}`,
+      targetUrl,
+      media.is_video ? "video" : "photo"
+    );
+    try {
+      await downloadMedia(targetUrl, filename, { referer: "https://fapello.com/" });
+    } catch (err) {
+      console.error("Gagal mengunduh media:", err);
+      alert("Gagal mengunduh: " + err.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -66,7 +91,7 @@ export default function FapelloDetailPage() {
           <p className="text-gray-400 text-sm mb-6">{error || "Model tidak ditemukan."}</p>
           <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition-all shadow-lg shadow-rose-600/30"
+            className="px-6 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition-all shadow-lg shadow-rose-600/30 cursor-pointer"
           >
             Kembali
           </button>
@@ -82,7 +107,7 @@ export default function FapelloDetailPage() {
         <div className="flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10 hover:border-rose-500/40 text-gray-300 hover:text-white text-xs sm:text-sm font-semibold transition-all group shadow-md"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10 hover:border-rose-500/40 text-gray-300 hover:text-white text-xs sm:text-sm font-semibold transition-all group shadow-md cursor-pointer"
           >
             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
             Kembali ke Daftar Model
@@ -123,13 +148,29 @@ export default function FapelloDetailPage() {
 
             {/* Info */}
             <div className="flex-1 text-center sm:text-left space-y-3">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold uppercase tracking-wider">
-                <Sparkles size={12} className="text-rose-400" /> Featured Model
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                  <Sparkles size={12} className="text-rose-400" /> Featured Model
+                </div>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-display">
-                {data?.name}
-              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-display">
+                  {data?.name}
+                </h1>
+                <div className="flex justify-center sm:justify-end">
+                  <FavoriteButton
+                    item={{
+                      id: `fapello_${data.slug}`,
+                      title: data.name || data.slug,
+                      cover_url: data.avatar || data.posts?.[0]?.cover_url,
+                      link: `/fapello/${encodeURIComponent(data.slug)}`,
+                      type: "Creator / Model",
+                      source: "Fapello",
+                    }}
+                  />
+                </div>
+              </div>
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2 text-xs">
                 <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full glass-card border border-rose-500/30 text-rose-300 font-semibold shadow-md">
@@ -178,15 +219,9 @@ export default function FapelloDetailPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-3">
                     <span className="text-[11px] font-bold text-white">Media #{i + 1}</span>
                     <div className="p-1.5 rounded-full bg-rose-600 text-white shadow-lg">
-                      <Maximize2 size={12} />
+                      {post.is_video ? <Play size={12} className="fill-white" /> : <Maximize2 size={12} />}
                     </div>
                   </div>
-
-                  {post.is_video && (
-                    <div className="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-md rounded-full p-1.5 border border-white/10">
-                      <Play size={12} className="text-rose-400 fill-rose-400" />
-                    </div>
-                  )}
                 </motion.div>
               ))}
             </div>
@@ -194,7 +229,7 @@ export default function FapelloDetailPage() {
         </div>
       </div>
 
-      {/* Lightbox / Media Viewer */}
+      {/* Lightbox Modal */}
       <AnimatePresence>
         {selectedMedia && (
           <motion.div
@@ -209,7 +244,7 @@ export default function FapelloDetailPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <button
-                className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-all"
+                className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-all cursor-pointer"
                 onClick={() => setSelectedMedia(null)}
               >
                 <X size={20} />
@@ -246,18 +281,35 @@ export default function FapelloDetailPage() {
                 </div>
               ) : (
                 <img
-                  src={selectedMedia.cover_url}
+                  src={selectedMedia.full_url || selectedMedia.cover_url}
                   alt="Fullscreen view"
                   className="max-h-[82vh] w-auto object-contain rounded-2xl shadow-2xl border border-white/10"
                 />
               )}
 
-              <div className="mt-4 flex gap-3">
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                {!selectedMedia.is_video && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadMedia(selectedMedia)}
+                    disabled={downloading}
+                    className="px-4 py-2 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-rose-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-lg disabled:opacity-50"
+                    title="Unduh foto ini"
+                  >
+                    {downloading ? (
+                      <Loader2 size={14} className="animate-spin text-cyan-400" />
+                    ) : (
+                      <Download size={14} className="text-cyan-400" />
+                    )}
+                    <span>Unduh Foto</span>
+                  </button>
+                )}
+
                 <a
-                  href={selectedMedia.href || selectedMedia.cover_url}
+                  href={selectedMedia.href || selectedMedia.full_url || selectedMedia.cover_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-rose-300 flex items-center gap-1.5 transition-all"
+                  className="px-4 py-2 rounded-full glass-card hover:border-rose-500/50 text-xs font-semibold text-gray-300 hover:text-white flex items-center gap-1.5 transition-all"
                 >
                   <ExternalLink size={14} /> Buka di Tab Baru
                 </a>

@@ -925,11 +925,66 @@ app.get("/api/coomer/media", async (req, res) => {
   }
 });
 
-// Backwards compatibility for old Fapello links
-app.get("/api/fapello/list", (req, res) => res.redirect(301, `/api/coomer/creators?${new URLSearchParams(req.query).toString()}`));
-app.get(/^\/api\/fapello\/model\/(.*)$/, (req, res) => {
-  const slug = req.params[0];
-  res.redirect(301, `/api/coomer/creator/onlyfans/${slug}/posts`);
+// ==========================================
+// FAPELLO.COM API ROUTES
+// ==========================================
+app.get("/api/fapello/list", async (req, res) => {
+  try {
+    const { page = 1, search = "", sort = "trending" } = req.query;
+    const { scrapeFapelloList } = await import("./_lib/scraperFapello.js");
+    const list = await scrapeFapelloList({
+      page: parseInt(page) || 1,
+      search: search ? String(search).trim() : "",
+      sort: sort || "trending",
+    });
+
+    const mapped = list.map((item) => ({
+      ...item,
+      cover_url: item.cover_url
+        ? `/api/proxy?url=${encodeURIComponent(item.cover_url)}&referer=${encodeURIComponent("https://fapello.com/")}`
+        : "",
+    }));
+
+    res.json({ success: true, page: parseInt(page) || 1, models: mapped });
+  } catch (error) {
+    console.error("[Fapello List Error]", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get(/^\/api\/fapello\/model\/(.*)$/, async (req, res) => {
+  try {
+    const slug = req.params[0];
+    if (!slug) return res.status(400).json({ success: false, error: "Missing model slug" });
+
+    const { scrapeFapelloModel } = await import("./_lib/scraperFapello.js");
+    const data = await scrapeFapelloModel(slug);
+
+    const mappedPosts = (data.posts || []).map((post) => ({
+      ...post,
+      cover_url: post.cover_url
+        ? `/api/proxy?url=${encodeURIComponent(post.cover_url)}&referer=${encodeURIComponent("https://fapello.com/")}`
+        : "",
+      full_url: post.full_url
+        ? `/api/proxy?url=${encodeURIComponent(post.full_url)}&referer=${encodeURIComponent("https://fapello.com/")}`
+        : (post.cover_url ? `/api/proxy?url=${encodeURIComponent(post.cover_url)}&referer=${encodeURIComponent("https://fapello.com/")}` : ""),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        ...data,
+        avatar: data.avatar
+          ? `/api/proxy?url=${encodeURIComponent(data.avatar)}&referer=${encodeURIComponent("https://fapello.com/")}`
+          : "",
+        posts: mappedPosts,
+        media: mappedPosts,
+      },
+    });
+  } catch (error) {
+    console.error("[Fapello Model Error]", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // ==========================================
